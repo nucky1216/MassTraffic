@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "MassEntitySpawnDataGeneratorBase.h"
+#include "ZoneGraphTypes.h"
+#include "ZoneGraphData.h"
 #include "VehiclePointsGenerator.generated.h"
 
 /**
@@ -18,6 +20,14 @@ class TRAFFICSIM_API UVehiclePointsGenerator : public UMassEntitySpawnDataGenera
 	UPROPERTY(EditAnywhere)
 	FZoneGraphTagFilter LaneFilter;
 
+	UPROPERTY(EditAnywhere)
+	AZoneGraphData* ZoneGraphData;
+
+	UPROPERTY(EditAnywhere)
+	float MinGapBetweenSpaces;
+
+	UPROPERTY(EditAnywhere)
+	float MaxGapBetweenSpaces;
 
 	virtual void Generate(UObject& QueryOwner, TConstArrayView<FMassSpawnedEntityType> EntityTypes, int32 Count, FFinishedGeneratingSpawnDataSignature& FinishedGeneratingSpawnPointsDelegate) const override;
 
