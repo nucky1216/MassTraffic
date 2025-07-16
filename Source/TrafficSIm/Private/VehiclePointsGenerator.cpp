@@ -26,6 +26,12 @@ void UVehiclePointsGenerator::Generate(UObject& QueryOwner, TConstArrayView<FMas
 
         //TO-DO:: tagµÄ¹ýÂË
         const FZoneGraphTagMask& LaneTags = ZoneGraphStorage.Lanes[LaneIdx].Tags;
+		if (!LaneFilter.Pass(LaneTags))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Lane %d is filtered out by tag mask:%u"), LaneIdx,LaneTags.GetValue());
+			continue;
+		}
+
 
 		for (float Distance = FMath::RandRange(MinGapBetweenSpaces, MaxGapBetweenSpaces); Distance < LaneLength; /*see end of block*/)
 		{
