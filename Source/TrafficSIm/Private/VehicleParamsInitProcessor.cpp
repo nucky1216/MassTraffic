@@ -18,19 +18,7 @@ UVehicleParamsInitProcessor::UVehicleParamsInitProcessor():EntityQuery(*this)
 
 void UVehicleParamsInitProcessor::Initialize(UObject& Owner)
 {
-	World = GetWorld();
-	ZoneGraphSubsystem = UWorld::GetSubsystem<UZoneGraphSubsystem>(World);
-	
-	for(TActorIterator<AZoneGraphData> It(World); It; ++It)
-	{
-		const AZoneGraphData* ZoneGraphData = *It;
-		if (ZoneGraphData && ZoneGraphData->IsValidLowLevel())
-		{
-			ZoneGraphStorage = &ZoneGraphData->GetStorage();
-			return;
-		}
-	}
-	UE_LOG(LogTemp, Error, TEXT("No valid ZoneGraphData found in the world!"));
+
 }
 
 void UVehicleParamsInitProcessor::ConfigureQueries()
@@ -43,6 +31,7 @@ void UVehicleParamsInitProcessor::Execute(FMassEntityManager& EntityManager, FMa
 {
 	UE_LOG(LogTemp,Log,TEXT("VehicleInitProcessor.."));
 
+
 	EntityQuery.ForEachEntityChunk(EntityManager, Context, [this](FMassExecutionContext& Context)
 	{
 	    const int32 EntityCount = Context.GetNumEntities();
@@ -50,10 +39,10 @@ void UVehicleParamsInitProcessor::Execute(FMassEntityManager& EntityManager, FMa
 		const TArrayView<FTransformFragment> TransformList = Context.GetMutableFragmentView<FTransformFragment>();
 		const TArrayView<FMassVehicleMovementFragment> VehicleMovementList = Context.GetMutableFragmentView<FMassVehicleMovementFragment>();
 
-		if (!ZoneGraphStorage)
+		UTrafficSimSubsystem* TrafficSimSubsystem = UWorld::GetSubsystem<UTrafficSimSubsystem>(Context.GetWorld());
+		if (!TrafficSimSubsystem)
 		{
-			UE_LOG(LogTemp, Error, TEXT("ZoneGraphStorage is not initialized!"));
-			return;
+			UE_LOG(LogTemp, Warning, TEXT("Failed to find TrafficSimSubsystem!"));
 		}
 
 		for (int32 EntityIndex = 0; EntityIndex < EntityCount; ++EntityIndex)
@@ -62,40 +51,16 @@ void UVehicleParamsInitProcessor::Execute(FMassEntityManager& EntityManager, FMa
 			FVector SpawnLocation = TransformList[EntityIndex].GetTransform().GetLocation();
 
 			FZoneGraphLaneLocation LaneLocation;
-			float DistSq;
+
 
 			FBox QueryBox = FBox::BuildAABB(SpawnLocation, VehicleMovement.QueryExtent);
-			const bool bFound = UE::ZoneGraph::Query::FindNearestLane(
-				*ZoneGraphStorage, QueryBox,VehicleMovement.LaneFilter,LaneLocation, DistSq);
 
-			if (!bFound)
-			{
-				UE_LOG(LogTemp, Warning, TEXT("No suitable lane found for entity %d at location %s"), EntityIndex, *SpawnLocation.ToString());
-				continue;
-			}
+			TrafficSimSubsystem->FindEntityLaneByQuery(QueryBox, VehicleMovement.LaneFilter, LaneLocation);
 
 			VehicleMovement.LaneLocation = LaneLocation;
 			
-			const FZoneLaneData& LaneData = ZoneGraphStorage->Lanes[LaneLocation.LaneHandle.Index];
-			if(LaneData.GetLinkCount()!= 0)
-			{
-				int32 FirstLink=LaneData.LinksBegin;
-				int32 LastLink = LaneData.LinksEnd;
 
-				int32 LinkCount = LaneData.GetLinkCount();
-				UE_LOG(LogTemp, Log, TEXT("Entity %d FirstLink:%d LastLink:%d LinkCount:%d"), Context.GetEntity(EntityIndex).SerialNumber,FirstLink,LastLink,LinkCount);
-				for (int32 i = FirstLink; i <FirstLink+ LinkCount; i++)
-				{
-					FZoneLaneLinkData LinkData = ZoneGraphStorage->LaneLinks[i];
-
-					UE_LOG(LogTemp, Log, TEXT("------- Lane %d has link to lane %d with type %d and flags %d"),
-						 LaneLocation.LaneHandle.Index, LinkData.DestLaneIndex, (int32)LinkData.Type, (int32)LinkData.GetFlags());
-				}
-			}
-			else
-			{
-				
-			}
+			VehicleMovement.NextLane = TrafficSimSubsystem->ChooseNextLane(LaneLocation);
 
 		}
 	});

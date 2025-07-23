@@ -6,6 +6,7 @@
 #include "MassProcessor.h"
 #include "ZoneGraphSubsystem.h"
 #include "ZoneGraphData.h"
+#include "TrafficSimSubsystem.h"
 #include "VehicleParamsInitProcessor.generated.h"
 
 /**
@@ -24,8 +25,6 @@ public:
 
 private:
 	FMassEntityQuery EntityQuery;
-	const UWorld* World ;
-	const UZoneGraphSubsystem* ZoneGraphSubsystem ;
-	const FZoneGraphStorage* ZoneGraphStorage;
+
 	
 };

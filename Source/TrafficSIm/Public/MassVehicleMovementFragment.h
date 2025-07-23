@@ -15,7 +15,7 @@ struct TRAFFICSIM_API FMassVehicleMovementFragment : public FMassFragment
 
     /** 下一条 lane（用于路径规划） */
     UPROPERTY()
-    FZoneGraphLaneHandle NextLane;
+    int32 NextLane;
 
     /** 在当前 lane 上的位置 [0,1] */
     UPROPERTY()
