@@ -39,6 +39,7 @@ public class TrafficSIm : ModuleRules
 				"Slate",
 				"SlateCore",
                 "StructUtils",
+				"MassEntity",
                 "MassSpawner",
 				"ZoneGraph",
                 "MassCommon",

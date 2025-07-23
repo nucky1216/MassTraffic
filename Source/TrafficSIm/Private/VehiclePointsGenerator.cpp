@@ -5,6 +5,7 @@
 #include "EngineUtils.h"
 #include "ZoneGraphSubsystem.h"
 #include "MassSpawnLocationProcessor.h"
+#include "VehicleParamsInitProcessor.h"
 #include "ZoneGraphQuery.h"
 
 void UVehiclePointsGenerator::Generate(UObject& QueryOwner, TConstArrayView<FMassSpawnedEntityType> EntityTypes, int32 Count, FFinishedGeneratingSpawnDataSignature& FinishedGeneratingSpawnPointsDelegate) const
@@ -19,16 +20,20 @@ void UVehiclePointsGenerator::Generate(UObject& QueryOwner, TConstArrayView<FMas
 
 	TArray<FZoneGraphLaneLocation> SpawnLocations;
 
-    for (int LaneIdx = 0; LaneIdx < ZoneGraphStorage.Lanes.Num(); LaneIdx++)
+    for (int32 LaneIdx = 0; LaneIdx < ZoneGraphStorage.Lanes.Num(); LaneIdx++)
     {
 		float LaneLength = 0.0;
 		UE::ZoneGraph::Query::GetLaneLength(ZoneGraphStorage, LaneIdx, LaneLength);
+
+		//debug
+		/*FZoneLaneData Lane = ZoneGraphStorage.Lanes[LaneIdx];
+		UE_LOG(LogTemp, Log, TEXT("Lane %d: LinkBegin:%d, LinkEnd:%d"), LaneIdx, Lane.LinksBegin, Lane.LinksEnd);*/
 
         //TO-DO:: tag的过滤
         const FZoneGraphTagMask& LaneTags = ZoneGraphStorage.Lanes[LaneIdx].Tags;
 		if (!LaneFilter.Pass(LaneTags))
 		{
-			UE_LOG(LogTemp, Warning, TEXT("Lane %d is filtered out by tag mask:%u"), LaneIdx,LaneTags.GetValue());
+			//UE_LOG(LogTemp, Warning, TEXT("Lane %d is filtered out by tag mask:%u"), LaneIdx,LaneTags.GetValue());
 			continue;
 		}
 
@@ -58,6 +63,10 @@ void UVehiclePointsGenerator::Generate(UObject& QueryOwner, TConstArrayView<FMas
 	for(FMassEntitySpawnDataGeneratorResult& Result:Results)
 	{
 		Result.SpawnDataProcessor = UMassSpawnLocationProcessor::StaticClass();
+
+		//添加初始化处理器
+		Result.PostSpawnProcessors.Add(UVehicleParamsInitProcessor::StaticClass());
+
 		Result.SpawnData.InitializeAs<FMassTransformsSpawnData>();
 		FMassTransformsSpawnData& TransformsSpawnData = Result.SpawnData.GetMutable<FMassTransformsSpawnData>();
 
