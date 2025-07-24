@@ -26,4 +26,10 @@ struct TRAFFICSIM_API FMassVehicleMovementFragment : public FMassFragment
 
 	UPROPERTY(EditAnywhere, Category = "Initialize")
 	FZoneGraphTagFilter LaneFilter;
+
+	UPROPERTY(EditAnywhere, Category = "Initialize")
+    float MaxGap = 400.f;
+
+	UPROPERTY(EditAnywhere, Category = "Initialize")
+    float MinGap = 100.f;
 };

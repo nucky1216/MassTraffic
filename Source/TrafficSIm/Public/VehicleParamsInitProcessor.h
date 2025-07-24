@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "MassProcessor.h"
+#include "MassObserverProcessor.h"
 #include "ZoneGraphSubsystem.h"
 #include "ZoneGraphData.h"
 #include "TrafficSimSubsystem.h"
@@ -13,7 +14,7 @@
  * 
  */
 UCLASS()
-class TRAFFICSIM_API UVehicleParamsInitProcessor : public UMassProcessor
+class TRAFFICSIM_API UVehicleParamsInitProcessor : public UMassObserverProcessor
 {
 	GENERATED_BODY()
 

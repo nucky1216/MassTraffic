@@ -6,6 +6,7 @@
 #include "ZoneGraphTypes.h"
 #include "Subsystems/WorldSubsystem.h"
 #include "ZoneGraphSubsystem.h"
+#include "MassEntityConfigAsset.h"
 #include "TrafficSimSubsystem.generated.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogTrafficSim, Log, All);
@@ -24,6 +25,9 @@ public:
 	void FindEntityLaneByQuery(FBox QueryBox,FZoneGraphTagFilter& TagFilter,FZoneGraphLaneLocation& OutLaneLocation);
 	void InitOnPostLoadMap(UWorld* LoadedWorld,const UWorld::InitializationValues IVS);
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+
+	UFUNCTION(BlueprintCallable, Category = "TrafficSim")
+	void SpawnMassEntities(int32 NumEntities,int32 TargetLane, UMassEntityConfigAsset* EntityConfigAsset);
 
 	const UWorld* World = nullptr;
 	const UZoneGraphSubsystem* ZoneGraphSubsystem = nullptr;

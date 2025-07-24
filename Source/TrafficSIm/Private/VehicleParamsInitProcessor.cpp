@@ -10,10 +10,8 @@
 
 UVehicleParamsInitProcessor::UVehicleParamsInitProcessor():EntityQuery(*this)
 {
-	ExecutionOrder.ExecuteInGroup = FName(TEXT("VehicleMovement"));
-	//ExecutionOrder.ExecuteBefore.Add(FName(TEXT("VehicleCollision")));
-	//ExecutionOrder.ExecuteAfter.Add(FName(TEXT("VehicleSpawn")));
-	bAutoRegisterWithProcessingPhases = false;
+	ObservedType = FMassVehicleMovementFragment::StaticStruct();
+	Operation = EMassObservedOperation::Add;
 }
 
 void UVehicleParamsInitProcessor::Initialize(UObject& Owner)
@@ -59,6 +57,7 @@ void UVehicleParamsInitProcessor::Execute(FMassEntityManager& EntityManager, FMa
 
 			VehicleMovement.LaneLocation = LaneLocation;
 			
+			//UE_LOG(LogTemp, Log, TEXT("Found Lane: %s"), *LaneLocation.LaneHandle.ToString());
 
 			VehicleMovement.NextLane = TrafficSimSubsystem->ChooseNextLane(LaneLocation);
 

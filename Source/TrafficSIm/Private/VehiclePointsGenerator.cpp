@@ -65,7 +65,7 @@ void UVehiclePointsGenerator::Generate(UObject& QueryOwner, TConstArrayView<FMas
 		Result.SpawnDataProcessor = UMassSpawnLocationProcessor::StaticClass();
 
 		//添加初始化处理器
-		Result.PostSpawnProcessors.Add(UVehicleParamsInitProcessor::StaticClass());
+		//Result.PostSpawnProcessors.Add(UVehicleParamsInitProcessor::StaticClass());
 
 		Result.SpawnData.InitializeAs<FMassTransformsSpawnData>();
 		FMassTransformsSpawnData& TransformsSpawnData = Result.SpawnData.GetMutable<FMassTransformsSpawnData>();
