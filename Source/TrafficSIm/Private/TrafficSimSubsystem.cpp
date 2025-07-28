@@ -3,8 +3,10 @@
 
 #include "TrafficSimSubsystem.h"
 #include "EngineUtils.h"
+#include "MassCommonFragments.h"
 #include "ZoneGraphQuery.h"
 #include "MassVehicleMovementFragment.h"
+#include "MassSpawnerSubsystem.h"
 #include "MassEntitySubsystem.h"
 
 DEFINE_LOG_CATEGORY(LogTrafficSim);
@@ -108,8 +110,7 @@ void UTrafficSimSubsystem::SpawnMassEntities(int32 NumEntities, int32 TargetLane
 
 
 	int32 LaneMid = (BeginLane + EndLane) / 2;
-	UE_LOG(LogTrafficSim, Log, TEXT("TargetLane:%d, BeginLane:%d, EndLane:%d, LaneMid:%d"), 
-		TargetLane, BeginLane, EndLane, LaneMid);
+	
 	if (TargetLane > LaneMid)
 	{
 		BeginLane = LaneMid+1;
@@ -117,7 +118,8 @@ void UTrafficSimSubsystem::SpawnMassEntities(int32 NumEntities, int32 TargetLane
 	else {
 		EndLane = LaneMid;
 	}
-
+	UE_LOG(LogTrafficSim, Log, TEXT("TargetLane:%d, BeginLane:%d, EndLane:%d, LaneMid:%d"),
+		TargetLane, BeginLane, EndLane, LaneMid);
 	//在道路一侧生成车辆实体
 
 	TArray<float> LaneLenths;
@@ -133,16 +135,69 @@ void UTrafficSimSubsystem::SpawnMassEntities(int32 NumEntities, int32 TargetLane
 		LaneOffsets.Add(FMath::RandRange(MinGap,MaxGap));
 	}
 	//采样生成位置
-	for (int32 i = 0; i < LaneLenths.Num(); i++)
+	TArray<FVector> SpawnLocations;
+	for (int32 i = 0,SpawnCount=0; SpawnCount < NumEntities; )
 	{
 		float offset = LaneOffsets[i];
-		FZoneGraphLaneLocation LaneLocation;
-		if(offset>0)
+		
+		if(offset>0 && offset<LaneLenths[i])
 		{
-			UE::ZoneGraph::Query::CalculateLocationAlongLane(*ZoneGraphStorage, BeginLane, offset, LaneLocation);
+			FZoneGraphLaneLocation LaneLocation;
+			UE::ZoneGraph::Query::CalculateLocationAlongLane(*ZoneGraphStorage, BeginLane+i, offset, LaneLocation);
 
+			LaneOffsets[i] = offset + FMath::RandRange(MinGap, MaxGap);
+
+			if(LaneOffsets[i]>=LaneLenths[i])
+			{
+				LaneOffsets[i] =-1.f;
+			}
+			SpawnLocations.Add(LaneLocation.Position);
+			DrawDebugPoint(World, LaneLocation.Position, 10.0f, FColor::Red, false, 5.0f);
+			SpawnCount++;
 		}
+
+		bool NoSpace = true;
+		for(int32 j=0;j<LaneOffsets.Num();++j)
+		{
+			if(LaneOffsets[j]>0.f)
+			{
+				NoSpace = false;
+				break;
+			}
+		}
+		if(NoSpace)
+		{
+			UE_LOG(LogTrafficSim, Warning, TEXT("No space left to spawn entities in the selected lanes."));
+			break;
+		}
+
+		i = (i + 1) % (LaneOffsets.Num());
 	}
+
+	//生成实体
+	UMassSpawnerSubsystem* SpawnerSubsystem = UWorld::GetSubsystem<UMassSpawnerSubsystem>(World);
+	if (!SpawnerSubsystem)
+	{
+		UE_LOG(LogTrafficSim, Error, TEXT("Mass Spawner Subsystem is not available! Cannot spawn entities."));
+		return;
+	}
+	TArray<FMassEntityHandle> SpawnedEntities;
+	SpawnerSubsystem->SpawnEntities(Template, SpawnLocations.Num(), SpawnedEntities);
+
+	for(int32 i=0;i<SpawnedEntities.Num(); ++i)
+	{
+		FMassEntityHandle Entity = SpawnedEntities[i];
+		FVector SpawnPos = SpawnLocations[i];
+
+		FTransformFragment LocationFragment;
+		LocationFragment.SetTransform(FTransform(SpawnPos));
+
+		TArray<FInstancedStruct> Fragments;
+		Fragments.Add(FInstancedStruct::Make(LocationFragment));
+
+		EntitySubsystem->SetEntityFragmentsValues(Entity, Fragments);
+	}
+
 }
 
 void UTrafficSimSubsystem::InitOnPostLoadMap(UWorld* LoadedWorld, const UWorld::InitializationValues IVS)
