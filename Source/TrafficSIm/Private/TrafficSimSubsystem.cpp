@@ -7,7 +7,11 @@
 #include "ZoneGraphQuery.h"
 #include "MassVehicleMovementFragment.h"
 #include "MassSpawnerSubsystem.h"
+#include "MassSpawnLocationProcessor.h"
 #include "MassEntitySubsystem.h"
+#include "MassEntitySpawnDataGeneratorBase.h"
+#include "VehicleDeletorProcessor.h"
+#include "MassExecutor.h"
 
 DEFINE_LOG_CATEGORY(LogTrafficSim);
 
@@ -174,29 +178,52 @@ void UTrafficSimSubsystem::SpawnMassEntities(int32 NumEntities, int32 TargetLane
 		i = (i + 1) % (LaneOffsets.Num());
 	}
 
-	//生成实体
-	UMassSpawnerSubsystem* SpawnerSubsystem = UWorld::GetSubsystem<UMassSpawnerSubsystem>(World);
-	if (!SpawnerSubsystem)
+	//准备生成数据
+
+	// 1. 获取模板 ID
+	const FMassEntityTemplate& EntityTemplate = EntityConfigAsset->GetOrCreateEntityTemplate(*World);
+	if (!EntityTemplate.IsValid())
 	{
-		UE_LOG(LogTrafficSim, Error, TEXT("Mass Spawner Subsystem is not available! Cannot spawn entities."));
+		UE_LOG(LogTrafficSim, Error, TEXT("Invalid EntityTemplate"));
 		return;
 	}
-	TArray<FMassEntityHandle> SpawnedEntities;
-	SpawnerSubsystem->SpawnEntities(Template, SpawnLocations.Num(), SpawnedEntities);
 
-	for(int32 i=0;i<SpawnedEntities.Num(); ++i)
+	// 2. 构建批量 SpawnData
+	FInstancedStruct SpawnData;
+	SpawnData.InitializeAs<FMassTransformsSpawnData>();
+	FMassTransformsSpawnData& Transforms = SpawnData.GetMutable<FMassTransformsSpawnData>();
+
+	Transforms.Transforms.Reserve(SpawnLocations.Num());
+	for (const FVector& Loc : SpawnLocations)
 	{
-		FMassEntityHandle Entity = SpawnedEntities[i];
-		FVector SpawnPos = SpawnLocations[i];
-
-		FTransformFragment LocationFragment;
-		LocationFragment.SetTransform(FTransform(SpawnPos));
-
-		TArray<FInstancedStruct> Fragments;
-		Fragments.Add(FInstancedStruct::Make(LocationFragment));
-
-		EntitySubsystem->SetEntityFragmentsValues(Entity, Fragments);
+		FTransform& Transform = Transforms.Transforms.AddDefaulted_GetRef();
+		Transform.SetLocation(Loc);
 	}
+
+	// 3. 调用批量 Spawn
+	UMassSpawnerSubsystem* SpawnerSubsystem = UWorld::GetSubsystem<UMassSpawnerSubsystem>(World);
+	TArray<FMassEntityHandle> OutEntities;
+	SpawnerSubsystem->SpawnEntities(
+		EntityTemplate.GetTemplateID(),
+		SpawnLocations.Num(),
+		SpawnData,
+		UMassSpawnLocationProcessor::StaticClass(), // 和 MassSpawner 一致
+		OutEntities);
+
+
+}
+
+void UTrafficSimSubsystem::DeleteMassEntities(int32 TargeLaneIndex)
+{
+	UMassEntitySubsystem* EntitySubsystem = UWorld::GetSubsystem<UMassEntitySubsystem>(World);
+	if (!EntitySubsystem) return;
+
+	UVehicleDeletorProcessor* DeleteProcessor = NewObject<UVehicleDeletorProcessor>();
+	DeleteProcessor->LaneToDelete = TargeLaneIndex;
+
+	FMassEntityManager& EntityManager = EntitySubsystem->GetMutableEntityManager();
+	FMassProcessingContext ProcessingContext(EntityManager, 0.f); // DeltaSeconds = 0
+	UE::Mass::Executor::Run(*DeleteProcessor, ProcessingContext);
 
 }
 

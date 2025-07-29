@@ -29,6 +29,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "TrafficSim")
 	void SpawnMassEntities(int32 NumEntities,int32 TargetLane, UMassEntityConfigAsset* EntityConfigAsset);
 
+	UFUNCTION(BlueprintCallable, Category = "TrafficSim")
+	void DeleteMassEntities(int32 TargeLaneIndex);
+
 	const UWorld* World = nullptr;
 	const UZoneGraphSubsystem* ZoneGraphSubsystem = nullptr;
 	const FZoneGraphStorage* ZoneGraphStorage = nullptr;

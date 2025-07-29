@@ -1,0 +1,27 @@
+// Fill out your copyright notice in the Description page of Project Settings.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "MassProcessor.h"
+#include "VehicleDeletorProcessor.generated.h"
+
+/**
+ * 
+ */
+UCLASS()
+class TRAFFICSIM_API UVehicleDeletorProcessor : public UMassProcessor
+{
+	GENERATED_BODY()
+public:
+	UVehicleDeletorProcessor();
+	virtual void Initialize(UObject& Owner) override;
+	virtual void ConfigureQueries() override;
+	virtual void Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context) override;
+
+	int32 LaneToDelete = -1;
+
+private:
+	FMassEntityQuery EntityQuery;
+
+};

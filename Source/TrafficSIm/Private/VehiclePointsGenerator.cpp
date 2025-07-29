@@ -70,11 +70,11 @@ void UVehiclePointsGenerator::Generate(UObject& QueryOwner, TConstArrayView<FMas
 		Result.SpawnData.InitializeAs<FMassTransformsSpawnData>();
 		FMassTransformsSpawnData& TransformsSpawnData = Result.SpawnData.GetMutable<FMassTransformsSpawnData>();
 
-		TransformsSpawnData.Transforms.Reserve(SpawnLocations.Num());
+		TransformsSpawnData.Transforms.Reserve(Result.NumEntities);
 
 		int32 SpawnedCount = 0;
 
-		for(int32 LocationIdx = 0; LocationIdx < SpawnLocations.Num() && SpawnedCount < Count; ++LocationIdx)
+		for(int32 LocationIdx = 0; LocationIdx < Result.NumEntities && SpawnedCount < Count; ++LocationIdx)
 		{
 			const FZoneGraphLaneLocation& LaneLocation = SpawnLocations[LocationIdx];
 			FTransform Transform;
