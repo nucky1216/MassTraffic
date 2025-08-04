@@ -20,6 +20,8 @@ void UVehiclePointsGenerator::Generate(UObject& QueryOwner, TConstArrayView<FMas
 
 	TArray<FZoneGraphLaneLocation> SpawnLocations;
 
+	SpawnLocations.Reserve(Count);
+
     for (int32 LaneIdx = 0; LaneIdx < ZoneGraphStorage.Lanes.Num(); LaneIdx++)
     {
 		float LaneLength = 0.0;
@@ -74,7 +76,7 @@ void UVehiclePointsGenerator::Generate(UObject& QueryOwner, TConstArrayView<FMas
 
 		int32 SpawnedCount = 0;
 
-		for(int32 LocationIdx = 0; LocationIdx < Result.NumEntities && SpawnedCount < Count; ++LocationIdx)
+		for(int32 LocationIdx = 0; LocationIdx < Result.NumEntities && SpawnedCount < SpawnLocations.Num(); ++LocationIdx)
 		{
 			const FZoneGraphLaneLocation& LaneLocation = SpawnLocations[LocationIdx];
 			FTransform Transform;

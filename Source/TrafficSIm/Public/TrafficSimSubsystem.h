@@ -32,6 +32,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "TrafficSim")
 	void DeleteMassEntities(int32 TargeLaneIndex);
 
+	//UFUNCTION(BlueprintCallable, Category = "TrafficSim")
+	bool SwitchToNextLane(FZoneGraphLaneLocation& LaneLocation, float NewDist);
+
 	const UWorld* World = nullptr;
 	const UZoneGraphSubsystem* ZoneGraphSubsystem = nullptr;
 	const FZoneGraphStorage* ZoneGraphStorage = nullptr;

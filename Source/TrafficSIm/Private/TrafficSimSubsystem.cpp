@@ -61,7 +61,6 @@ void UTrafficSimSubsystem::FindEntityLaneByQuery(FBox QueryBox, FZoneGraphTagFil
 
 }
 
-
 void UTrafficSimSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
@@ -225,6 +224,21 @@ void UTrafficSimSubsystem::DeleteMassEntities(int32 TargeLaneIndex)
 	FMassProcessingContext ProcessingContext(EntityManager, 0.f); // DeltaSeconds = 0
 	UE::Mass::Executor::Run(*DeleteProcessor, ProcessingContext);
 
+}
+
+bool UTrafficSimSubsystem::SwitchToNextLane(FZoneGraphLaneLocation& LaneLocation, float NewDist)
+{
+	int NextIndex = ChooseNextLane(LaneLocation);
+
+	if(NextIndex < 0)
+	{
+		UE_LOG(LogTrafficSim, Warning, TEXT("No next lane found for current lane %d."), LaneLocation.LaneHandle.Index);
+		return false;
+	}
+	
+	UE::ZoneGraph::Query::CalculateLocationAlongLane(*ZoneGraphStorage, NextIndex, NewDist, LaneLocation);
+
+	return true;
 }
 
 void UTrafficSimSubsystem::InitOnPostLoadMap(UWorld* LoadedWorld, const UWorld::InitializationValues IVS)
