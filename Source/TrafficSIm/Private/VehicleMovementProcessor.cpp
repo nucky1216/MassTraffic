@@ -5,6 +5,7 @@
 #include "MassVehicleMovementFragment.h"
 #include "MassCommonFragments.h"
 #include "MassExecutionContext.h"
+#include "ZoneGraphQuery.h"
 
 UVehicleMovementProcessor::UVehicleMovementProcessor():EntityQuery(*this)
 {
@@ -14,6 +15,12 @@ UVehicleMovementProcessor::UVehicleMovementProcessor():EntityQuery(*this)
 
 void UVehicleMovementProcessor::Initialize(UObject& Owner)
 {
+	TrafficSimSubsystem = UWorld::GetSubsystem<UTrafficSimSubsystem>(GetWorld());
+	if(!TrafficSimSubsystem)
+	{
+		UE_LOG(LogTrafficSim, Error, TEXT("TrafficSimSubsystem is not initialized! Cannot execute VehicleMovementProcessor."));
+		return;
+	}
 }
 
 void UVehicleMovementProcessor::ConfigureQueries()
@@ -24,6 +31,8 @@ void UVehicleMovementProcessor::ConfigureQueries()
 
 void UVehicleMovementProcessor::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context)
 {
+	float DeltaTime = Context.GetDeltaTimeSeconds();
+
 	EntityQuery.ForEachEntityChunk(EntityManager, Context, [this](FMassExecutionContext& Context)
 	{
 		const int32 NumEntities = Context.GetNumEntities();
@@ -32,11 +41,18 @@ void UVehicleMovementProcessor::Execute(FMassEntityManager& EntityManager, FMass
 
 		for (int32 EntityIndex = 0; EntityIndex < NumEntities; ++EntityIndex)
 		{
-			FMassVehicleMovementFragment& VehicleMovementFragment = VehicleMovementFragments[EntityIndex];
+			const FMassVehicleMovementFragment& VehicleMovementFragment = VehicleMovementFragments[EntityIndex];
 			FTransformFragment& TransformFragment = TransformFragments[EntityIndex];
+
+			FZoneGraphLaneLocation CurLaneLocation = VehicleMovementFragment.LaneLocation;
+			float TargetSpeed = VehicleMovementFragment.TargetSpeed;
 			// Update the transform based on the vehicle movement fragment
-			TransformFragment.Transform.SetLocation(VehicleMovementFragment.CurrentLocation);
-			TransformFragment.Transform.SetRotation(VehicleMovementFragment.CurrentRotation.Quaternion());
+
+			float TargetDist = CurLaneLocation.DistanceAlongLane+;
+
+			
+			FZoneGraphLaneLocation LaneLocation;
+			UE::ZoneGraph::Query::CalculateLocationAlongLane(TrafficSimSubsystem->ZoneGraphStorage,LaneHandle,)
 		}
 		});
 }
