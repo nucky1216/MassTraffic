@@ -16,6 +16,22 @@
 DEFINE_LOG_CATEGORY(LogTrafficSim);
 
 
+void UTrafficSimSubsystem::InitializeLaneToEntitiesMap()
+{
+	//TODO:: 高效的结合Processor来管理车道车辆映射
+
+	LaneToEntitiesMap.Empty();
+	if(!ZoneGraphStorage)
+	{
+		UE_LOG(LogTrafficSim, Error, TEXT("ZoneGraphStorage is not initialized! Cannot initialize lane to entities map."));
+		return;
+	}
+	for (int32 i = 0;i< ZoneGraphStorage->Lanes.Num();i++)
+	{
+		LaneToEntitiesMap.Add(i, TArray<FLaneVehicle>());
+	}
+}
+
 int32 UTrafficSimSubsystem::ChooseNextLane(FZoneGraphLaneLocation CurLane) const
 {
 	const FZoneLaneData& CurLaneData = ZoneGraphStorage->Lanes[CurLane.LaneHandle.Index];
@@ -241,6 +257,28 @@ bool UTrafficSimSubsystem::SwitchToNextLane(FZoneGraphLaneLocation& LaneLocation
 	return true;
 }
 
+void UTrafficSimSubsystem::CollectLaneVehicles(FMassEntityHandle EntityHandle, const FMassVehicleMovementFragment& VehicleFragment)
+{
+	if(LaneToEntitiesMap.Num() == 0)
+	{
+		UE_LOG(LogTrafficSim, Error, TEXT("LaneToEntitiesMap is not initialized! Cannot collect lane vehicles."));
+		return;
+	}
+
+	int32 LaneIndex = VehicleFragment.LaneLocation.LaneHandle.Index;
+	
+	TArray<FLaneVehicle>* LaneVehicles=LaneToEntitiesMap.Find(LaneIndex);
+
+	if(!LaneVehicles)
+	{
+		UE_LOG(LogTrafficSim, Warning, TEXT("No vehicles found in lane %d."), LaneIndex);
+		return;
+	}
+	FLaneVehicle NewVehicle(EntityHandle, &VehicleFragment);
+	LaneVehicles->Add(NewVehicle);
+}
+
+
 void UTrafficSimSubsystem::InitOnPostLoadMap(UWorld* LoadedWorld, const UWorld::InitializationValues IVS)
 {
 	UE_LOG(LogTrafficSim, Log, TEXT("Post Init.."));
@@ -253,8 +291,10 @@ void UTrafficSimSubsystem::InitOnPostLoadMap(UWorld* LoadedWorld, const UWorld::
 		if (ZoneGraphData && ZoneGraphData->IsValidLowLevel())
 		{
 			ZoneGraphStorage = &ZoneGraphData->GetStorage();
+			InitializeLaneToEntitiesMap();
 			return;
 		}
 	}
+
 	UE_LOG(LogTemp, Error, TEXT("No valid ZoneGraphData found in the world!"));
 }

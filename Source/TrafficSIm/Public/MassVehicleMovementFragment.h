@@ -38,4 +38,9 @@ struct TRAFFICSIM_API FMassVehicleMovementFragment : public FMassFragment
 
     UPROPERTY(EditAnywhere, Category = "Initialize")
     float Accelaration = 100.f;
+    UPROPERTY(EditAnywhere, Category = "Initialize")
+    float Decelaration = 100.f;
+
+    UPROPERTY(EditAnywhere, Category = "Initialize")
+    float VehicleLength = 400.f;
 };

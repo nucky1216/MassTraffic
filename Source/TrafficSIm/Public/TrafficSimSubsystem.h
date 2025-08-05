@@ -7,6 +7,7 @@
 #include "Subsystems/WorldSubsystem.h"
 #include "ZoneGraphSubsystem.h"
 #include "MassEntityConfigAsset.h"
+#include "MassVehicleMovementFragment.h"
 #include "TrafficSimSubsystem.generated.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogTrafficSim, Log, All);
@@ -14,11 +15,25 @@ DECLARE_LOG_CATEGORY_EXTERN(LogTrafficSim, Log, All);
 /**
  * 
  */
+USTRUCT()
+struct FLaneVehicle
+{
+	GENERATED_BODY()
+
+	FMassEntityHandle EntityHandle;
+	const FMassVehicleMovementFragment *VehicleMovementFragment;
+
+};
+
 UCLASS()
 class TRAFFICSIM_API UTrafficSimSubsystem : public UWorldSubsystem
 {
 	GENERATED_BODY()
+
+private:
 	
+
+
 public:
 	int32 ChooseNextLane(FZoneGraphLaneLocation CurLane) const;
 
@@ -32,10 +47,17 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "TrafficSim")
 	void DeleteMassEntities(int32 TargeLaneIndex);
 
-	//UFUNCTION(BlueprintCallable, Category = "TrafficSim")
+
 	bool SwitchToNextLane(FZoneGraphLaneLocation& LaneLocation, float NewDist);
+
+
+	//laneVehicles
+	void InitializeLaneToEntitiesMap();
+	void CollectLaneVehicles(FMassEntityHandle EntityHandle,const FMassVehicleMovementFragment& VehicleFragment );
 
 	const UWorld* World = nullptr;
 	const UZoneGraphSubsystem* ZoneGraphSubsystem = nullptr;
 	const FZoneGraphStorage* ZoneGraphStorage = nullptr;
+
+	TMap<int32, TArray<FLaneVehicle>> LaneToEntitiesMap;
 };

@@ -9,6 +9,7 @@
 
 UVehicleMovementProcessor::UVehicleMovementProcessor():EntityQuery(*this)
 {
+	ExecutionOrder.ExecuteInGroup = FName(TEXT("TrafficSim"));
 	ExecutionOrder.ExecuteAfter.Add("VehicleParamsInitProcessor");
 	bAutoRegisterWithProcessingPhases = true;
 }
@@ -31,6 +32,7 @@ void UVehicleMovementProcessor::ConfigureQueries()
 
 void UVehicleMovementProcessor::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context)
 {
+	UE_LOG(LogTrafficSim, Log, TEXT("Executing VehicleMovementProcessor..."));
 	float DeltaTime = Context.GetDeltaTimeSeconds();
 	TArray<FMassEntityHandle> DestroyedEntities;
 
