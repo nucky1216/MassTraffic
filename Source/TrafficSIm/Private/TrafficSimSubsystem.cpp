@@ -32,14 +32,14 @@ void UTrafficSimSubsystem::InitializeLaneToEntitiesMap()
 	}
 }
 
-int32 UTrafficSimSubsystem::ChooseNextLane(FZoneGraphLaneLocation CurLane) const
+int32 UTrafficSimSubsystem::ChooseNextLane(FZoneGraphLaneLocation CurLane,TArray<int32>& NextLanes) const
 {
 	const FZoneLaneData& CurLaneData = ZoneGraphStorage->Lanes[CurLane.LaneHandle.Index];
 
 	int32 FirstLink = CurLaneData.LinksBegin;
 	int32 EndLink = CurLaneData.LinksEnd;
 
-	TArray<int32> CandidateLinks;
+	
 	for (int32 LinkIndex = FirstLink; LinkIndex < EndLink; ++LinkIndex)
 	{
 		const FZoneLaneLinkData& LaneLink = ZoneGraphStorage->LaneLinks[LinkIndex];
@@ -48,17 +48,18 @@ int32 UTrafficSimSubsystem::ChooseNextLane(FZoneGraphLaneLocation CurLane) const
 		//..
 		if(LaneLink.Type == EZoneLaneLinkType::Outgoing)
 		{
-			CandidateLinks.Add(LaneLink.DestLaneIndex);
+			NextLanes.Add(LaneLink.DestLaneIndex);
 		}
+
 	}
 
-	if (CandidateLinks.Num() == 0)
+	if (NextLanes.Num() == 0)
 	{
 		UE_LOG(LogTrafficSim, Warning, TEXT("Current lane:%d has no links, cannot choose next lane."), CurLane.LaneHandle.Index);
 		return -1;
 	}
 
-	int32 RandomIndex = CandidateLinks[FMath::RandHelper(CandidateLinks.Num())];
+	int32 RandomIndex = NextLanes[FMath::RandHelper(NextLanes.Num())];
 
 	return RandomIndex;
 }
@@ -242,9 +243,39 @@ void UTrafficSimSubsystem::DeleteMassEntities(int32 TargeLaneIndex)
 
 }
 
+void UTrafficSimSubsystem::PrintLaneVehicles(int32 TargetLaneIndex)
+{
+	if(LaneToEntitiesMap.Num() == 0)
+	{
+		UE_LOG(LogTrafficSim, Error, TEXT("LaneToEntitiesMap is not initialized! Cannot print lane vehicles."));
+		return;
+	}
+	TArray<FLaneVehicle>* LaneVehicles=LaneToEntitiesMap.Find(TargetLaneIndex);
+	if(!LaneVehicles)
+	{
+		UE_LOG(LogTrafficSim, Warning, TEXT("No vehicles found in lane %d."), TargetLaneIndex);
+		return;
+	}
+	UE_LOG(LogTrafficSim, Log, TEXT("Vehicles in lane %d:"), TargetLaneIndex);
+	for(const FLaneVehicle& LaneVehicle : *LaneVehicles)
+	{
+		if(LaneVehicle.VehicleMovementFragment)
+		{
+			UE_LOG(LogTrafficSim, Log, TEXT("Entity: %d, DistanceAlongLane: %.2f"),
+				LaneVehicle.EntityHandle.SerialNumber, LaneVehicle.VehicleMovementFragment->LaneLocation.DistanceAlongLane);
+		}
+		else
+		{
+			UE_LOG(LogTrafficSim, Warning, TEXT("Entity: %d has no valid VehicleMovementFragment."),
+				LaneVehicle.EntityHandle.SerialNumber);
+		}
+	}
+}
+
 bool UTrafficSimSubsystem::SwitchToNextLane(FZoneGraphLaneLocation& LaneLocation, float NewDist)
 {
-	int NextIndex = ChooseNextLane(LaneLocation);
+	TArray<int32> NextLanes;
+	int NextIndex = ChooseNextLane(LaneLocation, NextLanes);
 
 	if(NextIndex < 0)
 	{
@@ -255,6 +286,63 @@ bool UTrafficSimSubsystem::SwitchToNextLane(FZoneGraphLaneLocation& LaneLocation
 	UE::ZoneGraph::Query::CalculateLocationAlongLane(*ZoneGraphStorage, NextIndex, NewDist, LaneLocation);
 
 	return true;
+}
+
+bool UTrafficSimSubsystem::FindFrontVehicle(int32 LaneIndex, FMassEntityHandle CurVehicle, const FMassVehicleMovementFragment* FrontVehicle)
+{
+	TArray<FLaneVehicle>* LaneVehicles=LaneToEntitiesMap.Find(LaneIndex);
+	if(!LaneVehicles)
+	{
+		UE_LOG(LogTrafficSim, Warning, TEXT("No vehicles found in lane %d."), LaneIndex);
+		return false;
+	}
+
+	int32 VehicleNumInCurLane = LaneVehicles->Num();
+
+	int32 CurVehicleIndex = LaneVehicles->IndexOfByPredicate([CurVehicle](const FLaneVehicle& Vehicle) {
+		return Vehicle.EntityHandle == CurVehicle;
+		});
+
+	if(CurVehicleIndex==INDEX_NONE)
+	{
+		UE_LOG(LogTrafficSim, Warning, TEXT("Current vehicle not found in lane %d."), LaneIndex);
+		return false;
+	}
+
+	//当前车辆不是车道最后一辆车
+	if (CurVehicleIndex < VehicleNumInCurLane - 1)
+	{
+		FrontVehicle = (*LaneVehicles)[CurVehicleIndex + 1].VehicleMovementFragment;
+		return true;
+	}
+	
+	//当前车辆是车道最后一辆车，且下条车道有车辆
+	if(CurVehicleIndex == VehicleNumInCurLane - 1)
+	{
+		TArray<int32> NextLanes;
+		ChooseNextLane((*LaneVehicles)[CurVehicleIndex].VehicleMovementFragment->LaneLocation, NextLanes);
+
+		float MinDist = FLT_MAX;
+		//找到所有连接的车道，找到距离当前车辆最近的前车
+		for(int32 NextLaneIndex : NextLanes)
+		{
+			TArray<FLaneVehicle>* NextLaneVehicles=LaneToEntitiesMap.Find(NextLaneIndex);
+			if(NextLaneVehicles && NextLaneVehicles->Num()>0 )
+			{
+				const FMassVehicleMovementFragment* Fragment=(*NextLaneVehicles)[0].VehicleMovementFragment;
+				if(Fragment->LaneLocation.DistanceAlongLane < MinDist)
+				{
+					MinDist = Fragment->LaneLocation.DistanceAlongLane;
+					FrontVehicle = Fragment;
+				}
+			}
+		}
+		return true;
+
+	}
+	//TODO:: 当前车辆处于合并车道，如何避免周围的车的距离过近？
+
+
 }
 
 void UTrafficSimSubsystem::CollectLaneVehicles(FMassEntityHandle EntityHandle, const FMassVehicleMovementFragment& VehicleFragment)
@@ -274,8 +362,12 @@ void UTrafficSimSubsystem::CollectLaneVehicles(FMassEntityHandle EntityHandle, c
 		UE_LOG(LogTrafficSim, Warning, TEXT("No vehicles found in lane %d."), LaneIndex);
 		return;
 	}
+
 	FLaneVehicle NewVehicle(EntityHandle, &VehicleFragment);
 	LaneVehicles->Add(NewVehicle);
+	LaneVehicles->Sort([](const FLaneVehicle& A, const FLaneVehicle& B) {
+		return A.VehicleMovementFragment->LaneLocation.DistanceAlongLane < B.VehicleMovementFragment->LaneLocation.DistanceAlongLane;
+		});
 }
 
 

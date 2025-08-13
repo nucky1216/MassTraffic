@@ -34,6 +34,12 @@ struct TRAFFICSIM_API FMassVehicleMovementFragment : public FMassFragment
     float MinGap = 100.f;
 
     UPROPERTY(EditAnywhere, Category = "Initialize")
+	float MaxSpeed = 400.f;
+
+    UPROPERTY(EditAnywhere, Category = "Initialize")
+    float MinSpeed = 50.f;
+
+
     float TargetSpeed = 100.f;
 
     UPROPERTY(EditAnywhere, Category = "Initialize")

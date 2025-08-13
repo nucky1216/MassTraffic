@@ -27,7 +27,7 @@ void UVehicleParamsInitProcessor::ConfigureQueries()
 
 void UVehicleParamsInitProcessor::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context)
 {
-	UE_LOG(LogTemp,Log,TEXT("VehicleInitProcessor.."));
+	UE_LOG(LogTrafficSim,VeryVerbose,TEXT("VehicleInitProcessor.."));
 
 
 	EntityQuery.ForEachEntityChunk(EntityManager, Context, [this](FMassExecutionContext& Context)
@@ -60,6 +60,8 @@ void UVehicleParamsInitProcessor::Execute(FMassEntityManager& EntityManager, FMa
 			//UE_LOG(LogTemp, Log, TEXT("Found Lane: %s"), *LaneLocation.LaneHandle.ToString());
 
 			VehicleMovement.NextLane = TrafficSimSubsystem->ChooseNextLane(LaneLocation);
+
+			VehicleMovement.TargetSpeed = FMath::RandRange(VehicleMovement.MinSpeed,VehicleMovement.MaxSpeed);
 
 		}
 	});

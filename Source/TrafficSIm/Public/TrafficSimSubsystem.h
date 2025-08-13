@@ -35,7 +35,7 @@ private:
 
 
 public:
-	int32 ChooseNextLane(FZoneGraphLaneLocation CurLane) const;
+	int32 ChooseNextLane(FZoneGraphLaneLocation CurLane, TArray<int32>& NextLanes) const;
 
 	void FindEntityLaneByQuery(FBox QueryBox,FZoneGraphTagFilter& TagFilter,FZoneGraphLaneLocation& OutLaneLocation);
 	void InitOnPostLoadMap(UWorld* LoadedWorld,const UWorld::InitializationValues IVS);
@@ -47,8 +47,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "TrafficSim")
 	void DeleteMassEntities(int32 TargeLaneIndex);
 
+	UFUNCTION(BlueprintCallable, Category = "TrafficSim")
+	void PrintLaneVehicles(int32 TargetLaneIndex);
+
 
 	bool SwitchToNextLane(FZoneGraphLaneLocation& LaneLocation, float NewDist);
+
+
+	//UFUNCTION(BlueprintCallable, Category = "TrafficSim| Avoidance")
+	bool UTrafficSimSubsystem::FindFrontVehicle(int32 LaneIndex, FMassEntityHandle CurVehicle, const FMassVehicleMovementFragment* FrontVehicle);
 
 
 	//laneVehicles

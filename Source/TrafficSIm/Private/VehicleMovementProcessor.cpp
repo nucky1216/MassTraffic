@@ -32,7 +32,7 @@ void UVehicleMovementProcessor::ConfigureQueries()
 
 void UVehicleMovementProcessor::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context)
 {
-	UE_LOG(LogTrafficSim, Log, TEXT("Executing VehicleMovementProcessor..."));
+	UE_LOG(LogTrafficSim, VeryVerbose, TEXT("Executing VehicleMovementProcessor..."));
 	float DeltaTime = Context.GetDeltaTimeSeconds();
 	TArray<FMassEntityHandle> DestroyedEntities;
 

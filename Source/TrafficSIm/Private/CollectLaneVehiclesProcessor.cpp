@@ -23,7 +23,7 @@ void UCollectLaneVehiclesProcessor::Initialize(UObject& Owner)
 
 void UCollectLaneVehiclesProcessor::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context)
 {
-	UE_LOG(LogTrafficSim, Log, TEXT("CollectLaneVehiclesProcessor Executing..."));
+	UE_LOG(LogTrafficSim, VeryVerbose, TEXT("CollectLaneVehiclesProcessor Executing..."));
 	TrafficSimSubsystem->InitializeLaneToEntitiesMap();
 
 	EntityQuery.ForEachEntityChunk(EntityManager, Context, [this](FMassExecutionContext& Context)
