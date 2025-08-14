@@ -58,10 +58,14 @@ void UVehicleParamsInitProcessor::Execute(FMassEntityManager& EntityManager, FMa
 			VehicleMovement.LaneLocation = LaneLocation;
 			
 			//UE_LOG(LogTemp, Log, TEXT("Found Lane: %s"), *LaneLocation.LaneHandle.ToString());
+			TArray<int32> NextLanes;
+			VehicleMovement.NextLane = TrafficSimSubsystem->ChooseNextLane(LaneLocation, NextLanes);
 
-			VehicleMovement.NextLane = TrafficSimSubsystem->ChooseNextLane(LaneLocation);
+			VehicleMovement.VehicleHandle = Context.GetEntity(EntityIndex);
 
 			VehicleMovement.TargetSpeed = FMath::RandRange(VehicleMovement.MinSpeed,VehicleMovement.MaxSpeed);
+
+			VehicleMovement.Speed = FMath::RandRange(VehicleMovement.MinSpeed, VehicleMovement.TargetSpeed);
 
 		}
 	});

@@ -55,7 +55,7 @@ public:
 
 
 	//UFUNCTION(BlueprintCallable, Category = "TrafficSim| Avoidance")
-	bool UTrafficSimSubsystem::FindFrontVehicle(int32 LaneIndex, FMassEntityHandle CurVehicle, const FMassVehicleMovementFragment* FrontVehicle);
+	bool FindFrontVehicle(int32 LaneIndex, FMassEntityHandle CurVehicle, const FMassVehicleMovementFragment*& FrontVehicle);
 
 
 	//laneVehicles

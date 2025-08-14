@@ -55,7 +55,7 @@ int32 UTrafficSimSubsystem::ChooseNextLane(FZoneGraphLaneLocation CurLane,TArray
 
 	if (NextLanes.Num() == 0)
 	{
-		UE_LOG(LogTrafficSim, Warning, TEXT("Current lane:%d has no links, cannot choose next lane."), CurLane.LaneHandle.Index);
+		UE_LOG(LogTrafficSim, Verbose, TEXT("Current lane:%d has no links, cannot choose next lane."), CurLane.LaneHandle.Index);
 		return -1;
 	}
 
@@ -261,8 +261,22 @@ void UTrafficSimSubsystem::PrintLaneVehicles(int32 TargetLaneIndex)
 	{
 		if(LaneVehicle.VehicleMovementFragment)
 		{
-			UE_LOG(LogTrafficSim, Log, TEXT("Entity: %d, DistanceAlongLane: %.2f"),
-				LaneVehicle.EntityHandle.SerialNumber, LaneVehicle.VehicleMovementFragment->LaneLocation.DistanceAlongLane);
+			FVector Position = LaneVehicle.VehicleMovementFragment->LaneLocation.Position;
+
+			const FMassVehicleMovementFragment* FrontVehicle = nullptr;
+			bool found=FindFrontVehicle(LaneVehicle.VehicleMovementFragment->LaneLocation.LaneHandle.Index, LaneVehicle.EntityHandle, FrontVehicle);
+
+			int32 ForntVehicleSN = -1;
+			if (found && FrontVehicle)
+			{
+				ForntVehicleSN = FrontVehicle->VehicleHandle.SerialNumber;
+			}
+
+			UE_LOG(LogTrafficSim, Log, TEXT("Entity: %d, DistanceAlongLane: %.2f Position:%s FrontVehicle:%d"),
+				LaneVehicle.EntityHandle.SerialNumber, 
+				LaneVehicle.VehicleMovementFragment->LaneLocation.DistanceAlongLane,
+				*Position.ToString(),
+				ForntVehicleSN);
 		}
 		else
 		{
@@ -279,7 +293,7 @@ bool UTrafficSimSubsystem::SwitchToNextLane(FZoneGraphLaneLocation& LaneLocation
 
 	if(NextIndex < 0)
 	{
-		UE_LOG(LogTrafficSim, Warning, TEXT("No next lane found for current lane %d."), LaneLocation.LaneHandle.Index);
+		UE_LOG(LogTrafficSim, Verbose, TEXT("No next lane found for current lane %d."), LaneLocation.LaneHandle.Index);
 		return false;
 	}
 	
@@ -288,7 +302,7 @@ bool UTrafficSimSubsystem::SwitchToNextLane(FZoneGraphLaneLocation& LaneLocation
 	return true;
 }
 
-bool UTrafficSimSubsystem::FindFrontVehicle(int32 LaneIndex, FMassEntityHandle CurVehicle, const FMassVehicleMovementFragment* FrontVehicle)
+bool UTrafficSimSubsystem::FindFrontVehicle(int32 LaneIndex, FMassEntityHandle CurVehicle, const FMassVehicleMovementFragment* & FrontVehicle)
 {
 	TArray<FLaneVehicle>* LaneVehicles=LaneToEntitiesMap.Find(LaneIndex);
 	if(!LaneVehicles)
@@ -308,16 +322,22 @@ bool UTrafficSimSubsystem::FindFrontVehicle(int32 LaneIndex, FMassEntityHandle C
 		UE_LOG(LogTrafficSim, Warning, TEXT("Current vehicle not found in lane %d."), LaneIndex);
 		return false;
 	}
+	//UE_LOG(LogTrafficSim, Log, TEXT("Current vehicle index in lane %d: CurIndex:%d in TotalNumber:%d"), LaneIndex, CurVehicleIndex, VehicleNumInCurLane);
 
 	//当前车辆不是车道最后一辆车
 	if (CurVehicleIndex < VehicleNumInCurLane - 1)
 	{
 		FrontVehicle = (*LaneVehicles)[CurVehicleIndex + 1].VehicleMovementFragment;
+
+		//UE_LOG(LogTrafficSim, Log, TEXT("Front vehicle found at index %d with SN %d"),CurVehicleIndex + 1, FrontVehicle->VehicleHandle.SerialNumber);
 		return true;
 	}
 	
-	//当前车辆是车道最后一辆车，且下条车道有车辆
-	if(CurVehicleIndex == VehicleNumInCurLane - 1)
+	//float Dist =(* LaneVehicles)[CurVehicleIndex + 1].VehicleMovementFragment->LaneLocation.DistanceAlongLane;
+
+
+	//当前车辆是车道最后一辆车，即将进入下一车道且下条车道有车辆
+	if(CurVehicleIndex == VehicleNumInCurLane - 1 )
 	{
 		TArray<int32> NextLanes;
 		ChooseNextLane((*LaneVehicles)[CurVehicleIndex].VehicleMovementFragment->LaneLocation, NextLanes);
@@ -337,12 +357,13 @@ bool UTrafficSimSubsystem::FindFrontVehicle(int32 LaneIndex, FMassEntityHandle C
 				}
 			}
 		}
+
 		return true;
 
 	}
 	//TODO:: 当前车辆处于合并车道，如何避免周围的车的距离过近？
 
-
+	return false;
 }
 
 void UTrafficSimSubsystem::CollectLaneVehicles(FMassEntityHandle EntityHandle, const FMassVehicleMovementFragment& VehicleFragment)

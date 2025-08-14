@@ -49,14 +49,14 @@ void UVehicleMovementProcessor::Execute(FMassEntityManager& EntityManager, FMass
 
 			FZoneGraphLaneLocation& CurLaneLocation = VehicleMovementFragment.LaneLocation;
 			
-			float TargetSpeed = VehicleMovementFragment.TargetSpeed;
+			float Speed = VehicleMovementFragment.Speed;
 			// Update the transform based on the vehicle movement fragment
 
-			float TargetDist = CurLaneLocation.DistanceAlongLane+ TargetSpeed*DeltaTime;
+			float TargetDist = CurLaneLocation.DistanceAlongLane+ Speed *DeltaTime;
 
 			float CurLaneDistance = 0.0f;
 			UE::ZoneGraph::Query::GetLaneLength(*TrafficSimSubsystem->ZoneGraphStorage, CurLaneLocation.LaneHandle, CurLaneDistance);
-			
+						
 			//如果超出当前车道长度，则需要切换到下一个车道
 			if (CurLaneDistance < TargetDist)
 			{
@@ -71,6 +71,11 @@ void UVehicleMovementProcessor::Execute(FMassEntityManager& EntityManager, FMass
 			}
 
 			UE::ZoneGraph::Query::CalculateLocationAlongLane(*TrafficSimSubsystem->ZoneGraphStorage, CurLaneLocation.LaneHandle, TargetDist, CurLaneLocation);
+
+			UE::ZoneGraph::Query::GetLaneLength(*TrafficSimSubsystem->ZoneGraphStorage, CurLaneLocation.LaneHandle, CurLaneDistance);
+
+			VehicleMovementFragment.LeftDistance = CurLaneDistance - TargetDist;
+
 
 			// Update the transform based on the new lane location
 			TransformFragment.SetTransform(
