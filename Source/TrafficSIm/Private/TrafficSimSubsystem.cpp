@@ -286,6 +286,81 @@ void UTrafficSimSubsystem::PrintLaneVehicles(int32 TargetLaneIndex)
 	}
 }
 
+void UTrafficSimSubsystem::PrintLaneLinks(int32 TargetLaneIndex)
+{
+	if (!ZoneGraphStorage)
+	{
+		UE_LOG(LogTrafficSim, Error, TEXT("ZoneGraphStorage is not initialized! Cannot print lane links."));
+		return;
+	}
+	if (TargetLaneIndex < 0 || TargetLaneIndex >= ZoneGraphStorage->Lanes.Num())
+	{
+		UE_LOG(LogTrafficSim, Error, TEXT("Invalid TargetLaneIndex %d! Cannot print lane links."), TargetLaneIndex);
+		return;
+	}
+	const FZoneLaneData& CurLaneData = ZoneGraphStorage->Lanes[TargetLaneIndex];
+	int32 FirstLink = CurLaneData.LinksBegin;
+	int32 EndLink = CurLaneData.LinksEnd;
+	UE_LOG(LogTrafficSim, Log, TEXT("Links for lane %d:"), TargetLaneIndex);
+	for (int32 LinkIndex = FirstLink; LinkIndex < EndLink; ++LinkIndex)
+	{
+		const FZoneLaneLinkData& LaneLink = ZoneGraphStorage->LaneLinks[LinkIndex];
+		FString LinkTypeStr;
+		switch (LaneLink.Type)
+		{
+		case EZoneLaneLinkType::Outgoing:
+			LinkTypeStr = "Outgoing";
+			break;
+		case EZoneLaneLinkType::Incoming:
+			LinkTypeStr = "Incoming";
+			break;
+		case EZoneLaneLinkType::Adjacent:
+			LinkTypeStr = "LeftTurn";
+			break;
+		case EZoneLaneLinkType::All:
+			LinkTypeStr = "All";
+			break;
+		case EZoneLaneLinkType::None:
+			LinkTypeStr = "None";
+			break;
+		default:
+			LinkTypeStr = "Unknown";
+			break;
+		}
+
+		FString LinkFlagStr;
+		
+		if (LaneLink.HasFlags(EZoneLaneLinkFlags::None))
+		{
+			LinkFlagStr += "None ";
+		}
+		if(LaneLink.HasFlags(EZoneLaneLinkFlags::Left))
+		{
+			LinkFlagStr += "Left ";
+		}
+		if(LaneLink.HasFlags(EZoneLaneLinkFlags::Merging))
+		{
+			LinkFlagStr += " Merging ";
+		}
+		if(LaneLink.HasFlags(EZoneLaneLinkFlags::Right))
+		{
+			LinkFlagStr += " Right ";
+		}
+		if(LaneLink.HasFlags(EZoneLaneLinkFlags::OppositeDirection))
+		{
+			LinkFlagStr += " OppositeDirection ";
+		}
+		if (LaneLink.HasFlags(EZoneLaneLinkFlags::Splitting))
+		{
+			LinkFlagStr += " Splitting ";
+		}
+
+
+
+		UE_LOG(LogTrafficSim, Log, TEXT("  Link to lane %d of type %s with Flags:%s"), LaneLink.DestLaneIndex, *LinkTypeStr,*LinkFlagStr);
+	}
+}
+
 bool UTrafficSimSubsystem::SwitchToNextLane(FZoneGraphLaneLocation& LaneLocation, float NewDist)
 {
 	TArray<int32> NextLanes;
