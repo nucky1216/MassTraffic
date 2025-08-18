@@ -3,6 +3,7 @@
 
 #include "TrafficLightGenerator.h"
 #include "MassSpawnLocationProcessor.h"
+#include "MassGameplaySettings.h"
 #include "TrafficSimSubsystem.h"
 
 
@@ -24,9 +25,11 @@ void UTrafficLightGenerator::Generate(UObject& QueryOwner, TConstArrayView<FMass
 	for (int32 i = 0; i < ZoneNum; ++i)
 	{
 		const FZoneData& ZoneData = ZoneGraphStorage.Zones[i];
+
 		//是交叉路口的Tag
 		if (IntersectionTagFilter.Pass(ZoneData.Tags))
 		{
+			UE_LOG(LogTrafficSim, Log, TEXT("Zone %d is an intersection"), i);
 			IntersectionPoints.Add(ZoneData.Bounds.GetCenter());
 		}
 	}
@@ -35,7 +38,7 @@ void UTrafficLightGenerator::Generate(UObject& QueryOwner, TConstArrayView<FMass
 	TArray<FMassEntitySpawnDataGeneratorResult> Results;
 	BuildResultsFromEntityTypes(IntersectionPoints.Num(), EntityTypes, Results);
 
-	for (auto Result : Results)
+	for (auto& Result : Results)
 	{
 		//指定生成处理器
 		Result.SpawnDataProcessor = UMassSpawnLocationProcessor::StaticClass();
@@ -53,5 +56,7 @@ void UTrafficLightGenerator::Generate(UObject& QueryOwner, TConstArrayView<FMass
 			SpawnCount++;
 		}
 	}
+
+	FinishedGeneratingSpawnPointsDelegate.Execute(Results);
 
 }
