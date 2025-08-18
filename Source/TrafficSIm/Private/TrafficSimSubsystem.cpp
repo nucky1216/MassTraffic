@@ -315,7 +315,7 @@ void UTrafficSimSubsystem::PrintLaneLinks(int32 TargetLaneIndex)
 			LinkTypeStr = "Incoming";
 			break;
 		case EZoneLaneLinkType::Adjacent:
-			LinkTypeStr = "LeftTurn";
+			LinkTypeStr = "Adjacent";
 			break;
 		case EZoneLaneLinkType::All:
 			LinkTypeStr = "All";
@@ -358,6 +358,17 @@ void UTrafficSimSubsystem::PrintLaneLinks(int32 TargetLaneIndex)
 
 
 		UE_LOG(LogTrafficSim, Log, TEXT("  Link to lane %d of type %s with Flags:%s"), LaneLink.DestLaneIndex, *LinkTypeStr,*LinkFlagStr);
+
+		/*
+		int32 LanePointsNum=ZoneGraphStorage->Lanes[TargetLaneIndex].GetNumPoints();
+
+		for(int32 i=ZoneGraphStorage->Lanes[TargetLaneIndex].PointsBegin;i<ZoneGraphStorage->Lanes[TargetLaneIndex].PointsEnd;++i)
+		{
+			const FVector& Point = ZoneGraphStorage->LanePoints[i];
+			UE_LOG(LogTrafficSim, Log, TEXT("    PointIndex: %d in TotalNum:%d: Location: %s"), i , LanePointsNum ,*Point.ToString());
+		}
+		UE_LOG(LogTrafficSim,Log,TEXT("StartEntryId:%u, EndEntryID:%u"), ZoneGraphStorage->Lanes[TargetLaneIndex].StartEntryId, ZoneGraphStorage->Lanes[TargetLaneIndex].EndEntryId);
+		*/
 	}
 }
 
