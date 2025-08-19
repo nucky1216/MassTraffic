@@ -4,9 +4,12 @@
 #include "Subsystems/WorldSubsystem.h"
 #include "TrafficSimSubsystem.h"
 #include "ZoneGraphTypes.h"
+#include "TrafficTypes.h"
+#include "TagFilter.h"
+#include "ZoneGraphData.h"
 #include "TrafficLightSubsystem.generated.h"
 
-DECLARE_LOG_CATEGORY_EXTERN(LogTrafficLight, Log, All);
+
 
 UCLASS()
 class TRAFFICSIM_API UTrafficLightSubsystem : public UWorldSubsystem
@@ -15,7 +18,15 @@ class TRAFFICSIM_API UTrafficLightSubsystem : public UWorldSubsystem
 
 public:
 	void GetZoneGraphaData();
+	TArray<FIntersectionData> InteectionsDatas;
+
+
+	UFUNCTION(BlueprintCallable, Category = "TrafficSim",meta=(ToolTip="构建路口数据"))
+	void BuildIntersectionsData(UTagFilter* DAFilter);
+
 private:
 	const FZoneGraphStorage* ZoneGraphStorage = nullptr;
 	const UTrafficSimSubsystem* TrafficSimSubsystem = nullptr;
-}
+
+
+};

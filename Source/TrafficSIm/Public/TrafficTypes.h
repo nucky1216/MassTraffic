@@ -3,6 +3,8 @@
 #include "ZoneGraphTypes.h"
 #include "TrafficTypes.generated.h"
 
+DECLARE_LOG_CATEGORY_EXTERN(LogTrafficLight, Log, All);
+
 USTRUCT()
 struct TRAFFICSIM_API FIntersectionData
 {

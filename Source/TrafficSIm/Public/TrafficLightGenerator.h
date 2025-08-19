@@ -18,7 +18,7 @@ class TRAFFICSIM_API UTrafficLightGenerator : public UMassEntitySpawnDataGenerat
 	UPROPERTY(EditAnywhere)
 	AZoneGraphData* ZoneGraphData;
 
-	UPROPERTY(EditAnywhere,meta=(ToolTip="标识路口的Tag"))
+	UPROPERTY(EditAnywhere,meta=(ToolTip="Intersection Tag Filter"))
 	FZoneGraphTagFilter IntersectionTagFilter;
 
 
