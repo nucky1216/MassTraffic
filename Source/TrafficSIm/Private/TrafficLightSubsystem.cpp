@@ -28,6 +28,12 @@ void UTrafficLightSubsystem::BuildIntersectionsData(UTagFilter* DAFilter)
 		return;
 	}
 
+	//for (auto Location : ZoneGraphStorage->LanePoints)
+	//{
+	//	DrawDebugPoint(GetWorld(), Location, 10.0f, FColor::Red, false, 5.0f);
+	//}
+
+
 	int32 ZoneNum= ZoneGraphStorage->Zones.Num();
 	for(int32 i = 0; i < ZoneNum; ++i)
 	{
@@ -36,17 +42,15 @@ void UTrafficLightSubsystem::BuildIntersectionsData(UTagFilter* DAFilter)
 		if (DAFilter->TagFilter.Pass(ZoneData.Tags))
 		{
 			FIntersectionData IntersectionData;
-			IntersectionData.EntryIndex.Add(i); // Store the zone index as an entry
-			
+						
 			UE_LOG(LogTrafficLight, Log, TEXT("Zone %d has lane num: %d "), ZoneData.GetLaneCount());
-
+			
 			for(int32 laneIndex=ZoneData.LanesBegin; laneIndex < ZoneData.LanesEnd; ++laneIndex)
 			{
-				const FZoneLaneData& LaneData = ZoneGraphStorage->Lanes[i];
-				UE_LOG(LogTrafficLight, Log, TEXT("lane:%d has StartEntryID:%d"), 
-					laneIndex, LaneData.StartEntryId);
-				
-				
+				FSide SideData;
+				const FZoneLaneData& LaneData = ZoneGraphStorage->Lanes[laneIndex];
+				FVector Location = ZoneGraphStorage->LanePoints[LaneData.PointsBegin];
+				DrawDebugPoint(GetWorld(), Location, 10.0f, FColor::Red, false, 5.0f);
 			}
 			
 		}
