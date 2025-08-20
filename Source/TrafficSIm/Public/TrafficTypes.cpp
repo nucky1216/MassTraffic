@@ -1,11 +1,11 @@
 #include "TrafficTypes.h"
-
+#include "ZoneGraphQuery.h"
 
 DEFINE_LOG_CATEGORY(LogTrafficLight);
 
-void FIntersectionData::SideAddLane(FZoneGraphStorage* ZoneGraphStorage,int32 LaneIndex)
+void FIntersectionData::SideAddLane(const FZoneGraphStorage* ZoneGraphStorage,int32 LaneIndex)
 {
-	FZoneLaneData& Lane = ZoneGraphStorage->Lanes[LaneIndex];
+	const FZoneLaneData& Lane = ZoneGraphStorage->Lanes[LaneIndex];
 	int32 index=Lane.StartEntryId;
 	if(Sides.Num() <= index)
 	{
@@ -21,26 +21,54 @@ void FIntersectionData::SideAddLane(FZoneGraphStorage* ZoneGraphStorage,int32 La
 
 }
 
-void FIntersectionData::SideSortLanes(FZoneGraphStorage* ZoneGraphStorage)
+void FIntersectionData::SideSortLanes(const FZoneGraphStorage* ZoneGraphStorage)
 {
 	if (!ZoneGraphStorage) return;
 
 	int32 sideCount = Sides.Num();
+
+	if (sideCount == 3)
+	{
+		FindAloneSide(ZoneGraphStorage);
+	}
 
 	for (FSide& side : Sides)
 	{
 		for(int32 i = 0; i < side.Lanes.Num(); i++)
 		{
 			int32 laneIndex = side.Lanes[i];
-			FZoneLaneData& lane = ZoneGraphStorage->Lanes[laneIndex];
+			const FZoneLaneData& lane = ZoneGraphStorage->Lanes[laneIndex];
 
 			//4-side intersection
 			if (sideCount == 4)
 			{
-				if ((lane.StartEntryId + 1) % 4 == lane.EndEntryId)
+				if ((lane.StartEntryId + 3) % 4 == lane.EndEntryId)
 				{
-					side.RightLanes.Add(laneIndex);
+					side.TurnTypeToLanes.Add(ETurnType::RightTurn, laneIndex);
 				}
+				else if ((lane.StartEntryId + 1) % 4 == lane.EndEntryId)
+				{
+					side.TurnTypeToLanes.Add(ETurnType::LeftTurn, laneIndex);
+				}
+				else if ((lane.StartEntryId + 2) % 4 == lane.EndEntryId)
+				{
+					side.TurnTypeToLanes.Add(ETurnType::Straight, laneIndex);
+				}
+			}
+			//TODO::3-side intersection
+			if (sideCount == 3)
+			{
+				if ((lane.StartEntryId + 1) % 3 == lane.EndEntryId)
+				{
+					ETurnType TurnType = ETurnType::RightTurn;
+					if(!Sides[lane.EndEntryId].bIsAloneSide)
+					{
+						TurnType = ETurnType::Straight;
+					}
+
+					side.TurnTypeToLanes.Add(ETurnType::Straight, laneIndex);
+				}
+
 			}
 		}
 	
@@ -48,7 +76,38 @@ void FIntersectionData::SideSortLanes(FZoneGraphStorage* ZoneGraphStorage)
 
 }
 
-void FSide::AddSlot(FZoneGraphStorage* ZoneGraphStorage,int32 LaneIndex)
+void FIntersectionData::FindAloneSide(const FZoneGraphStorage* ZoneGraphStorage)
+{
+	for (int32 i = 0; i < Sides.Num(); i++)
+	{
+		FSide& side = Sides[i];
+		const FZoneLaneData& lane = ZoneGraphStorage->Lanes[side.Lanes[0]];
+		FZoneGraphLaneLocation StartLocation;
+		UE::ZoneGraph::Query::CalculateLocationAlongLane(*ZoneGraphStorage, side.Lanes[0], 0.f, StartLocaiton);
+
+		side.SideDirection = StartLocation.Direction;
+		
+	}
+	for (int32 i = 0; i < Sides.Num(); i++)
+	{
+		FSide& CurSide = Sides[i];
+
+		for (int32 j = 0; j < Sides.Num(); j++)
+		{
+			if (i == j)
+				continue;
+			FSide& TargetSide = Sides[j];
+			float Angle= FMath::RadiansToDegrees(FMath::Acos(TargetSide.SideDirection.Dot(CurSide.SideDirection)));
+			if (Angle >= 160.f)
+			{
+				CurSide.bIsAloneSide = true;
+				break;
+			}
+		}
+	}
+}
+
+void FSide::AddSlot(const FZoneGraphStorage* ZoneGraphStorage,int32 LaneIndex)
 {
 	int32 StartLocaitonIndex = ZoneGraphStorage->Lanes[LaneIndex].PointsBegin;
 	FVector StartLocation = ZoneGraphStorage->LanePoints[StartLocaitonIndex];

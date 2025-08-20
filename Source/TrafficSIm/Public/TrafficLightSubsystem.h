@@ -18,11 +18,14 @@ class TRAFFICSIM_API UTrafficLightSubsystem : public UWorldSubsystem
 
 public:
 	void GetZoneGraphaData();
-	TArray<FIntersectionData> InteectionsDatas;
+	TMap<int32,FIntersectionData> IntersectionDatas;
 
 
-	UFUNCTION(BlueprintCallable, Category = "TrafficSim",meta=(ToolTip="构建路口数据"))
+	UFUNCTION(BlueprintCallable, Category = "TrafficLightSim",meta=(ToolTip="Build Intersecion Data"))
 	void BuildIntersectionsData(UTagFilter* DAFilter);
+
+	UFUNCTION(BlueprintCallable, Category = "TrafficLightSim", meta = (ToolTip = "Build Intersecion Data"))
+	void LookUpIntersection(int32 ZoneIndex);
 
 private:
 	const FZoneGraphStorage* ZoneGraphStorage = nullptr;

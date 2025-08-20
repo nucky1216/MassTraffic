@@ -27,12 +27,7 @@ void UTrafficLightSubsystem::BuildIntersectionsData(UTagFilter* DAFilter)
 		UE_LOG(LogTrafficLight, Error, TEXT("ZoneGraphStorage is not initialized! Cannot build intersections data."));
 		return;
 	}
-
-	//for (auto Location : ZoneGraphStorage->LanePoints)
-	//{
-	//	DrawDebugPoint(GetWorld(), Location, 10.0f, FColor::Red, false, 5.0f);
-	//}
-
+	IntersectionDatas.Empty(); // Clear previous data
 
 	int32 ZoneNum= ZoneGraphStorage->Zones.Num();
 	for(int32 i = 0; i < ZoneNum; ++i)
@@ -43,17 +38,47 @@ void UTrafficLightSubsystem::BuildIntersectionsData(UTagFilter* DAFilter)
 		{
 			FIntersectionData IntersectionData;
 						
-			UE_LOG(LogTrafficLight, Log, TEXT("Zone %d has lane num: %d "), ZoneData.GetLaneCount());
+			UE_LOG(LogTrafficLight, Log, TEXT("Zone %d has lane num: %d "), i,ZoneData.GetLaneCount());
 			
 			for(int32 laneIndex=ZoneData.LanesBegin; laneIndex < ZoneData.LanesEnd; ++laneIndex)
 			{
-				FSide SideData;
-				const FZoneLaneData& LaneData = ZoneGraphStorage->Lanes[laneIndex];
-				FVector Location = ZoneGraphStorage->LanePoints[LaneData.PointsBegin];
-				DrawDebugPoint(GetWorld(), Location, 10.0f, FColor::Red, false, 5.0f);
+				IntersectionData.SideAddLane(ZoneGraphStorage,laneIndex);
 			}
+			IntersectionData.SideSortLanes(ZoneGraphStorage);
+			IntersectionDatas.Add(i,IntersectionData);
+		}
 			
+	}
+	
+
+}
+
+void UTrafficLightSubsystem::LookUpIntersection(int32 ZoneIndex)
+{
+	FIntersectionData* IntersectionData = IntersectionDatas.Find(ZoneIndex);
+	if(!IntersectionData)
+	{
+		UE_LOG(LogTrafficLight, Warning, TEXT("No intersection data found for ZoneIndex: %d"), ZoneIndex);
+		return;
+	}
+	// Process the intersection data as needed
+	for (int32 i=0;i<IntersectionData->Sides.Num();i++)
+	{
+		const FSide& side = IntersectionData->Sides[i];
+		UE_LOG(LogTrafficLight, Log, TEXT("Side %d has %d lanes"), i, side.Lanes.Num());
+		TArray<ETurnType> TurnTypes;
+		side.TurnTypeToLanes.GetKeys(TurnTypes);;
+
+		for(auto type:TurnTypes)
+		{
+			FString TurnTypeStr = UEnum::GetValueAsString(type);
+			TArray<int32> Lanes;
+			side.TurnTypeToLanes.MultiFind(type, Lanes);
+			UE_LOG(LogTrafficLight, Log, TEXT("  Turn Type: %s"), *TurnTypeStr);
+			for(auto lane:Lanes)
+			{
+				UE_LOG(LogTrafficLight, Log, TEXT("------LaneIndex: %d"), lane);
+			}
 		}
 	}
-
 }

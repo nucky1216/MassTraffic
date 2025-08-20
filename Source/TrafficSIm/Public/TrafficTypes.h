@@ -5,6 +5,14 @@
 
 DECLARE_LOG_CATEGORY_EXTERN(LogTrafficLight, Log, All);
 
+UENUM()
+enum class ETurnType
+{
+	Straight=0,
+	RightTurn = 1,
+	LeftTurn = 2,
+
+};
 
 USTRUCT()
 struct TRAFFICSIM_API FSide
@@ -13,15 +21,6 @@ struct TRAFFICSIM_API FSide
 	
 	UPROPERTY()
 	TArray<int32> Lanes; // Lanes on this side of the intersection
-
-	UPROPERTY()
-	TArray<int32> StrLanes; // Straight lanes on this side of the intersection
-
-	UPROPERTY()
-	TArray<int32> LeftLanes; // Left turn lanes on this side of the intersection
-
-	UPROPERTY()
-	TArray<int32> RightLanes; // Right turn lanes on this side of the intersection
 	
 	UPROPERTY()
 	TArray<uint8> EntryIndex; // IDs of lanes on this side of the intersection
@@ -30,7 +29,12 @@ struct TRAFFICSIM_API FSide
 
 	TMap<int32, int32> LaneToSlotIndex; // Maps lane index to slot index
 
-	FORCEINLINE void AddSlot(FZoneGraphStorage* ZoneGraphStorage, int32 LaneIndex);
+	TMultiMap<ETurnType, int32> TurnTypeToLanes; // Maps lane index to turn type
+
+	bool bIsAloneSide = false; // If true, there is no opposite lane for this side
+	FVector SideDirection; // Direction of the side
+
+	FORCEINLINE void AddSlot(const FZoneGraphStorage* ZoneGraphStorage, int32 LaneIndex);
 };
 
 USTRUCT()
@@ -41,7 +45,8 @@ struct TRAFFICSIM_API FIntersectionData
 	TArray<uint8> EntryIndex; // IDs of lanes at the intersection
 	TArray<FSide> Sides;
 	//TODO::SideTypes
-	FORCEINLINE void SideAddLane(FZoneGraphStorage* ZoneGraphStorage, int32 LaneIndex);
-	FORCEINLINE void SideSortLanes(FZoneGraphStorage* ZoneGraphStorage);
+	FORCEINLINE void SideAddLane(const FZoneGraphStorage* ZoneGraphStorage, int32 LaneIndex);
+	FORCEINLINE void SideSortLanes(const FZoneGraphStorage* ZoneGraphStorage);
+	FORCEINLINE void FindAloneSide(const FZoneGraphStorage* ZoneGraphStorage);
 };
 
