@@ -9,14 +9,17 @@
 /**
  * 
  */
+
 UCLASS()
 class TRAFFICSIM_API UTrafficLightInitProcessor : public UMassProcessor
 {
 	GENERATED_BODY()
 public:
 	UTrafficLightInitProcessor();
+protected:
 	virtual void ConfigureQueries() override;
 	virtual void Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context) override;
-	
+private:
+	FMassEntityQuery EntityQuery;
 	
 };

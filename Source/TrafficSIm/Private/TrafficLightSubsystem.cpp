@@ -49,6 +49,38 @@ void UTrafficLightSubsystem::BuildIntersectionsData(UTagFilter* DAFilter)
 		}
 			
 	}
+
+	//Debug
+	for (auto Pair : IntersectionDatas)
+	{
+		UE_LOG(LogTrafficLight, Log, TEXT("Intersection %d has %d sides"), Pair.Key, Pair.Value.Sides.Num());
+		for(auto side: Pair.Value.Sides)
+		{
+			UE_LOG(LogTrafficLight, Log, TEXT("  Side has %d lanes with aloneSide:%d"), side.Lanes.Num(), side.bIsAloneSide);
+			TArray<ETurnType> TurnTypes;
+			side.TurnTypeToLanes.GetKeys(TurnTypes);
+			for(auto type:TurnTypes)
+			{
+				if(Pair.Value.Sides.Num()==3)
+				{
+					FColor Color = FColor::Red;
+					if (side.bIsAloneSide)
+						Color = FColor::Black;
+					DrawDebugDirectionalArrow(GetWorld(), side.SlotPoitions[0], side.SlotPoitions[0] + side.SideDirection * 500.f,
+						150, Color, false, 10.0f, 0, 5.0f);
+				}
+
+				FString TurnTypeStr = UEnum::GetValueAsString(type);
+				TArray<int32> Lanes;
+				side.TurnTypeToLanes.MultiFind(type, Lanes);
+				UE_LOG(LogTrafficLight, Log, TEXT("    Turn Type: %s"), *TurnTypeStr);
+				for(auto lane:Lanes)
+				{
+					UE_LOG(LogTrafficLight, Log, TEXT("------LaneIndex: %d"), lane);
+				}
+			}
+		}
+	}
 	
 
 }
@@ -65,7 +97,7 @@ void UTrafficLightSubsystem::LookUpIntersection(int32 ZoneIndex)
 	for (int32 i=0;i<IntersectionData->Sides.Num();i++)
 	{
 		const FSide& side = IntersectionData->Sides[i];
-		UE_LOG(LogTrafficLight, Log, TEXT("Side %d has %d lanes"), i, side.Lanes.Num());
+		UE_LOG(LogTrafficLight, Log, TEXT("Side %d has %d lanes with aloneSide:%d"), i, side.Lanes.Num(),side.bIsAloneSide);
 		TArray<ETurnType> TurnTypes;
 		side.TurnTypeToLanes.GetKeys(TurnTypes);;
 

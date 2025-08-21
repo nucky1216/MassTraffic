@@ -1,5 +1,6 @@
 #pragma once
 #include "MassEntityTypes.h"	
+#include "TrafficTypes.h"
 #include "TrafficLightFragment.generated.h"
 
 
@@ -19,12 +20,12 @@ struct TRAFFICSIM_API FTrafficLightFragment : public FMassFragment
 	GENERATED_BODY()
 	/** 当前交通灯状态 */
 	UPROPERTY(EditAnywhere, Category = "Traffic Light")
-	ETrafficLightState LightState = ETrafficLightState::Red; // 0: Red, 1: Green, 2: Yellow
+	ETrafficSignalType LightState = ETrafficSignalType::StraightAndRight; // 0: Red, 1: Green, 2: Yellow
 
 	UPROPERTY(EditAnywhere, Category="Traffic Light",meta=(ToolTip="0绿灯时间，1黄灯时间"))
-	TArray<float> LightDurations = { 30.f, 5.f }; // 默认30秒绿灯，5秒黄灯
+	TMap<ETrafficSignalType,float> LightDurations ; 
 
-	uint8 CurrentSide = 0;
+	int32 CurrentSide = 0;
 
-	TArray<TArray<int32>> SideToLanes;
+	int32 ZoneIndex;
 };

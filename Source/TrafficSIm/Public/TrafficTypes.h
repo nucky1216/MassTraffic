@@ -13,6 +13,15 @@ enum class ETurnType
 	LeftTurn = 2,
 
 };
+UENUM(BlueprintType)
+enum class ETrafficSignalType
+{
+	Straight= 0,
+	StraightAndRight = 1,
+	StraightYellow = 2,
+	Left = 3,
+	LeftYellow=4
+};
 
 USTRUCT()
 struct TRAFFICSIM_API FSide
@@ -34,6 +43,9 @@ struct TRAFFICSIM_API FSide
 	bool bIsAloneSide = false; // If true, there is no opposite lane for this side
 	FVector SideDirection; // Direction of the side
 
+	UPROPERTY(EditAnywhere,Category="Period")
+	TMap<ETrafficSignalType, float> Periods; // Periods for different traffic light phases
+
 	FORCEINLINE void AddSlot(const FZoneGraphStorage* ZoneGraphStorage, int32 LaneIndex);
 };
 
@@ -50,3 +62,13 @@ struct TRAFFICSIM_API FIntersectionData
 	FORCEINLINE void FindAloneSide(const FZoneGraphStorage* ZoneGraphStorage);
 };
 
+USTRUCT()
+struct FTrafficLightInitData
+{
+	GENERATED_BODY()
+
+	TArray<FTransform> TrafficLightTransforms;
+	TMap<ETrafficSignalType, float> Periods;
+	TArray<int32> ZoneIndex;
+	TArray<int32> StartSideIndex;
+};

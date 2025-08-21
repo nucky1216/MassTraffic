@@ -5,6 +5,8 @@
 #include "MassSpawnLocationProcessor.h"
 #include "MassGameplaySettings.h"
 #include "TrafficSimSubsystem.h"
+#include "TrafficTypes.h"
+#include "TrafficlightInitProcessor.h"
 
 
 
@@ -41,20 +43,26 @@ void UTrafficLightGenerator::Generate(UObject& QueryOwner, TConstArrayView<FMass
 	for (auto& Result : Results)
 	{
 		//指定生成处理器
-		Result.SpawnDataProcessor = UMassSpawnLocationProcessor::StaticClass();
+		Result.SpawnDataProcessor = UTrafficLightInitProcessor::StaticClass();
 
 		//初始化生成位置数据
-		Result.SpawnData.InitializeAs<FMassTransformsSpawnData>();
-		FMassTransformsSpawnData& TransformsSpawnData = Result.SpawnData.GetMutable<FMassTransformsSpawnData>();
+		Result.SpawnData.InitializeAs<FTrafficLightInitData>();
+		FTrafficLightInitData& InitSpawnData = Result.SpawnData.GetMutable<FTrafficLightInitData>();
 
-		TransformsSpawnData.Transforms.Reserve(IntersectionPoints.Num());
+		InitSpawnData.TrafficLightTransforms.Reserve(IntersectionPoints.Num());
+		InitSpawnData.ZoneIndex.Reserve(IntersectionPoints.Num());
+		InitSpawnData.StartSideIndex.Reserve(IntersectionPoints.Num());
 
 		int32 SpawnCount = 0;
 		for (int32 LocationIndex = 0; LocationIndex < Result.NumEntities; LocationIndex++)
 		{
-			TransformsSpawnData.Transforms.Add(FTransform(IntersectionPoints[LocationIndex]));
+			InitSpawnData.TrafficLightTransforms.Add(FTransform(IntersectionPoints[LocationIndex]));
+			InitSpawnData.ZoneIndex.Add(LocationIndex);
+			InitSpawnData.StartSideIndex.Add(0); //默认从第0个路口开始
 			SpawnCount++;
 		}
+
+		
 	}
 
 	FinishedGeneratingSpawnPointsDelegate.Execute(Results);

@@ -37,6 +37,7 @@ void UTrafficLightCountingProcessor::Execute(FMassEntityManager& EntityManager, 
 
 		for (int32 i = 0; i < Context.GetNumEntities(); i++)
 		{
+			FTrafficLightFragment TrafficLightFragment = TrafficLightFragments[i];
 
 		}
 		});
