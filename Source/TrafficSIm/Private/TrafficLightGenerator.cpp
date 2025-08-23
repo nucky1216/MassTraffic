@@ -7,6 +7,7 @@
 #include "TrafficSimSubsystem.h"
 #include "TrafficTypes.h"
 #include "TrafficlightInitProcessor.h"
+#include "MassAssortedFragmentsTrait.h"
 
 
 
@@ -53,12 +54,17 @@ void UTrafficLightGenerator::Generate(UObject& QueryOwner, TConstArrayView<FMass
 		InitSpawnData.ZoneIndex.Reserve(IntersectionPoints.Num());
 		InitSpawnData.StartSideIndex.Reserve(IntersectionPoints.Num());
 
+
+		//auto* AssortedFragmentsTrait = EntityTypes[Result.EntityConfigIndex].EntityConfig->FindTrait<UMassAssortedFragmentsTrait>();
+		//InitSpawnData.Periods = TrafficLightPeriod;
+
 		int32 SpawnCount = 0;
 		for (int32 LocationIndex = 0; LocationIndex < Result.NumEntities; LocationIndex++)
 		{
 			InitSpawnData.TrafficLightTransforms.Add(FTransform(IntersectionPoints[LocationIndex]));
 			InitSpawnData.ZoneIndex.Add(LocationIndex);
-			InitSpawnData.StartSideIndex.Add(0); //默认从第0个路口开始
+			InitSpawnData.StartSideIndex.Add(0); //默认从路口第0边开始
+			
 			SpawnCount++;
 		}
 
