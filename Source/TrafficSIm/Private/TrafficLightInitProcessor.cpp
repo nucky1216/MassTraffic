@@ -38,7 +38,9 @@ void UTrafficLightInitProcessor::Execute(FMassEntityManager& EntityManager, FMas
 			LocationList[EntityIndex].GetMutableTransform() = InitData.TrafficLightTransforms[EntityIndex];
 			TrafficLightFragment[EntityIndex].ZoneIndex = InitData.ZoneIndex[EntityIndex];
 			TrafficLightFragment[EntityIndex].CurrentSide = InitData.StartSideIndex[EntityIndex];
-			//TrafficLightFragment[EntityIndex].LightDurations = InitData.Periods;
+
+			ETrafficSignalType TrafficSignalType = TrafficLightFragment[EntityIndex].CurrentLightState;
+			TrafficLightFragment[EntityIndex].TimeInDuration = TrafficLightFragment[EntityIndex].LightDurations[TrafficSignalType];
 		}
 		});
 }

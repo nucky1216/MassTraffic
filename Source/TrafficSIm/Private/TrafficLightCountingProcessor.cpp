@@ -4,6 +4,8 @@
 #include "TrafficLightCountingProcessor.h"
 #include "TrafficLightFragment.h"
 #include "MassExecutionContext.h"
+#include "TrafficSimSubsystem.h"
+#include "TrafficTypes.h"
 
 UTrafficLightCountingProcessor::UTrafficLightCountingProcessor():EntityQuery(*this)
 {
@@ -25,19 +27,83 @@ void UTrafficLightCountingProcessor::Initialize(UObject& Owner)
 		UE_LOG(LogTemp, Error, TEXT("UTrafficLightCountingProcessor::Initialize: TrafficSimSubsystem is null"));
 		return;
 	}
+	TrafficLightSubsystem = Owner.GetWorld()->GetSubsystem<UTrafficLightSubsystem>();
+	if(!TrafficLightSubsystem)
+	{
+		UE_LOG(LogTemp, Error, TEXT("UTrafficLightCountingProcessor::Initialize: TrafficLightSubsystem is null"));
+		return;
+	}
 }
 
 void UTrafficLightCountingProcessor::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context)
 {
 	float DeltaTime = Context.GetDeltaTimeSeconds();
-
+	
 	EntityQuery.ForEachEntityChunk(EntityManager, Context, [this, DeltaTime](FMassExecutionContext& Context)
 	{
-		const TConstArrayView<FTrafficLightFragment> TrafficLightFragments = Context.GetFragmentView<FTrafficLightFragment>();
+		const TArrayView<FTrafficLightFragment>& TrafficLightFragments = Context.GetMutableFragmentView<FTrafficLightFragment>();
 
 		for (int32 i = 0; i < Context.GetNumEntities(); i++)
 		{
-			FTrafficLightFragment TrafficLightFragment = TrafficLightFragments[i];
+			FTrafficLightFragment& TrafficLightFragment = TrafficLightFragments[i];
+			int32& SideIndex=TrafficLightFragment.CurrentSide;
+			float& TimeInDuration = TrafficLightFragment.TimeInDuration;
+
+			TimeInDuration -= DeltaTime;
+			UE_LOG(LogTemp, Log, TEXT("UTrafficLightCountingProcessor::Execute: LeftTime=%f"), TimeInDuration);
+			if(TimeInDuration <=0.f)
+			{
+				ETrafficSignalType& CurrentSignal = TrafficLightFragment.CurrentLightState;
+				TArray<ETrafficSignalType> SignalSequence;
+				TrafficLightFragment.LightDurations.GetKeys(SignalSequence);
+				const FIntersectionData* IntersectionData = TrafficLightSubsystem->IntersectionDatas.Find(TrafficLightFragment.ZoneIndex);
+				if(!IntersectionData)
+				{
+					UE_LOG(LogTemp, Error, TEXT("UTrafficLightCountingProcessor::Execute: IntersectionData is null"));
+					continue;
+				}
+
+				int32 SequenceIndex=SignalSequence.IndexOfByKey(CurrentSignal);
+				if(SequenceIndex==INDEX_NONE)
+				{
+					UE_LOG(LogTemp, Error, TEXT("UTrafficLightCountingProcessor::Execute: SignalSequence.IndexOfByKey(CurrentSignal) returned INDEX_NONE"));
+					return;
+				}
+				else if(SequenceIndex+1<SignalSequence.Num())
+				{
+					SequenceIndex++;
+					CurrentSignal = SignalSequence[SequenceIndex];
+				}
+				else
+				{
+					
+					SideIndex = (SideIndex + 1) % (*IntersectionData).Sides.Num();
+					CurrentSignal = SignalSequence[0];
+				}
+				TimeInDuration = TrafficLightFragment.LightDurations[CurrentSignal];
+
+				if(CurrentSignal==ETrafficSignalType::StraightAndRight && (*IntersectionData).Sides.Num()==4)
+				{
+					// Reset the vehicle count when the light turns green
+					TrafficLightSubsystem->SetOpenLanes(TrafficLightFragment.ZoneIndex, SideIndex, ETurnType::Straight,true);
+					TrafficLightSubsystem->SetOpenLanes(TrafficLightFragment.ZoneIndex, SideIndex, ETurnType::RightTurn);
+
+					TrafficLightSubsystem->SetOpenLanes(TrafficLightFragment.ZoneIndex, (SideIndex + 2) % 4, ETurnType::Straight);
+					TrafficLightSubsystem->SetOpenLanes(TrafficLightFragment.ZoneIndex, (SideIndex+2)%4, ETurnType::RightTurn);
+				}
+
+				if (CurrentSignal == ETrafficSignalType::Left && (*IntersectionData).Sides.Num() == 4)
+				{
+					// Reset the vehicle count when the light turns green
+					TrafficLightSubsystem->SetOpenLanes(TrafficLightFragment.ZoneIndex, SideIndex, ETurnType::LeftTurn, true);
+
+					TrafficLightSubsystem->SetOpenLanes(TrafficLightFragment.ZoneIndex, (SideIndex + 2) % 4, ETurnType::LeftTurn);
+				}
+				TrafficLightSubsystem->DebugDrawState(TrafficLightFragment.ZoneIndex, TimeInDuration);
+				
+			}
+			
+			//float 
 
 		}
 		});

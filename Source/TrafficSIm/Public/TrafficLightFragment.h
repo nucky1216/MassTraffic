@@ -23,9 +23,15 @@ struct TRAFFICSIM_API FTrafficLightFragment : public FMassFragment
 	ETrafficSignalType LightState = ETrafficSignalType::StraightAndRight; // 0: Red, 1: Green, 2: Yellow
 
 	UPROPERTY(EditAnywhere, Category="Traffic Light",meta=(ToolTip="0绿灯时间，1黄灯时间"))
-	TMap<ETrafficSignalType,float> LightDurations ; 
+	TMap<ETrafficSignalType, float> LightDurations = {
+		{ETrafficSignalType::StraightAndRight,10.f},
+		{ETrafficSignalType::Left,5.f}
+	};
 
 	int32 CurrentSide = 0;
+	UPROPERTY(EditAnywhere, Category = "Traffic Light")
+	ETrafficSignalType CurrentLightState = ETrafficSignalType::StraightAndRight;
 
+	float TimeInDuration = 0.f;
 	int32 ZoneIndex;
 };

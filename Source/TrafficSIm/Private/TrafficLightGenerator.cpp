@@ -8,6 +8,7 @@
 #include "TrafficTypes.h"
 #include "TrafficlightInitProcessor.h"
 #include "MassAssortedFragmentsTrait.h"
+#include "TrafficLightSubsystem.h"
 
 
 
@@ -19,6 +20,14 @@ void UTrafficLightGenerator::Generate(UObject& QueryOwner, TConstArrayView<FMass
 		UE_LOG(LogTrafficSim, Warning, TEXT("ZoneGraphData is not set in TrafficLightGenerator"));
 		return;
 	}
+	UTrafficLightSubsystem* TrafficLightSubsystem = GetWorld()->GetSubsystem<UTrafficLightSubsystem>();
+	if(!TrafficLightSubsystem)
+	{
+		UE_LOG(LogTrafficSim, Warning, TEXT("TrafficLightSubsystem is not found"));
+		return;
+	}
+
+	TrafficLightSubsystem->BuildIntersectionsData(IntersectionTagFilter);
 
 	const FZoneGraphStorage& ZoneGraphStorage = ZoneGraphData->GetStorage();
 

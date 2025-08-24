@@ -22,10 +22,18 @@ public:
 
 
 	UFUNCTION(BlueprintCallable, Category = "TrafficLightSim",meta=(ToolTip="Build Intersecion Data"))
-	void BuildIntersectionsData(UTagFilter* DAFilter);
+	void BuildIntersectionsData(UTagFilter* DAFilter) { BuildIntersectionsData(DAFilter->TagFilter); };
+	
+	void BuildIntersectionsData(FZoneGraphTagFilter IntersectionTagFilter);
 
 	UFUNCTION(BlueprintCallable, Category = "TrafficLightSim", meta = (ToolTip = "Build Intersecion Data"))
 	void LookUpIntersection(int32 ZoneIndex);
+
+	UFUNCTION(BlueprintCallable, Category = "TrafficLightSim", meta = (ToolTip = "Build Intersecion Data"))
+	void DebugDrawState(int32 ZoneIndex, float DebugTime=5.0f);
+
+	UFUNCTION(BlueprintCallable, Category = "TrafficLightSim", meta = (ToolTip = "Build Intersecion Data"))
+	void SetOpenLanes(int32 ZoneIndex,int32 SideIndex, ETurnType TurnType,bool Reset=false);
 
 private:
 	const FZoneGraphStorage* ZoneGraphStorage = nullptr;

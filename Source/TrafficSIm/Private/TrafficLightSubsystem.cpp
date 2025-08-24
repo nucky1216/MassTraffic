@@ -1,5 +1,6 @@
 #include "TrafficLightSubsystem.h"
 #include "ZoneGraphQuery.h"
+#include "ZoneGraphRenderingUtilities.h"
 
 
 
@@ -19,7 +20,7 @@ void UTrafficLightSubsystem::GetZoneGraphaData()
 	}
 }
 
-void UTrafficLightSubsystem::BuildIntersectionsData(UTagFilter* DAFilter)
+void UTrafficLightSubsystem::BuildIntersectionsData(FZoneGraphTagFilter IntersectionTag)
 {
 	GetZoneGraphaData();
 	if (!ZoneGraphStorage)
@@ -34,7 +35,7 @@ void UTrafficLightSubsystem::BuildIntersectionsData(UTagFilter* DAFilter)
 	{
 		const FZoneData& ZoneData = ZoneGraphStorage->Zones[i];
 		// Check if the zone is an intersection
-		if (DAFilter->TagFilter.Pass(ZoneData.Tags))
+		if (IntersectionTag.Pass(ZoneData.Tags))
 		{
 			FIntersectionData IntersectionData;
 						
@@ -113,4 +114,36 @@ void UTrafficLightSubsystem::LookUpIntersection(int32 ZoneIndex)
 			}
 		}
 	}
+}
+
+void UTrafficLightSubsystem::DebugDrawState(int32 ZoneIndex,float DebugTime)
+{
+	FIntersectionData* IntersectionData = IntersectionDatas.Find(ZoneIndex);
+	if(!IntersectionData)
+	{
+		UE_LOG(LogTrafficLight, Warning, TEXT("No intersection data found for ZoneIndex: %d"), ZoneIndex);
+		return;
+	}
+	TArray<int32> OpenLanes = IntersectionData->GetOpenLaneIndex();
+	for(auto laneIndex:OpenLanes)
+	{
+		int32 PointBegin = ZoneGraphStorage->Lanes[laneIndex].PointsBegin;
+		int32 PointEnd = ZoneGraphStorage->Lanes[laneIndex].PointsEnd;
+		int32 PointMid = (PointBegin + PointEnd) / 2;
+		PointEnd--;
+		DrawDebugLine(GetWorld(), ZoneGraphStorage->LanePoints[PointBegin], ZoneGraphStorage->LanePoints[PointMid], FColor::Red, false, DebugTime);
+		DrawDebugLine(GetWorld(), ZoneGraphStorage->LanePoints[PointMid], ZoneGraphStorage->LanePoints[PointEnd], FColor::Red, false, DebugTime);
+	}
+}
+
+void UTrafficLightSubsystem::SetOpenLanes(int32 ZoneIndex, int32 SideIndex, ETurnType TurnType, bool Reset)
+{
+	FIntersectionData* IntersectionData = IntersectionDatas.Find(ZoneIndex);
+	if(!IntersectionData)
+	{
+		UE_LOG(LogTrafficLight, Warning, TEXT("No intersection data found for ZoneIndex: %d"), ZoneIndex);
+		return;
+	}
+	
+	IntersectionData->SetSideOpenLanes(SideIndex, TurnType, Reset);
 }

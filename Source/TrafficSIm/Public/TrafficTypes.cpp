@@ -85,6 +85,8 @@ void FIntersectionData::SideSortLanes(const FZoneGraphStorage* ZoneGraphStorage)
 				}
 				side.TurnTypeToLanes.Add(TurnType, laneIndex);
 			}
+			
+			OpenLanes.Add(laneIndex, false);
 		}
 		
 		
@@ -132,6 +134,51 @@ void FIntersectionData::FindAloneSide(const FZoneGraphStorage* ZoneGraphStorage)
 			}
 		}
 	}
+}
+
+void FIntersectionData::SetSideOpenLanes(int32 SideIndex, ETurnType TurnType, bool Reset)
+{
+	if (SideIndex >= Sides.Num()) return;
+
+	if(Reset)
+	{
+		for (auto& Elem :OpenLanes)
+		{
+			Elem.Value = false;
+		}
+	}
+
+	FSide& side = Sides[SideIndex];
+
+	TArray<int32> lanes;
+	side.TurnTypeToLanes.MultiFind(TurnType, lanes);
+
+	for(int32 laneIndex:lanes)
+	{
+		OpenLanes.Add(laneIndex,true);
+	}
+
+}
+
+TArray<int32> FIntersectionData::GetAllLaneIndex()
+{
+	TArray<int32> AllLaneIndex;
+	OpenLanes.GetKeys(AllLaneIndex);
+	return AllLaneIndex;
+}
+
+TArray<int32> FIntersectionData::GetOpenLaneIndex()
+{
+	TArray<int32> AllOpenLaneIndex;
+	
+	for (auto& Elem :OpenLanes)
+	{
+		if (Elem.Value)
+		{
+			AllOpenLaneIndex.Add(Elem.Key);
+		}
+	}
+	return AllOpenLaneIndex;
 }
 
 void FSide::AddSlot(const FZoneGraphStorage* ZoneGraphStorage,int32 LaneIndex)

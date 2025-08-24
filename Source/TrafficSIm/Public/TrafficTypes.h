@@ -5,8 +5,9 @@
 
 DECLARE_LOG_CATEGORY_EXTERN(LogTrafficLight, Log, All);
 
-UENUM()
-enum class ETurnType
+
+UENUM(BlueprintType)
+enum class ETurnType:uint8
 {
 	Straight=0,
 	RightTurn = 1,
@@ -14,7 +15,7 @@ enum class ETurnType
 
 };
 UENUM(BlueprintType)
-enum class ETrafficSignalType
+enum class ETrafficSignalType:uint8
 {
 	Straight= 0,
 	StraightAndRight = 1,
@@ -47,6 +48,8 @@ struct TRAFFICSIM_API FSide
 	TMap<ETrafficSignalType, float> Periods; // Periods for different traffic light phases
 
 	FORCEINLINE void AddSlot(const FZoneGraphStorage* ZoneGraphStorage, int32 LaneIndex);
+
+
 };
 
 USTRUCT()
@@ -56,10 +59,16 @@ struct TRAFFICSIM_API FIntersectionData
 	
 	TArray<uint8> EntryIndex; // IDs of lanes at the intersection
 	TArray<FSide> Sides;
+
+	TMap<int32, bool> OpenLanes;
+
 	//TODO::SideTypes
 	FORCEINLINE void SideAddLane(const FZoneGraphStorage* ZoneGraphStorage, int32 LaneIndex);
 	FORCEINLINE void SideSortLanes(const FZoneGraphStorage* ZoneGraphStorage);
 	FORCEINLINE void FindAloneSide(const FZoneGraphStorage* ZoneGraphStorage);
+	FORCEINLINE void SetSideOpenLanes(int32 SideIndex,ETurnType TurnType,bool Reset=false);
+	FORCEINLINE TArray<int32> GetAllLaneIndex();
+	FORCEINLINE TArray<int32> GetOpenLaneIndex();
 };
 
 USTRUCT()
