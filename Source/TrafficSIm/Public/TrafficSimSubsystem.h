@@ -38,7 +38,7 @@ public:
 	int32 ChooseNextLane(FZoneGraphLaneLocation CurLane, TArray<int32>& NextLanes) const;
 
 	void FindEntityLaneByQuery(FBox QueryBox,FZoneGraphTagFilter& TagFilter,FZoneGraphLaneLocation& OutLaneLocation);
-	void InitOnPostLoadMap(UWorld* LoadedWorld,const UWorld::InitializationValues IVS);
+	void InitOnPostLoadMap(const UWorld::FActorsInitializedParams& Params);
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 
 	UFUNCTION(BlueprintCallable, Category = "TrafficSim")

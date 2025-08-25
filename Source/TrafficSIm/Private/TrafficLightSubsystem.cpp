@@ -131,8 +131,8 @@ void UTrafficLightSubsystem::DebugDrawState(int32 ZoneIndex,float DebugTime)
 		int32 PointEnd = ZoneGraphStorage->Lanes[laneIndex].PointsEnd;
 		int32 PointMid = (PointBegin + PointEnd) / 2;
 		PointEnd--;
-		DrawDebugLine(GetWorld(), ZoneGraphStorage->LanePoints[PointBegin], ZoneGraphStorage->LanePoints[PointMid], FColor::Red, false, DebugTime);
-		DrawDebugLine(GetWorld(), ZoneGraphStorage->LanePoints[PointMid], ZoneGraphStorage->LanePoints[PointEnd], FColor::Red, false, DebugTime);
+		DrawDebugLine(GetWorld(), ZoneGraphStorage->LanePoints[PointBegin]+FVector(0,0,30), ZoneGraphStorage->LanePoints[PointMid] + FVector(0, 0, 30), FColor::Red, false, DebugTime);
+		DrawDebugLine(GetWorld(), ZoneGraphStorage->LanePoints[PointMid] + FVector(0, 0, 30), ZoneGraphStorage->LanePoints[PointEnd] + FVector(0, 0, 30), FColor::Red, false, DebugTime);
 	}
 }
 

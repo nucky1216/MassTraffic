@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "MassProcessor.h"
+#include "TrafficLightSubsystem.h"
 #include "TrafficLightInitProcessor.generated.h"
 
 /**
@@ -17,9 +18,11 @@ class TRAFFICSIM_API UTrafficLightInitProcessor : public UMassProcessor
 public:
 	UTrafficLightInitProcessor();
 protected:
-	virtual void ConfigureQueries() override;
+	virtual void ConfigureQueries() override;\
+		virtual void Initialize(UObject& Owner) override;
 	virtual void Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context) override;
 private:
 	FMassEntityQuery EntityQuery;
+	UTrafficLightSubsystem* TrafficLightSubsystem;
 	
 };

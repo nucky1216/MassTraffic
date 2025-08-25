@@ -50,7 +50,8 @@ void UTrafficLightCountingProcessor::Execute(FMassEntityManager& EntityManager, 
 			float& TimeInDuration = TrafficLightFragment.TimeInDuration;
 
 			TimeInDuration -= DeltaTime;
-			UE_LOG(LogTemp, Log, TEXT("UTrafficLightCountingProcessor::Execute: LeftTime=%f"), TimeInDuration);
+			/*UE_LOG(LogTemp, Log, TEXT("UTrafficLightCountingProcessor::Execute: LeftTime=%f in ZoneIndex:%d"), 
+				TimeInDuration, TrafficLightFragment.ZoneIndex);*/
 			if(TimeInDuration <=0.f)
 			{
 				ETrafficSignalType& CurrentSignal = TrafficLightFragment.CurrentLightState;
@@ -59,7 +60,7 @@ void UTrafficLightCountingProcessor::Execute(FMassEntityManager& EntityManager, 
 				const FIntersectionData* IntersectionData = TrafficLightSubsystem->IntersectionDatas.Find(TrafficLightFragment.ZoneIndex);
 				if(!IntersectionData)
 				{
-					UE_LOG(LogTemp, Error, TEXT("UTrafficLightCountingProcessor::Execute: IntersectionData is null"));
+					UE_LOG(LogTemp, Error, TEXT("UTrafficLightCountingProcessor::Execute: IntersectionData is null of ZoneIndex:%d"), TrafficLightFragment.ZoneIndex);
 					continue;
 				}
 
@@ -81,6 +82,7 @@ void UTrafficLightCountingProcessor::Execute(FMassEntityManager& EntityManager, 
 					CurrentSignal = SignalSequence[0];
 				}
 				TimeInDuration = TrafficLightFragment.LightDurations[CurrentSignal];
+				
 
 				if(CurrentSignal==ETrafficSignalType::StraightAndRight && (*IntersectionData).Sides.Num()==4)
 				{

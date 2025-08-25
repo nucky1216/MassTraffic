@@ -5,6 +5,7 @@
 #include "MassCommonFragments.h"
 #include "MassExecutionContext.h"
 #include "EngineUtils.h"
+#include "TrafficTypes.h"
 #include "MassVehicleMovementFragment.h"
 #include "ZoneGraphQuery.h"
 
@@ -66,6 +67,8 @@ void UVehicleParamsInitProcessor::Execute(FMassEntityManager& EntityManager, FMa
 			VehicleMovement.TargetSpeed = FMath::RandRange(VehicleMovement.MinSpeed,VehicleMovement.MaxSpeed);
 
 			VehicleMovement.Speed = FMath::RandRange(VehicleMovement.MinSpeed, VehicleMovement.TargetSpeed);
+
+			
 
 		}
 	});

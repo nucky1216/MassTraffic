@@ -83,8 +83,8 @@ void UTrafficSimSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	Super::Initialize(Collection);
 	UE_LOG(LogTrafficSim, Log,TEXT("Subsystem Initializing.."));
 
-	FWorldDelegates::OnPostWorldInitialization.AddUObject(this, &UTrafficSimSubsystem::InitOnPostLoadMap);
-
+	//FWorldDelegates::OnPostWorldInitialization.AddUObject(this, &UTrafficSimSubsystem::InitOnPostLoadMap);
+	GetWorld()->OnActorsInitialized.AddUObject(this, &UTrafficSimSubsystem::InitOnPostLoadMap);
 }
 
 void UTrafficSimSubsystem::SpawnMassEntities(int32 NumEntities, int32 TargetLane, UMassEntityConfigAsset* EntityConfigAsset)
@@ -478,10 +478,10 @@ void UTrafficSimSubsystem::CollectLaneVehicles(FMassEntityHandle EntityHandle, c
 }
 
 
-void UTrafficSimSubsystem::InitOnPostLoadMap(UWorld* LoadedWorld, const UWorld::InitializationValues IVS)
+void UTrafficSimSubsystem::InitOnPostLoadMap(const UWorld::FActorsInitializedParams& Params)
 {
 	UE_LOG(LogTrafficSim, Log, TEXT("Post Init.."));
-	World = GetWorld();
+	World = Params.World;
 	ZoneGraphSubsystem = UWorld::GetSubsystem<UZoneGraphSubsystem>(World);
 
 	for (TActorIterator<AZoneGraphData> It(World); It; ++It)

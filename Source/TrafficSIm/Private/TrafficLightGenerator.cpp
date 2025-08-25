@@ -32,6 +32,7 @@ void UTrafficLightGenerator::Generate(UObject& QueryOwner, TConstArrayView<FMass
 	const FZoneGraphStorage& ZoneGraphStorage = ZoneGraphData->GetStorage();
 
 	TArray<FVector> IntersectionPoints;
+	TArray<int32> IntersectionZoneIndices;
 
 	int32 ZoneNum = ZoneGraphStorage.Zones.Num();
 	for (int32 i = 0; i < ZoneNum; ++i)
@@ -43,6 +44,7 @@ void UTrafficLightGenerator::Generate(UObject& QueryOwner, TConstArrayView<FMass
 		{
 			UE_LOG(LogTrafficSim, Log, TEXT("Zone %d is an intersection"), i);
 			IntersectionPoints.Add(ZoneData.Bounds.GetCenter());
+			IntersectionZoneIndices.Add(i);
 		}
 	}
 
@@ -71,7 +73,7 @@ void UTrafficLightGenerator::Generate(UObject& QueryOwner, TConstArrayView<FMass
 		for (int32 LocationIndex = 0; LocationIndex < Result.NumEntities; LocationIndex++)
 		{
 			InitSpawnData.TrafficLightTransforms.Add(FTransform(IntersectionPoints[LocationIndex]));
-			InitSpawnData.ZoneIndex.Add(LocationIndex);
+			InitSpawnData.ZoneIndex.Add(IntersectionZoneIndices[LocationIndex]);
 			InitSpawnData.StartSideIndex.Add(0); //默认从路口第0边开始
 			
 			SpawnCount++;
