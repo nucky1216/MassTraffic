@@ -62,14 +62,14 @@ void UTrafficLightSubsystem::BuildIntersectionsData(FZoneGraphTagFilter Intersec
 			side.TurnTypeToLanes.GetKeys(TurnTypes);
 			for(auto type:TurnTypes)
 			{
-				if(Pair.Value.Sides.Num()==3)
-				{
-					FColor Color = FColor::Red;
-					if (side.bIsAloneSide)
+
+				FColor Color = FColor::Red;
+
+				if (side.bIsAloneSide)
 						Color = FColor::Black;
-					DrawDebugDirectionalArrow(GetWorld(), side.SlotPoitions[0], side.SlotPoitions[0] + side.SideDirection * 500.f,
+				DrawDebugDirectionalArrow(GetWorld(), side.SlotPoitions[0], side.SlotPoitions[0] + side.SideDirection * 500.f,
 						150, Color, false, 10.0f, 0, 5.0f);
-				}
+				
 
 				FString TurnTypeStr = UEnum::GetValueAsString(type);
 				TArray<int32> Lanes;
@@ -146,4 +146,46 @@ void UTrafficLightSubsystem::SetOpenLanes(int32 ZoneIndex, int32 SideIndex, ETur
 	}
 	
 	IntersectionData->SetSideOpenLanes(SideIndex, TurnType, Reset);
+}
+
+void UTrafficLightSubsystem::SetCrossBySignalState(int32 ZoneIndex, ETrafficSignalType SignalType, int32 SideIndex)
+{
+	FIntersectionData* IntersectionData = IntersectionDatas.Find(ZoneIndex);
+	if(!IntersectionData)
+	{
+		UE_LOG(LogTrafficLight, Warning, TEXT("No intersection data found for ZoneIndex: %d"), ZoneIndex);
+		return;
+	}
+	
+	int32 SideNum=IntersectionData->Sides.Num();
+	if (SideNum == 4)
+	{
+		switch (SignalType) {
+
+		case ETrafficSignalType::Straight:
+			SetOpenLanes(ZoneIndex, SideIndex, ETurnType::Straight, true);
+			SetOpenLanes(ZoneIndex, (SideIndex + 2) % 4, ETurnType::Straight, false);
+			break;
+
+		case ETrafficSignalType::StraightAndRight:
+			SetOpenLanes(ZoneIndex,SideIndex, ETurnType::Straight,true);
+			SetOpenLanes(ZoneIndex, SideIndex, ETurnType::RightTurn, false);
+
+			SetOpenLanes(ZoneIndex, (SideIndex + 2) % 4, ETurnType::Straight, false);
+			SetOpenLanes(ZoneIndex, (SideIndex+2)%4, ETurnType::RightTurn, false);
+			break;
+		case ETrafficSignalType::Left:
+			SetOpenLanes(ZoneIndex, SideIndex, ETurnType::LeftTurn, true);
+			SetOpenLanes(ZoneIndex, (SideIndex + 2) % 4, ETurnType::LeftTurn, false);
+			break;
+		}
+	}
+	else if (SideNum == 3)
+	{
+		switch (SignalType) {
+		case ETrafficSignalType::Straight:
+			break;
+
+		}
+	}
 }

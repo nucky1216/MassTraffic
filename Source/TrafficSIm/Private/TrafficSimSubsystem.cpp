@@ -372,6 +372,24 @@ void UTrafficSimSubsystem::PrintLaneLinks(int32 TargetLaneIndex)
 	}
 }
 
+void UTrafficSimSubsystem::InitializeManual()
+{
+	ZoneGraphSubsystem = UWorld::GetSubsystem<UZoneGraphSubsystem>(World);
+	World = GetWorld();
+	for (TActorIterator<AZoneGraphData> It(World); It; ++It)
+	{
+		const AZoneGraphData* ZoneGraphData = *It;
+		if (ZoneGraphData && ZoneGraphData->IsValidLowLevel())
+		{
+			ZoneGraphStorage = &ZoneGraphData->GetStorage();
+			InitializeLaneToEntitiesMap();
+			return;
+		}
+	}
+
+	UE_LOG(LogTemp, Error, TEXT("No valid ZoneGraphData found in the world!"));
+}
+
 bool UTrafficSimSubsystem::SwitchToNextLane(FZoneGraphLaneLocation& LaneLocation, float NewDist)
 {
 	TArray<int32> NextLanes;

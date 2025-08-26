@@ -84,6 +84,7 @@ void UTrafficLightCountingProcessor::Execute(FMassEntityManager& EntityManager, 
 				TimeInDuration = TrafficLightFragment.LightDurations[CurrentSignal];
 				
 
+
 				if(CurrentSignal==ETrafficSignalType::StraightAndRight && (*IntersectionData).Sides.Num()==4)
 				{
 					// Reset the vehicle count when the light turns green

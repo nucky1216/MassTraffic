@@ -35,6 +35,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "TrafficLightSim", meta = (ToolTip = "Build Intersecion Data"))
 	void SetOpenLanes(int32 ZoneIndex,int32 SideIndex, ETurnType TurnType,bool Reset=false);
 
+	void SetCrossBySignalState(int32 ZoneIndex,ETrafficSignalType SignalType,int32 SideIndex);
+
 private:
 	const FZoneGraphStorage* ZoneGraphStorage = nullptr;
 	const UTrafficSimSubsystem* TrafficSimSubsystem = nullptr;

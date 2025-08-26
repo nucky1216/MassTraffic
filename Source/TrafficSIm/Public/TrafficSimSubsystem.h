@@ -53,6 +53,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "TrafficSim| Debug")
 	void PrintLaneLinks(int32 TargetLaneIndex);
 
+	UFUNCTION(BlueprintCallable, Category = "TrafficSim| Debug")
+	void InitializeManual();
+
 
 	bool SwitchToNextLane(FZoneGraphLaneLocation& LaneLocation, float NewDist);
 
