@@ -54,6 +54,10 @@ struct TRAFFICSIM_API FMassVehicleMovementFragment : public FMassFragment
     float VehicleLength = 400.f;
 
 
+    UPROPERTY(EditAnywhere, Category = "Initialize")
+	float CrossStopDistance = 800.f;
+
+
 	FMassEntityHandle VehicleHandle;
 	float LeftDistance = 0.f;
 };

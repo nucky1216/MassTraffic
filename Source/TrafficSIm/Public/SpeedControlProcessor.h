@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "MassProcessor.h"
 #include "TrafficSimSubsystem.h"
+#include "TrafficLightSubsystem.h"
 #include "SpeedControlProcessor.generated.h"
 
 /**
@@ -24,5 +25,5 @@ public:
 private:
 	FMassEntityQuery EntityQuery;
 	UTrafficSimSubsystem* TrafficSimSubsystem = nullptr;
-	
+	UTrafficLightSubsystem* TrafficLightSubsystem = nullptr;
 };

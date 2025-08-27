@@ -60,7 +60,7 @@ void UVehicleParamsInitProcessor::Execute(FMassEntityManager& EntityManager, FMa
 			
 			//UE_LOG(LogTemp, Log, TEXT("Found Lane: %s"), *LaneLocation.LaneHandle.ToString());
 			TArray<int32> NextLanes;
-			VehicleMovement.NextLane = TrafficSimSubsystem->ChooseNextLane(LaneLocation, NextLanes);
+			VehicleMovement.NextLane = TrafficSimSubsystem->ChooseNextLane(LaneLocation.LaneHandle.Index, NextLanes);
 
 			VehicleMovement.VehicleHandle = Context.GetEntity(EntityIndex);
 

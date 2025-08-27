@@ -35,7 +35,7 @@ private:
 
 
 public:
-	int32 ChooseNextLane(FZoneGraphLaneLocation CurLane, TArray<int32>& NextLanes) const;
+	int32 ChooseNextLane(int32 CurLaneIndex, TArray<int32>& NextLanes) const;
 
 	void FindEntityLaneByQuery(FBox QueryBox,FZoneGraphTagFilter& TagFilter,FZoneGraphLaneLocation& OutLaneLocation);
 	void InitOnPostLoadMap(const UWorld::FActorsInitializedParams& Params);
@@ -61,7 +61,7 @@ public:
 
 
 	//UFUNCTION(BlueprintCallable, Category = "TrafficSim| Avoidance")
-	bool FindFrontVehicle(int32 LaneIndex, FMassEntityHandle CurVehicle, const FMassVehicleMovementFragment*& FrontVehicle);
+	bool FindFrontVehicle(int32 LaneIndex, int32 NextLaneIndex,FMassEntityHandle CurVehicle, const FMassVehicleMovementFragment*& FrontVehicle);
 
 
 	//laneVehicles
@@ -71,6 +71,7 @@ public:
 	const UWorld* World = nullptr;
 	const UZoneGraphSubsystem* ZoneGraphSubsystem = nullptr;
 	const FZoneGraphStorage* ZoneGraphStorage = nullptr;
+	FZoneGraphStorage* mutableZoneGraphSotrage = nullptr;
 
 	TMap<int32, TArray<FLaneVehicle>> LaneToEntitiesMap;
 };

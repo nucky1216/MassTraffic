@@ -22,6 +22,8 @@ void UTrafficLightSubsystem::GetZoneGraphaData()
 
 void UTrafficLightSubsystem::BuildIntersectionsData(FZoneGraphTagFilter IntersectionTag)
 {
+	IntersectionTagFilter = IntersectionTag;
+
 	GetZoneGraphaData();
 	if (!ZoneGraphStorage)
 	{
@@ -131,8 +133,8 @@ void UTrafficLightSubsystem::DebugDrawState(int32 ZoneIndex,float DebugTime)
 		int32 PointEnd = ZoneGraphStorage->Lanes[laneIndex].PointsEnd;
 		int32 PointMid = (PointBegin + PointEnd) / 2;
 		PointEnd--;
-		DrawDebugLine(GetWorld(), ZoneGraphStorage->LanePoints[PointBegin]+FVector(0,0,30), ZoneGraphStorage->LanePoints[PointMid] + FVector(0, 0, 30), FColor::Red, false, DebugTime);
-		DrawDebugLine(GetWorld(), ZoneGraphStorage->LanePoints[PointMid] + FVector(0, 0, 30), ZoneGraphStorage->LanePoints[PointEnd] + FVector(0, 0, 30), FColor::Red, false, DebugTime);
+		DrawDebugLine(GetWorld(), ZoneGraphStorage->LanePoints[PointBegin]+FVector(0,0,30), ZoneGraphStorage->LanePoints[PointMid] + FVector(0, 0, 30), FColor::Green, false, DebugTime);
+		DrawDebugLine(GetWorld(), ZoneGraphStorage->LanePoints[PointMid] + FVector(0, 0, 30), ZoneGraphStorage->LanePoints[PointEnd] + FVector(0, 0, 30), FColor::Green, false, DebugTime);
 	}
 }
 
@@ -148,6 +150,36 @@ void UTrafficLightSubsystem::SetOpenLanes(int32 ZoneIndex, int32 SideIndex, ETur
 	IntersectionData->SetSideOpenLanes(SideIndex, TurnType, Reset);
 }
 
+void UTrafficLightSubsystem::QueryLaneOpenState(int32 LaneIndex, bool& OpenState, bool& IntersectionLane)
+{
+	IntersectionLane = false;
+	OpenState = true;
+
+	if(!ZoneGraphStorage)
+	{
+		UE_LOG(LogTrafficLight, Error, TEXT("ZoneGraphStorage is not initialized! Cannot query lane open state."));
+		return ;
+	}
+	const FZoneLaneData& LaneData = ZoneGraphStorage->Lanes[LaneIndex];
+
+	if (!IntersectionTagFilter.Pass(LaneData.Tags))
+	{	
+		return;
+	}
+	IntersectionLane = true;
+
+	int32 ZoneIndex = ZoneGraphStorage->Lanes[LaneIndex].ZoneIndex;
+	FIntersectionData* IntersectionData = IntersectionDatas.Find(ZoneIndex);
+	if (!IntersectionData)
+	{
+		UE_LOG(LogTrafficLight, Warning, TEXT("No intersection data found for ZoneIndex: %d"), ZoneIndex);
+		return;
+	}
+	OpenState = IntersectionData->OpenLanes.FindRef(LaneIndex);
+
+	return;
+}
+
 void UTrafficLightSubsystem::SetCrossBySignalState(int32 ZoneIndex, ETrafficSignalType SignalType, int32 SideIndex)
 {
 	FIntersectionData* IntersectionData = IntersectionDatas.Find(ZoneIndex);
@@ -158,13 +190,14 @@ void UTrafficLightSubsystem::SetCrossBySignalState(int32 ZoneIndex, ETrafficSign
 	}
 	
 	int32 SideNum=IntersectionData->Sides.Num();
+	int32 OppositeSideIndex = IntersectionData->Sides[SideIndex].OppositeSideIndex;
 	if (SideNum == 4)
 	{
 		switch (SignalType) {
 
 		case ETrafficSignalType::Straight:
 			SetOpenLanes(ZoneIndex, SideIndex, ETurnType::Straight, true);
-			SetOpenLanes(ZoneIndex, (SideIndex + 2) % 4, ETurnType::Straight, false);
+			SetOpenLanes(ZoneIndex, OppositeSideIndex, ETurnType::Straight, false);
 			break;
 
 		case ETrafficSignalType::StraightAndRight:
@@ -172,20 +205,48 @@ void UTrafficLightSubsystem::SetCrossBySignalState(int32 ZoneIndex, ETrafficSign
 			SetOpenLanes(ZoneIndex, SideIndex, ETurnType::RightTurn, false);
 
 			SetOpenLanes(ZoneIndex, (SideIndex + 2) % 4, ETurnType::Straight, false);
-			SetOpenLanes(ZoneIndex, (SideIndex+2)%4, ETurnType::RightTurn, false);
+			SetOpenLanes(ZoneIndex, OppositeSideIndex, ETurnType::RightTurn, false);
 			break;
 		case ETrafficSignalType::Left:
 			SetOpenLanes(ZoneIndex, SideIndex, ETurnType::LeftTurn, true);
-			SetOpenLanes(ZoneIndex, (SideIndex + 2) % 4, ETurnType::LeftTurn, false);
+			SetOpenLanes(ZoneIndex, OppositeSideIndex, ETurnType::LeftTurn, false);
 			break;
 		}
 	}
 	else if (SideNum == 3)
 	{
-		switch (SignalType) {
-		case ETrafficSignalType::Straight:
-			break;
+		FSide& side = IntersectionData->Sides[SideIndex];
+		int32 AloneSide = IntersectionData->AloneSide;
+		if (!side.bIsAloneSide)
+		{
+			switch (SignalType) {
+			case ETrafficSignalType::Straight:
+				SetOpenLanes(ZoneIndex, SideIndex, ETurnType::Straight, true);
+				SetOpenLanes(ZoneIndex, OppositeSideIndex, ETurnType::Straight, false);
 
+				SetOpenLanes(ZoneIndex, AloneSide, ETurnType::RightTurn, false);
+				break;
+			case ETrafficSignalType::StraightAndRight:
+				SetOpenLanes(ZoneIndex, SideIndex, ETurnType::Straight, true);
+				SetOpenLanes(ZoneIndex, SideIndex, ETurnType::RightTurn, false);
+
+				SetOpenLanes(ZoneIndex, OppositeSideIndex, ETurnType::Straight, false);
+				SetOpenLanes(ZoneIndex, OppositeSideIndex, ETurnType::RightTurn, false);
+
+				SetOpenLanes(ZoneIndex, AloneSide, ETurnType::RightTurn, false);
+				break;
+			case ETrafficSignalType::Left:
+				SetOpenLanes(ZoneIndex, SideIndex, ETurnType::LeftTurn, true);
+
+				SetOpenLanes(ZoneIndex, OppositeSideIndex, ETurnType::LeftTurn, false);
+
+				SetOpenLanes(ZoneIndex, AloneSide, ETurnType::RightTurn, false);
+				break;
+			}
+		}
+		else {
+			SetOpenLanes(ZoneIndex, SideIndex, ETurnType::LeftTurn, true);
+			SetOpenLanes(ZoneIndex, SideIndex, ETurnType::RightTurn, false);
 		}
 	}
 }

@@ -44,6 +44,8 @@ struct TRAFFICSIM_API FSide
 	bool bIsAloneSide = false; // If true, there is no opposite lane for this side
 	FVector SideDirection; // Direction of the side
 
+	int32 OppositeSideIndex = -1; // Index of the opposite side in the intersection
+
 	UPROPERTY(EditAnywhere,Category="Period")
 	TMap<ETrafficSignalType, float> Periods; // Periods for different traffic light phases
 
@@ -59,7 +61,7 @@ struct TRAFFICSIM_API FIntersectionData
 	
 	TArray<uint8> EntryIndex; // IDs of lanes at the intersection
 	TArray<FSide> Sides;
-
+	int32 AloneSide = -1; // Index of the alone side, -1 if none
 	TMap<int32, bool> OpenLanes;
 
 	//TODO::SideTypes

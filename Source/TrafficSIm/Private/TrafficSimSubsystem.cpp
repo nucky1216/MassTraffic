@@ -9,6 +9,7 @@
 #include "MassSpawnerSubsystem.h"
 #include "MassSpawnLocationProcessor.h"
 #include "MassEntitySubsystem.h"
+#include "TrafficLightSubsystem.h"
 #include "MassEntitySpawnDataGeneratorBase.h"
 #include "VehicleDeletorProcessor.h"
 #include "MassExecutor.h"
@@ -32,9 +33,9 @@ void UTrafficSimSubsystem::InitializeLaneToEntitiesMap()
 	}
 }
 
-int32 UTrafficSimSubsystem::ChooseNextLane(FZoneGraphLaneLocation CurLane,TArray<int32>& NextLanes) const
+int32 UTrafficSimSubsystem::ChooseNextLane(int32 CurLaneIndex,TArray<int32>& NextLanes) const
 {
-	const FZoneLaneData& CurLaneData = ZoneGraphStorage->Lanes[CurLane.LaneHandle.Index];
+	const FZoneLaneData& CurLaneData = ZoneGraphStorage->Lanes[CurLaneIndex];
 
 	int32 FirstLink = CurLaneData.LinksBegin;
 	int32 EndLink = CurLaneData.LinksEnd;
@@ -55,7 +56,7 @@ int32 UTrafficSimSubsystem::ChooseNextLane(FZoneGraphLaneLocation CurLane,TArray
 
 	if (NextLanes.Num() == 0)
 	{
-		UE_LOG(LogTrafficSim, Verbose, TEXT("Current lane:%d has no links, cannot choose next lane."), CurLane.LaneHandle.Index);
+		UE_LOG(LogTrafficSim, Verbose, TEXT("Current lane:%d has no links, cannot choose next lane."), CurLaneIndex);
 		return -1;
 	}
 
@@ -264,7 +265,8 @@ void UTrafficSimSubsystem::PrintLaneVehicles(int32 TargetLaneIndex)
 			FVector Position = LaneVehicle.VehicleMovementFragment->LaneLocation.Position;
 
 			const FMassVehicleMovementFragment* FrontVehicle = nullptr;
-			bool found=FindFrontVehicle(LaneVehicle.VehicleMovementFragment->LaneLocation.LaneHandle.Index, LaneVehicle.EntityHandle, FrontVehicle);
+			bool found=FindFrontVehicle(LaneVehicle.VehicleMovementFragment->LaneLocation.LaneHandle.Index,
+				LaneVehicle.VehicleMovementFragment->NextLane,LaneVehicle.EntityHandle, FrontVehicle);
 
 			int32 ForntVehicleSN = -1;
 			if (found && FrontVehicle)
@@ -358,17 +360,11 @@ void UTrafficSimSubsystem::PrintLaneLinks(int32 TargetLaneIndex)
 
 
 		UE_LOG(LogTrafficSim, Log, TEXT("  Link to lane %d of type %s with Flags:%s"), LaneLink.DestLaneIndex, *LinkTypeStr,*LinkFlagStr);
+		TArray<int32> NextLanes;
+		int32 index=ChooseNextLane(TargetLaneIndex, NextLanes);
+		UE_LOG(LogTrafficSim, Log, TEXT(" Random Choose Next Lanes:%d"), index);
 
-		/*
-		int32 LanePointsNum=ZoneGraphStorage->Lanes[TargetLaneIndex].GetNumPoints();
-
-		for(int32 i=ZoneGraphStorage->Lanes[TargetLaneIndex].PointsBegin;i<ZoneGraphStorage->Lanes[TargetLaneIndex].PointsEnd;++i)
-		{
-			const FVector& Point = ZoneGraphStorage->LanePoints[i];
-			UE_LOG(LogTrafficSim, Log, TEXT("    PointIndex: %d in TotalNum:%d: Location: %s"), i , LanePointsNum ,*Point.ToString());
-		}
-		UE_LOG(LogTrafficSim,Log,TEXT("StartEntryId:%u, EndEntryID:%u"), ZoneGraphStorage->Lanes[TargetLaneIndex].StartEntryId, ZoneGraphStorage->Lanes[TargetLaneIndex].EndEntryId);
-		*/
+		
 	}
 }
 
@@ -378,10 +374,11 @@ void UTrafficSimSubsystem::InitializeManual()
 	World = GetWorld();
 	for (TActorIterator<AZoneGraphData> It(World); It; ++It)
 	{
-		const AZoneGraphData* ZoneGraphData = *It;
+		AZoneGraphData* ZoneGraphData = *It;
 		if (ZoneGraphData && ZoneGraphData->IsValidLowLevel())
 		{
 			ZoneGraphStorage = &ZoneGraphData->GetStorage();
+			mutableZoneGraphSotrage = &ZoneGraphData->GetStorageMutable();
 			InitializeLaneToEntitiesMap();
 			return;
 		}
@@ -393,7 +390,7 @@ void UTrafficSimSubsystem::InitializeManual()
 bool UTrafficSimSubsystem::SwitchToNextLane(FZoneGraphLaneLocation& LaneLocation, float NewDist)
 {
 	TArray<int32> NextLanes;
-	int NextIndex = ChooseNextLane(LaneLocation, NextLanes);
+	int NextIndex = ChooseNextLane(LaneLocation.LaneHandle.Index, NextLanes);
 
 	if(NextIndex < 0)
 	{
@@ -406,7 +403,7 @@ bool UTrafficSimSubsystem::SwitchToNextLane(FZoneGraphLaneLocation& LaneLocation
 	return true;
 }
 
-bool UTrafficSimSubsystem::FindFrontVehicle(int32 LaneIndex, FMassEntityHandle CurVehicle, const FMassVehicleMovementFragment* & FrontVehicle)
+bool UTrafficSimSubsystem::FindFrontVehicle(int32 LaneIndex, int32 NextLaneIndex,FMassEntityHandle CurVehicle, const FMassVehicleMovementFragment* & FrontVehicle)
 {
 	TArray<FLaneVehicle>* LaneVehicles=LaneToEntitiesMap.Find(LaneIndex);
 	if(!LaneVehicles)
@@ -426,42 +423,26 @@ bool UTrafficSimSubsystem::FindFrontVehicle(int32 LaneIndex, FMassEntityHandle C
 		UE_LOG(LogTrafficSim, Warning, TEXT("Current vehicle not found in lane %d."), LaneIndex);
 		return false;
 	}
-	//UE_LOG(LogTrafficSim, Log, TEXT("Current vehicle index in lane %d: CurIndex:%d in TotalNumber:%d"), LaneIndex, CurVehicleIndex, VehicleNumInCurLane);
-
-	//当前车辆不是车道最后一辆车
+	
+	//当前车辆不是车道第一辆车 (越靠前的车辆下标越大)
 	if (CurVehicleIndex < VehicleNumInCurLane - 1)
 	{
 		FrontVehicle = (*LaneVehicles)[CurVehicleIndex + 1].VehicleMovementFragment;
-
-		//UE_LOG(LogTrafficSim, Log, TEXT("Front vehicle found at index %d with SN %d"),CurVehicleIndex + 1, FrontVehicle->VehicleHandle.SerialNumber);
 		return true;
 	}
 	
-	//float Dist =(* LaneVehicles)[CurVehicleIndex + 1].VehicleMovementFragment->LaneLocation.DistanceAlongLane;
-
-
-	//当前车辆是车道最后一辆车，即将进入下一车道且下条车道有车辆
+	//当前车辆是车道第一辆车，即将进入下一车道且下条车道有车辆
 	if(CurVehicleIndex == VehicleNumInCurLane - 1 )
 	{
-		TArray<int32> NextLanes;
-		ChooseNextLane((*LaneVehicles)[CurVehicleIndex].VehicleMovementFragment->LaneLocation, NextLanes);
+		//TArray<int32> NextLanes;
+		//ChooseNextLane((*LaneVehicles)[CurVehicleIndex].VehicleMovementFragment->LaneLocation.LaneHandle.Index, NextLanes);
 
-		float MinDist = FLT_MAX;
-		//找到所有连接的车道，找到距离当前车辆最近的前车
-		for(int32 NextLaneIndex : NextLanes)
+		TArray<FLaneVehicle>* NextLaneVehicles = LaneToEntitiesMap.Find(NextLaneIndex);
+		if (!LaneVehicles || NextLaneVehicles->Num()==0)
 		{
-			TArray<FLaneVehicle>* NextLaneVehicles=LaneToEntitiesMap.Find(NextLaneIndex);
-			if(NextLaneVehicles && NextLaneVehicles->Num()>0 )
-			{
-				const FMassVehicleMovementFragment* Fragment=(*NextLaneVehicles)[0].VehicleMovementFragment;
-				if(Fragment->LaneLocation.DistanceAlongLane < MinDist)
-				{
-					MinDist = Fragment->LaneLocation.DistanceAlongLane;
-					FrontVehicle = Fragment;
-				}
-			}
+			return false;
 		}
-
+		FrontVehicle = (*NextLaneVehicles)[0].VehicleMovementFragment;
 		return true;
 
 	}

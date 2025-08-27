@@ -53,6 +53,7 @@ void FIntersectionData::SideSortLanes(const FZoneGraphStorage* ZoneGraphStorage)
 				{
 					side.TurnTypeToLanes.Add(ETurnType::Straight, laneIndex);
 				}
+				side.OppositeSideIndex = (lane.StartEntryId + 2) % 4;
 			}
 			//TODO::3-side intersection
 			if (sideCount == 3)
@@ -130,8 +131,13 @@ void FIntersectionData::FindAloneSide(const FZoneGraphStorage* ZoneGraphStorage)
 			if (Angle >= 130.f)
 			{
 				CurSide.bIsAloneSide = false;
+				CurSide.OppositeSideIndex = j;
 				break;
 			}
+		}
+		if(CurSide.bIsAloneSide)
+		{
+			AloneSide = i;
 		}
 	}
 }

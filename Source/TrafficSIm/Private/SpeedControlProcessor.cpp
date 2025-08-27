@@ -27,6 +27,12 @@ void USpeedControlProcessor::Initialize(UObject& Owner)
 		UE_LOG(LogTrafficSim, Error, TEXT("TrafficSimSubsystem is not initialized! Cannot execute VehicleMovementProcessor."));
 		return;
 	}
+	TrafficLightSubsystem = UWorld::GetSubsystem<UTrafficLightSubsystem>(GetWorld());
+	if(!TrafficLightSubsystem)
+	{
+		UE_LOG(LogTrafficSim, Error, TEXT("TrafficLightSubsystem is not initialized! Cannot execute VehicleMovementProcessor."));
+		return;
+	}
 }
 
 void USpeedControlProcessor::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context)
@@ -45,18 +51,37 @@ void USpeedControlProcessor::Execute(FMassEntityManager& EntityManager, FMassExe
 				//FTransformFragment				
 
 				const FMassVehicleMovementFragment* FrontVehicleMovement = nullptr;
-				bool front=TrafficSimSubsystem->FindFrontVehicle(VehicleMovement.LaneLocation.LaneHandle.Index, Context.GetEntity(i), FrontVehicleMovement);
+				bool front=TrafficSimSubsystem->FindFrontVehicle(VehicleMovement.LaneLocation.LaneHandle.Index,
+					VehicleMovement.NextLane, Context.GetEntity(i), FrontVehicleMovement);
 				
-				//减速至前车速度
-				if (front && FrontVehicleMovement)
+
+				if (front && FrontVehicleMovement)//设置目标速度为前车速度
 				{
 					float DistanceToFrontVehicle = FVector::Distance(VehicleMovement.LaneLocation.Position, FrontVehicleMovement->LaneLocation.Position);
 					if (FrontVehicleMovement->Speed < VehicleMovement.Speed && DistanceToFrontVehicle < VehicleMovement.MinGap * 2.0)
 					{
 						VehicleMovement.TargetSpeed = FrontVehicleMovement->Speed;
 					}
+					else
+					{
+						VehicleMovement.TargetSpeed = VehicleMovement.MaxSpeed;
+					}
 				
 				}
+
+				//如果距离红绿灯小于500米，并且下一个车道是红灯，则停车
+				if (VehicleMovement.LeftDistance < VehicleMovement.CrossStopDistance)
+				{
+					bool IntersectionLane = false,OpenLane=true;
+
+					TrafficLightSubsystem->QueryLaneOpenState(VehicleMovement.NextLane, OpenLane, IntersectionLane);
+
+					if(IntersectionLane)
+					{
+						VehicleMovement.TargetSpeed = OpenLane?VehicleMovement.MaxSpeed:0.f;
+					}
+				}
+
 				//加速至目标速度
 				if (VehicleMovement.TargetSpeed > VehicleMovement.Speed)
 				{
@@ -67,6 +92,7 @@ void USpeedControlProcessor::Execute(FMassEntityManager& EntityManager, FMassExe
 				{
 					VehicleMovement.Speed -= VehicleMovement.Decelaration * DeltaTime;
 				}
+				VehicleMovement.Speed= FMath::Clamp(VehicleMovement.Speed,0, VehicleMovement.MaxSpeed);
 			}
 		});
 }

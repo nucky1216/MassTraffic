@@ -35,7 +35,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "TrafficLightSim", meta = (ToolTip = "Build Intersecion Data"))
 	void SetOpenLanes(int32 ZoneIndex,int32 SideIndex, ETurnType TurnType,bool Reset=false);
 
+
+	UFUNCTION(BlueprintCallable, Category = "TrafficLightSim", meta = (ToolTip = "Build Intersecion Data"))
+	void QueryLaneOpenState(int32 LaneIndex,bool& OpenState,bool & IntersectionLane);
+
 	void SetCrossBySignalState(int32 ZoneIndex,ETrafficSignalType SignalType,int32 SideIndex);
+
+	FZoneGraphTagFilter IntersectionTagFilter;
+
 
 private:
 	const FZoneGraphStorage* ZoneGraphStorage = nullptr;
