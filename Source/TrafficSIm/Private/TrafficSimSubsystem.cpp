@@ -374,17 +374,24 @@ void UTrafficSimSubsystem::InitializeManual()
 	World = GetWorld();
 	for (TActorIterator<AZoneGraphData> It(World); It; ++It)
 	{
-		AZoneGraphData* ZoneGraphData = *It;
-		if (ZoneGraphData && ZoneGraphData->IsValidLowLevel())
+		AZoneGraphData* ZoneGraphDataTemp = *It;
+		if (ZoneGraphDataTemp && ZoneGraphDataTemp->IsValidLowLevel())
 		{
-			ZoneGraphStorage = &ZoneGraphData->GetStorage();
-			mutableZoneGraphSotrage = &ZoneGraphData->GetStorageMutable();
+			ZoneGraphStorage = &ZoneGraphDataTemp->GetStorage();
+			mutableZoneGraphSotrage = &ZoneGraphDataTemp->GetStorageMutable();
+			ZoneGraphData = ZoneGraphDataTemp;
 			InitializeLaneToEntitiesMap();
 			return;
 		}
 	}
 
 	UE_LOG(LogTemp, Error, TEXT("No valid ZoneGraphData found in the world!"));
+}
+
+void UTrafficSimSubsystem::ZoneGraphTest(int32 TargetLane)
+{
+	mutableZoneGraphSotrage->Lanes.RemoveAt(TargetLane);
+	ZoneGraphData->UpdateDrawing();
 }
 
 bool UTrafficSimSubsystem::SwitchToNextLane(FZoneGraphLaneLocation& LaneLocation, float NewDist)
@@ -485,10 +492,10 @@ void UTrafficSimSubsystem::InitOnPostLoadMap(const UWorld::FActorsInitializedPar
 
 	for (TActorIterator<AZoneGraphData> It(World); It; ++It)
 	{
-		const AZoneGraphData* ZoneGraphData = *It;
-		if (ZoneGraphData && ZoneGraphData->IsValidLowLevel())
+		const AZoneGraphData* ZoneGraphDataTemp = *It;
+		if (ZoneGraphDataTemp && ZoneGraphDataTemp->IsValidLowLevel())
 		{
-			ZoneGraphStorage = &ZoneGraphData->GetStorage();
+			ZoneGraphStorage = &ZoneGraphDataTemp->GetStorage();
 			InitializeLaneToEntitiesMap();
 			return;
 		}

@@ -56,6 +56,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "TrafficSim| Debug")
 	void InitializeManual();
 
+	UFUNCTION(BlueprintCallable, Category = "TrafficSim| Test")
+	void ZoneGraphTest(int32 TargetLane);
 
 	bool SwitchToNextLane(FZoneGraphLaneLocation& LaneLocation, float NewDist);
 
@@ -72,6 +74,7 @@ public:
 	const UZoneGraphSubsystem* ZoneGraphSubsystem = nullptr;
 	const FZoneGraphStorage* ZoneGraphStorage = nullptr;
 	FZoneGraphStorage* mutableZoneGraphSotrage = nullptr;
+	AZoneGraphData* ZoneGraphData = nullptr;
 
 	TMap<int32, TArray<FLaneVehicle>> LaneToEntitiesMap;
 };
