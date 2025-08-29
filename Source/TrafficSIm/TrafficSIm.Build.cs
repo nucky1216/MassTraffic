@@ -43,6 +43,7 @@ public class TrafficSIm : ModuleRules
                 "MassSpawner",
 				"ZoneGraph",
                 "MassCommon",
+				"EditorUtilities"
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);

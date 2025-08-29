@@ -1,24 +1,21 @@
 using UnrealBuildTool;
 
-public class MyPluginEditor : ModuleRules
+public class EditorUtilities : ModuleRules
 {
-    public MyPluginEditor(ReadOnlyTargetRules Target) : base(Target)
+    public EditorUtilities(ReadOnlyTargetRules Target) : base(Target)
     {
         PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
-        // 
-        if (Target.bBuildEditor == true)
+        PrivateDependencyModuleNames.AddRange(new string[]
         {
-            PrivateDependencyModuleNames.AddRange(new string[]
-            {
-                "Core",
-                "CoreUObject",
-                "Engine",
-                "UnrealEd",        // For editor functionalities
-                "Slate",
-                "SlateCore",
-                "ZoneGraph"
-            });
-        }
+            "Core",
+            "CoreUObject",
+            "Engine",
+            "UnrealEd",
+            "Slate",
+            "SlateCore",
+            "PropertyEditor",
+            "ZoneGraph"
+        });
     }
 }

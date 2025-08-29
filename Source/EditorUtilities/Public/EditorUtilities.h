@@ -1,8 +1,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Modules/ModuleManager.h"
 
-class FEditorUtilities : public IModuleInterface
+class FEditorUtilitiesModule : public IModuleInterface
 {
 public:
     virtual void StartupModule() override;
