@@ -24,6 +24,11 @@ struct FEdgeLaneConfig
 
     UPROPERTY(EditAnywhere, Category = "Edge Config")
     EEdgeTurnType TurnType;
+
+    FEdgeLaneConfig()
+        : LaneIndex(-1)
+        , TurnType(EEdgeTurnType::Straight)
+    {}
 };
 
 USTRUCT(BlueprintType)
@@ -36,6 +41,10 @@ struct FEdgeConfig
 
     UPROPERTY(EditAnywhere, Category = "Edge Config")
     TArray<FEdgeLaneConfig> LaneConfigs;
+
+    FEdgeConfig()
+        : EdgeIndex(0)
+    {}
 };
 
 UCLASS(BlueprintType)

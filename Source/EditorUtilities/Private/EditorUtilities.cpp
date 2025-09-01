@@ -11,10 +11,54 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/SBoxPanel.h"
+#include "UnrealEdGlobals.h"
 #include "Widgets/SWindow.h"
+#include "ComponentVisualizer.h"
+//#include "../../../UE_5.3/Engine/Plugins/Runtime/ZoneGraph/Source/ZoneGraphEditor/Private/ZoneShapeComponentVisualizer.h"
+#include "IDetailChildrenBuilder.h"
 #include "Framework/Application/SlateApplication.h"
 
 #define LOCTEXT_NAMESPACE "FZoneShapeEditorExtensionsModule"
+
+class FZoneShapeComponentVisualizer;
+
+class FZoneShapePointDetails : public IDetailCustomNodeBuilder, public TSharedFromThis<FZoneShapePointDetails>
+{
+public:
+    FZoneShapePointDetails(UZoneShapeComponent& InOwningComponent)
+        : ShapeComp(&InOwningComponent)
+    {
+        // 获取 Visualizer
+        TSharedPtr<FComponentVisualizer> Visualizer = GUnrealEd->FindComponentVisualizer(InOwningComponent.GetClass());
+        ShapeCompVisualizer = StaticCastSharedPtr<FZoneShapeComponentVisualizer>(Visualizer);
+
+    }
+
+    virtual void GenerateHeaderRowContent(FDetailWidgetRow& NodeRow) override {}
+    virtual void GenerateChildContent(IDetailChildrenBuilder& ChildrenBuilder) override
+    {
+        // 展示选中点数量
+        ChildrenBuilder.AddCustomRow(FText::FromString("Selected Points"))
+            [SNew(STextBlock).Text(FText::FromString(FString::Printf(TEXT("当前选中控制点数量: %d"), SelectedPoints.Num())))];
+    }
+
+    virtual void Tick(float DeltaTime) override
+    {
+        // 每帧监听选中点变化
+        if (ShapeCompVisualizer.IsValid())
+        {
+            SelectedPoints = ShapeCompVisualizer->GetSelectedPoints();
+        }
+    }
+
+    virtual bool RequiresTick() const override { return true; }
+    virtual FName GetName() const override { return FName("ZoneShapePointDetails"); }
+
+private:
+    UZoneShapeComponent* ShapeComp;
+    TSet<int32> SelectedPoints;
+    TSharedPtr<FZoneShapeComponentVisualizer> ShapeCompVisualizer;
+};
 
 class FZoneShapeDetailsCustomization : public IDetailCustomization
 {
@@ -28,7 +72,7 @@ public:
     {
         TArray<TWeakObjectPtr<UObject>> Objects;
         DetailBuilder.GetObjectsBeingCustomized(Objects);
-
+        UE_LOG(LogTemp, Warning, TEXT("EditorUtilities: Read to Selected object class"));
         for (auto& Obj : Objects)
         {
             UE_LOG(LogTemp, Warning, TEXT("Selected object class: %s"), *Obj->GetClass()->GetName());
@@ -103,7 +147,7 @@ void FEditorUtilitiesModule::StartupModule()
 
     // 注册 Actor 的自定义 Details
     PropertyModule.RegisterCustomClassLayout(
-        "ZoneShapeActor",
+        "ZoneShape",
         FOnGetDetailCustomizationInstance::CreateStatic(&FZoneShapeDetailsCustomization::MakeInstance)
     );
 
@@ -112,7 +156,7 @@ void FEditorUtilitiesModule::StartupModule()
         "ZoneShapeComponent",
         FOnGetDetailCustomizationInstance::CreateStatic(&FZoneShapeDetailsCustomization::MakeInstance)
     );
-    UE_LOG(LogTemp, Warning, TEXT("Registering ZoneShapeActor customization..."));
+    UE_LOG(LogTemp, Warning, TEXT("EditorUtilities:Registering ZoneShapeActor customization..."));
 
 }
 

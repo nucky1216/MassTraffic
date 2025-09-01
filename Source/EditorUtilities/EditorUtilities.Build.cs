@@ -6,16 +6,19 @@ public class EditorUtilities : ModuleRules
     {
         PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
+        PublicDependencyModuleNames.AddRange(new string[] {
+            "Core", "CoreUObject", "Engine"
+        });
+
         PrivateDependencyModuleNames.AddRange(new string[]
         {
-            "Core",
-            "CoreUObject",
-            "Engine",
-            "UnrealEd",
+            "UnrealEd", 
+            "PropertyEditor",
             "Slate",
             "SlateCore",
             "PropertyEditor",
-            "ZoneGraph"
+            "ZoneGraph",
+            "ZoneGraphEditor"
         });
     }
 }
