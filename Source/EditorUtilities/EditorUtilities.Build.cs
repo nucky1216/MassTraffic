@@ -16,6 +16,7 @@ public class EditorUtilities : ModuleRules
             "PropertyEditor",
             "Slate",
             "SlateCore",
+            "InputCore",
             "PropertyEditor",
             "ZoneGraph",
             "ZoneGraphEditor"

@@ -6,12 +6,13 @@
 #include "ZoneShapeEdgeConfig.generated.h"
 
 UENUM(BlueprintType)
-enum class EEdgeTurnType : uint8
+enum class ESlotTurnType : uint8
 {
     Straight,
     RightTurn,
     LeftTurn,
-    StraightRight
+    StraightRight,
+	StraightLeft
 };
 
 USTRUCT(BlueprintType)
@@ -23,11 +24,11 @@ struct FEdgeLaneConfig
     int32 LaneIndex;
 
     UPROPERTY(EditAnywhere, Category = "Edge Config")
-    EEdgeTurnType TurnType;
+    ESlotTurnType TurnType;
 
     FEdgeLaneConfig()
         : LaneIndex(-1)
-        , TurnType(EEdgeTurnType::Straight)
+        , TurnType(ESlotTurnType::Straight)
     {}
 };
 

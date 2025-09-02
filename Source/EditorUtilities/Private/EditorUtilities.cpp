@@ -14,51 +14,11 @@
 #include "UnrealEdGlobals.h"
 #include "Widgets/SWindow.h"
 #include "ComponentVisualizer.h"
-//#include "../../../UE_5.3/Engine/Plugins/Runtime/ZoneGraph/Source/ZoneGraphEditor/Private/ZoneShapeComponentVisualizer.h"
 #include "IDetailChildrenBuilder.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Widgets/Input/SComboBox.h"
 
 #define LOCTEXT_NAMESPACE "FZoneShapeEditorExtensionsModule"
-
-class FZoneShapeComponentVisualizer;
-
-class FZoneShapePointDetails : public IDetailCustomNodeBuilder, public TSharedFromThis<FZoneShapePointDetails>
-{
-public:
-    FZoneShapePointDetails(UZoneShapeComponent& InOwningComponent)
-        : ShapeComp(&InOwningComponent)
-    {
-        // 获取 Visualizer
-        TSharedPtr<FComponentVisualizer> Visualizer = GUnrealEd->FindComponentVisualizer(InOwningComponent.GetClass());
-        ShapeCompVisualizer = StaticCastSharedPtr<FZoneShapeComponentVisualizer>(Visualizer);
-
-    }
-
-    virtual void GenerateHeaderRowContent(FDetailWidgetRow& NodeRow) override {}
-    virtual void GenerateChildContent(IDetailChildrenBuilder& ChildrenBuilder) override
-    {
-        // 展示选中点数量
-        ChildrenBuilder.AddCustomRow(FText::FromString("Selected Points"))
-            [SNew(STextBlock).Text(FText::FromString(FString::Printf(TEXT("当前选中控制点数量: %d"), SelectedPoints.Num())))];
-    }
-
-    virtual void Tick(float DeltaTime) override
-    {
-        // 每帧监听选中点变化
-        if (ShapeCompVisualizer.IsValid())
-        {
-            SelectedPoints = ShapeCompVisualizer->GetSelectedPoints();
-        }
-    }
-
-    virtual bool RequiresTick() const override { return true; }
-    virtual FName GetName() const override { return FName("ZoneShapePointDetails"); }
-
-private:
-    UZoneShapeComponent* ShapeComp;
-    TSet<int32> SelectedPoints;
-    TSharedPtr<FZoneShapeComponentVisualizer> ShapeCompVisualizer;
-};
 
 class FZoneShapeDetailsCustomization : public IDetailCustomization
 {
@@ -72,16 +32,17 @@ public:
     {
         TArray<TWeakObjectPtr<UObject>> Objects;
         DetailBuilder.GetObjectsBeingCustomized(Objects);
-        UE_LOG(LogTemp, Warning, TEXT("EditorUtilities: Read to Selected object class"));
+
+        UE_LOG(LogTemp, Warning, TEXT("EditorUtilities: Ready to Selected object class"));
+
         for (auto& Obj : Objects)
         {
             UE_LOG(LogTemp, Warning, TEXT("Selected object class: %s"), *Obj->GetClass()->GetName());
-            // 情况 1: Actor
+
             if (AZoneShape* ZoneShapeActor = Cast<AZoneShape>(Obj.Get()))
             {
                 AddEdgeConfigCategory(DetailBuilder, ZoneShapeActor->GetComponentByClass<UZoneShapeComponent>(), ZoneShapeActor->GetName());
             }
-            // 情况 2: Component
             else if (UZoneShapeComponent* ZoneShapeComp = Cast<UZoneShapeComponent>(Obj.Get()))
             {
                 AddEdgeConfigCategory(DetailBuilder, ZoneShapeComp, ZoneShapeComp->GetName());
@@ -101,43 +62,113 @@ public:
 
         UE_LOG(LogTemp, Warning, TEXT("CustomizeDetails triggered for %s"), *DisplayName);
 
-        CustomCategory.AddCustomRow(LOCTEXT("PolygonEdgeConfig", "Polygon Edge Config"))
-            .WholeRowContent()
-            [
-                SNew(SButton)
-                    .Text(LOCTEXT("EditEdgeConfigButton", "编辑边配置"))
-                    .OnClicked_Lambda([ZoneShapeComp]()
-                        {
-                            OpenEdgeConfigWindow(ZoneShapeComp);
-                            return FReply::Handled();
-                        })
-            ];
+        // 初始化选项
+        TurnTypeOptions.Empty();
+        TurnTypeOptions.Add(MakeShared<ESlotTurnType>(ESlotTurnType::LeftTurn));
+        TurnTypeOptions.Add(MakeShared<ESlotTurnType>(ESlotTurnType::Straight));
+        TurnTypeOptions.Add(MakeShared<ESlotTurnType>(ESlotTurnType::RightTurn));
+
+        // 模拟二维数组数据（4条边，每条边有不同 slot 数量）
+        if (TurnTypes2D.Num() == 0)
+        {
+            TurnTypes2D = {
+                { ESlotTurnType::LeftTurn, ESlotTurnType::Straight },
+                { ESlotTurnType::Straight, ESlotTurnType::RightTurn },
+                { ESlotTurnType::LeftTurn, ESlotTurnType::RightTurn, ESlotTurnType::Straight },
+                { ESlotTurnType::Straight }
+            };
+        }
+
+        // 遍历外层：Edge
+        for (int32 EdgeIndex = 0; EdgeIndex < TurnTypes2D.Num(); ++EdgeIndex)
+        {
+            // 每条 Edge 加个标题
+            CustomCategory.AddCustomRow(FText::FromString(FString::Printf(TEXT("Edge_%d"), EdgeIndex)))
+                .WholeRowContent()
+                [
+                    SNew(STextBlock)
+                        .Text(FText::FromString(FString::Printf(TEXT("Edge %d"), EdgeIndex)))
+                        .Font(IDetailLayoutBuilder::GetDetailFontBold())
+                ];
+
+            // 遍历内层：Slot
+            for (int32 SlotIndex = 0; SlotIndex < TurnTypes2D[EdgeIndex].Num(); ++SlotIndex)
+            {
+                CustomCategory.AddCustomRow(FText::FromString(FString::Printf(TEXT("Edge_%d_Slot_%d"), EdgeIndex, SlotIndex)))
+                    .NameContent()
+                    [
+                        SNew(STextBlock)
+                            .Text(FText::FromString(FString::Printf(TEXT("Slot %d"), SlotIndex)))
+                            .Font(IDetailLayoutBuilder::GetDetailFont())
+                    ]
+                    .ValueContent()
+                    .MinDesiredWidth(250.0f)
+                    [
+                        SNew(SComboBox<TSharedPtr<ESlotTurnType>>)
+                            .OptionsSource(&TurnTypeOptions)
+                            .OnGenerateWidget(this, &FZoneShapeDetailsCustomization::MakeTurnTypeWidget)
+                            .OnSelectionChanged_Lambda([this, EdgeIndex, SlotIndex](TSharedPtr<ESlotTurnType> NewSelection, ESelectInfo::Type)
+                                {
+                                    if (NewSelection.IsValid())
+                                    {
+                                        TurnTypes2D[EdgeIndex][SlotIndex] = *NewSelection;
+                                        UE_LOG(LogTemp, Log, TEXT("Edge %d Slot %d changed to %s"),
+                                            EdgeIndex, SlotIndex, *GetTurnTypeText(*NewSelection).ToString());
+                                    }
+                                })
+                            .InitiallySelectedItem(GetSharedTurnType(TurnTypes2D[EdgeIndex][SlotIndex]))
+                            [
+                                SNew(STextBlock)
+                                    .Text_Lambda([this, EdgeIndex, SlotIndex]()
+                                        {
+                                            return GetTurnTypeText(TurnTypes2D[EdgeIndex][SlotIndex]);
+                                        })
+                            ]
+                    ];
+            }
+        }
     }
 
-    static void OpenEdgeConfigWindow(UZoneShapeComponent* ZoneShape)
+private:
+    /** 当前配置的转向类型数组 */
+    TArray<ESlotTurnType> TurnTypes;
+
+    /** 二维转向配置：TurnTypes2D[EdgeIndex][SlotIndex] */
+    TArray<TArray<ESlotTurnType>> TurnTypes2D;
+
+    /** ComboBox 可选项 */
+    TArray<TSharedPtr<ESlotTurnType>> TurnTypeOptions;
+
+
+    /** 渲染选项 */
+    TSharedRef<SWidget> MakeTurnTypeWidget(TSharedPtr<ESlotTurnType> InOption) const
     {
-        // 创建一个简单的窗口
-        TSharedRef<SWindow> Window = SNew(SWindow)
-            .Title(LOCTEXT("EdgeConfigWindowTitle", "Polygon Edge Config"))
-            .ClientSize(FVector2D(400, 300))
-            .SupportsMinimize(false)
-            .SupportsMaximize(false);
+        return SNew(STextBlock).Text(GetTurnTypeText(*InOption));
+    }
 
-        Window->SetContent(
-            SNew(SVerticalBox)
-            + SVerticalBox::Slot().AutoHeight()
-            [
-                SNew(STextBlock)
-                    .Text(FText::FromString(FString::Printf(TEXT("编辑 %s 的边配置"), *ZoneShape->GetName())))
-            ]
-            + SVerticalBox::Slot().FillHeight(1.f)
-            [
-                SNew(STextBlock)
-                    .Text(LOCTEXT("EdgeListPlaceholder", "这里可以用 SListView 展示每条边和 Lane 配置"))
-            ]
-        );
+    /** 转向类型转文本 */
+    static FText GetTurnTypeText(ESlotTurnType TurnType)
+    {
+        switch (TurnType)
+        {
+        case ESlotTurnType::LeftTurn:   return LOCTEXT("LeftTurn", "Left Turn");
+        case ESlotTurnType::Straight:   return LOCTEXT("Straight", "Straight");
+        case ESlotTurnType::RightTurn:  return LOCTEXT("RightTurn", "Right Turn");
+        default:                        return LOCTEXT("Unknown", "Unknown");
+        }
+    }
 
-        FSlateApplication::Get().AddWindow(Window);
+    /** 根据值找到共享指针 */
+    TSharedPtr<ESlotTurnType> GetSharedTurnType(ESlotTurnType TurnType)
+    {
+        for (auto& Option : TurnTypeOptions)
+        {
+            if (*Option == TurnType)
+            {
+                return Option;
+            }
+        }
+        return nullptr;
     }
 };
 
@@ -145,19 +176,17 @@ void FEditorUtilitiesModule::StartupModule()
 {
     FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 
-    // 注册 Actor 的自定义 Details
     PropertyModule.RegisterCustomClassLayout(
         "ZoneShape",
         FOnGetDetailCustomizationInstance::CreateStatic(&FZoneShapeDetailsCustomization::MakeInstance)
     );
 
-    // 注册 Component 的自定义 Details
     PropertyModule.RegisterCustomClassLayout(
         "ZoneShapeComponent",
         FOnGetDetailCustomizationInstance::CreateStatic(&FZoneShapeDetailsCustomization::MakeInstance)
     );
-    UE_LOG(LogTemp, Warning, TEXT("EditorUtilities:Registering ZoneShapeActor customization..."));
 
+    UE_LOG(LogTemp, Warning, TEXT("EditorUtilities:Registering ZoneShapeActor customization..."));
 }
 
 void FEditorUtilitiesModule::ShutdownModule()
