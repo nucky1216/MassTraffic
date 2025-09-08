@@ -33,6 +33,31 @@ void FIntersectionData::SideSortLanes(const FZoneGraphStorage* ZoneGraphStorage)
 
 	for (FSide& side : Sides)
 	{
+		//Init Slot TurnType
+		int32 SlotNum = side.SlotPoitions.Num();
+		for (int32 i = 0; i < SlotNum; i++ )
+		{
+			ESlotTurnType SlotTurnType = ESlotTurnType::Straight;
+			if (i == 0)
+			{
+				if (SlotNum >= 4)
+					SlotTurnType = ESlotTurnType::RightTurn;
+				else 
+					SlotTurnType = ESlotTurnType::StraightRight	;
+			}
+
+			if(i==SlotNum-1)
+			{
+				if (SlotNum >= 4)
+					SlotTurnType = ESlotTurnType::LeftTurn;
+				else
+					SlotTurnType = ESlotTurnType::StraightLeft;
+			}
+
+			side.SlotTurnTypes.Add(SlotTurnType);
+		}
+
+
 		for(int32 i = 0; i < side.Lanes.Num(); i++)
 		{
 			int32 laneIndex = side.Lanes[i];
@@ -194,4 +219,5 @@ void FSide::AddSlot(const FZoneGraphStorage* ZoneGraphStorage,int32 LaneIndex)
 
 	int32 NewIndex=SlotPoitions.AddUnique(StartLocation);
 	LaneToSlotIndex.Add(LaneIndex, NewIndex);
+
 }

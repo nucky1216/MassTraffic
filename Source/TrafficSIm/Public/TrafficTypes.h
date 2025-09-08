@@ -2,7 +2,6 @@
 #include "CoreMinimal.h"
 #include "ZoneGraphTypes.h"
 #include "TrafficTypes.generated.h"
-
 DECLARE_LOG_CATEGORY_EXTERN(LogTrafficLight, Log, All);
 
 
@@ -24,6 +23,16 @@ enum class ETrafficSignalType:uint8
 	LeftYellow=4
 };
 
+
+UENUM(BlueprintType)
+enum class ESlotTurnType : uint8
+{
+	Straight,
+	RightTurn,
+	LeftTurn,
+	StraightRight,
+	StraightLeft
+};
 USTRUCT()
 struct TRAFFICSIM_API FSide
 {
@@ -36,6 +45,8 @@ struct TRAFFICSIM_API FSide
 	TArray<uint8> EntryIndex; // IDs of lanes on this side of the intersection
 
 	TArray<FVector> SlotPoitions; // Positions of slots for vehicles on this side
+	TArray<ESlotTurnType> SlotTurnTypes; // Turn types for each slot
+
 
 	TMap<int32, int32> LaneToSlotIndex; // Maps lane index to slot index
 

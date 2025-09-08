@@ -19,7 +19,8 @@ public class EditorUtilities : ModuleRules
             "InputCore",
             "PropertyEditor",
             "ZoneGraph",
-            "ZoneGraphEditor"
+            "ZoneGraphEditor",
+            "TrafficSIm"
         });
     }
 }
