@@ -20,6 +20,8 @@ UZoneGraphDebugDrawComponent::UZoneGraphDebugDrawComponent()
 
 FPrimitiveSceneProxy* UZoneGraphDebugDrawComponent::CreateSceneProxy()
 {
+	return nullptr;
+
 #if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
 	FReZoneGraphSceneProxy* ZoneGraphSceneProxy = nullptr;
 	//const AZoneGraphData* ZoneGraphDataTemp = Cast<UZoneGraphDebugDrawComponent>(GetOwner())->ZoneGraphData;
