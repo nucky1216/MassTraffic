@@ -16,6 +16,7 @@ void UTrafficLightInitProcessor::ConfigureQueries()
 {
 	EntityQuery.AddRequirement<FTransformFragment>(EMassFragmentAccess::ReadWrite);
 	EntityQuery.AddRequirement<FTrafficLightFragment>(EMassFragmentAccess::ReadWrite);
+
 }
 
 void UTrafficLightInitProcessor::Initialize(UObject& Owner)

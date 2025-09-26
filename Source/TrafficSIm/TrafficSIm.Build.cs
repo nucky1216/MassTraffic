@@ -26,6 +26,8 @@ public class TrafficSIm : ModuleRules
 			new string[]
 			{
 				"Core",
+
+                "MassSpawner",
 				// ... add other public dependencies that you statically link with here ...
 			}
 			);
@@ -40,9 +42,9 @@ public class TrafficSIm : ModuleRules
 				"SlateCore",
                 "StructUtils",
 				"MassEntity",
-                "MassSpawner",
 				"ZoneGraph",
                 "MassCommon",
+				"MassRepresentation"
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);
