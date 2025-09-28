@@ -83,3 +83,11 @@ struct FTrafficLightInitData
 	TArray<int32> ZoneIndex;
 	TArray<int32> StartSideIndex;
 };
+
+USTRUCT()
+struct FVehicleInitData
+{
+	GENERATED_BODY()
+	TArray<FZoneGraphLaneLocation> LaneLocations;
+
+};

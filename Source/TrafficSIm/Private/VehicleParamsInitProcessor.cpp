@@ -14,8 +14,8 @@
 //#include "MassRepresentationFragments.h"
 UVehicleParamsInitProcessor::UVehicleParamsInitProcessor():EntityQuery(*this)
 {
-	ObservedType = FMassVehicleMovementFragment::StaticStruct();
-	Operation = EMassObservedOperation::Add;
+	//ObservedType = FMassVehicleMovementFragment::StaticStruct();
+	//Operation = EMassObservedOperation::Add;
 }
 
 void UVehicleParamsInitProcessor::Initialize(UObject& Owner)
@@ -33,6 +33,13 @@ void UVehicleParamsInitProcessor::ConfigureQueries()
 void UVehicleParamsInitProcessor::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context)
 {
 	UE_LOG(LogTrafficSim,VeryVerbose,TEXT("VehicleInitProcessor.."));
+
+	if (!ensure(Context.ValidateAuxDataType<FVehicleInitData>()))
+	{
+		UE_LOG(LogTrafficLight, Error, TEXT("TrafficLightInitProcessor requires FVehicleInitData to be set in the context."));
+	}
+	FVehicleInitData& InitData = Context.GetMutableAuxData().GetMutable<FVehicleInitData>();
+	UE_LOG(LogTemp,Log,TEXT("Process EntityNum:%d"),Context.GetEntities().Num());
 
 	UMassRepresentationSubsystem* RepSubsystem = UWorld::GetSubsystem<UMassRepresentationSubsystem>(GetWorld());
 	const auto SMInfors=RepSubsystem->GetMutableInstancedStaticMeshInfos();
@@ -61,26 +68,20 @@ void UVehicleParamsInitProcessor::Execute(FMassEntityManager& EntityManager, FMa
 		for (int32 EntityIndex = 0; EntityIndex < EntityCount; ++EntityIndex)
 		{
 			FMassVehicleMovementFragment& VehicleMovement = VehicleMovementList[EntityIndex];
-			FVector SpawnLocation = TransformList[EntityIndex].GetTransform().GetLocation();
+			FTransformFragment& Transform = TransformList[EntityIndex];
 			FMassRepresentationFragment& Representation = RepresentationList[EntityIndex];
 
-			FZoneGraphLaneLocation LaneLocation;
-
 			//设置相关属性			
-			FBox QueryBox = FBox::BuildAABB(SpawnLocation, VehicleMovement.QueryExtent);
-
-			TrafficSimSubsystem->FindEntityLaneByQuery(QueryBox, VehicleMovement.LaneFilter, LaneLocation);
-
+			//FBox QueryBox = FBox::BuildAABB(SpawnLocation, VehicleMovement.QueryExtent);
+			//FZoneGraphLaneLocation LaneLocation;
+			//TrafficSimSubsystem->FindEntityLaneByQuery(QueryBox, VehicleMovement.LaneFilter, LaneLocation);
+			FZoneGraphLaneLocation LaneLocation = InitData.LaneLocations[EntityIndex];
 			VehicleMovement.LaneLocation = LaneLocation;
-			if (LaneLocation.LaneHandle.Index == -1)
-			{
-							UE_LOG(LogTemp, Warning, TEXT("Entity %s cannot find lane for location %s"), *Context.GetEntity(EntityIndex).DebugGetDescription(), *SpawnLocation.ToString());
-							continue;
-			}
+			Transform.SetTransform(FTransform(LaneLocation.Direction.ToOrientationQuat(),LaneLocation.Position));
 			
 			//UE_LOG(LogTemp, Log, TEXT("Found Lane: %s"), *LaneLocation.LaneHandle.ToString());
 			TArray<int32> NextLanes;
-			VehicleMovement.NextLane = TrafficSimSubsystem->ChooseNextLane(LaneLocation.LaneHandle.Index, NextLanes);
+			VehicleMovement.NextLane = TrafficSimSubsystem->ChooseNextLane(VehicleMovement.LaneLocation.LaneHandle.Index, NextLanes);
 
 			VehicleMovement.VehicleHandle = Context.GetEntity(EntityIndex);
 

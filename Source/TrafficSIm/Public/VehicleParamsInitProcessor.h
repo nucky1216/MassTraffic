@@ -14,7 +14,7 @@
  * 
  */
 UCLASS()
-class TRAFFICSIM_API UVehicleParamsInitProcessor : public UMassObserverProcessor
+class TRAFFICSIM_API UVehicleParamsInitProcessor : public UMassProcessor
 {
 	GENERATED_BODY()
 

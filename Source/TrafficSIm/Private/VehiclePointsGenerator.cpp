@@ -10,7 +10,7 @@
 #include "MassEntityConfigAsset.h"
 #include "MassVehicleMovementFragment.h"
 #include "MassAssortedFragmentsTrait.h"
-
+#include "TrafficTypes.h"
 void UVehiclePointsGenerator::Generate(UObject& QueryOwner, TConstArrayView<FMassSpawnedEntityType> EntityTypes, int32 Count, FFinishedGeneratingSpawnDataSignature& FinishedGeneratingSpawnPointsDelegate) const
 {
 	UWorld* World = GetWorld();
@@ -146,19 +146,17 @@ void UVehiclePointsGenerator::Generate(UObject& QueryOwner, TConstArrayView<FMas
 		TArray<FZoneGraphLaneLocation> SpawnLocations;
 		TypeIdx2SpawnLoc.MultiFind(Result.EntityConfigIndex, SpawnLocations);
 
-		Result.SpawnDataProcessor = UMassSpawnLocationProcessor::StaticClass();
-		Result.SpawnData.InitializeAs<FMassTransformsSpawnData>();
-		FMassTransformsSpawnData& Transforms = Result.SpawnData.GetMutable<FMassTransformsSpawnData>();
+		//设置初始化处理器
+		Result.SpawnDataProcessor = UVehicleParamsInitProcessor::StaticClass();
+		Result.SpawnData.InitializeAs<FVehicleInitData>();
+		FVehicleInitData& InitData = Result.SpawnData.GetMutable<FVehicleInitData>();
 
-		Transforms.Transforms.Reserve(Result.NumEntities);
+		InitData.LaneLocations.Reserve(Result.NumEntities);
 		for(int32 LocationIdx = 0; LocationIdx < SpawnLocations.Num(); ++LocationIdx)
 		{
-			const FZoneGraphLaneLocation& LaneLocation = SpawnLocations[LocationIdx];
-			FTransform& Transform = Transforms.Transforms.AddDefaulted_GetRef();
-			Transform.SetLocation(LaneLocation.Position);
-			Transform.SetRotation(LaneLocation.Direction.ToOrientationQuat());
-			//TransformsSpawnData.Transforms.Add(Transform);
-			
+
+			//FZoneGraphLaneLocation& LaneLocation = InitData.LaneLocations.AddDefaulted_GetRef();
+			InitData.LaneLocations.Add( SpawnLocations[LocationIdx]);
 		}
 		UE_LOG(LogTemp, Log, TEXT("EntityIndex:%d, SpawnLocationNum:%d,NumEntities:%d"), Result.EntityConfigIndex, SpawnLocations.Num(),Result.NumEntities);
 
