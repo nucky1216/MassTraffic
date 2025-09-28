@@ -388,11 +388,29 @@ void UTrafficSimSubsystem::InitializeManual()
 	UE_LOG(LogTemp, Error, TEXT("No valid ZoneGraphData found in the world!"));
 }
 
-void UTrafficSimSubsystem::ZoneGraphTest(int32 TargetLane)
+void UTrafficSimSubsystem::DebugEntity(int32 TargetLane, int32 EntitySN)
 {
-	mutableZoneGraphSotrage->Lanes.RemoveAt(TargetLane);
-	ZoneGraphData->UpdateDrawing();
+	TArray<FLaneVehicle>* VehicleArray=LaneToEntitiesMap.Find(TargetLane);
+	if(!VehicleArray)
+	{
+		UE_LOG(LogTrafficSim, Warning, TEXT("No vehicles found in lane %d."), TargetLane);
+		return;
+	}
+	FLaneVehicle* TargetVehicle = VehicleArray->FindByPredicate([EntitySN](const FLaneVehicle& Vehicle) {
+		return Vehicle.EntityHandle.SerialNumber == EntitySN;
+		});
+	if (!TargetVehicle)
+		{
+		UE_LOG(LogTrafficSim, Warning, TEXT("No vehicle with EntitySN %d found in lane %d."), EntitySN, TargetLane);
+		return;
+	}
+	UE_LOG(LogTemp, Log, TEXT("CurLane:%d, NextLane:%d,TargetSpeed:%f, Speed:%f"),
+		TargetVehicle->VehicleMovementFragment->LaneLocation.LaneHandle.Index,TargetVehicle->VehicleMovementFragment->NextLane,
+		TargetVehicle->VehicleMovementFragment->TargetSpeed,TargetVehicle->VehicleMovementFragment->Speed);
+	
 }
+
+
 
 bool UTrafficSimSubsystem::SwitchToNextLane(FZoneGraphLaneLocation& LaneLocation, float NewDist)
 {

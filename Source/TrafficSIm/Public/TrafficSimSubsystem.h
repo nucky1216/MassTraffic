@@ -57,7 +57,7 @@ public:
 	void InitializeManual();
 
 	UFUNCTION(BlueprintCallable, Category = "TrafficSim| Test")
-	void ZoneGraphTest(int32 TargetLane);
+	void DebugEntity(int32 TargetLane,int32 EntitySN);
 
 	bool SwitchToNextLane(FZoneGraphLaneLocation& LaneLocation, float NewDist);
 
