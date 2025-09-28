@@ -99,14 +99,14 @@ void UVehiclePointsGenerator::Generate(UObject& QueryOwner, TConstArrayView<FMas
 			int32 ConfigRandIndex = SelectRandomItem();
 
 			float Gap = FMath::RandRange(MinGapBetweenSpaces, MaxGapBetweenSpaces);
-			if (Distance+ VehicleLenth[ConfigRandIndex] / 2.0f < LaneLength)
+			Distance = Gap + Distance + VehicleLenth[ConfigRandIndex] / 2.0f;
+			if (Distance+ VehicleLenth[ConfigRandIndex]< LaneLength)
 			{
 				// 在ZoneGraph上计算位置
 				FZoneGraphLaneLocation LaneLocation;
-				Distance = Distance + Gap + VehicleLenth[ConfigRandIndex] / 2.0f;
 				UE::ZoneGraph::Query::CalculateLocationAlongLane(ZoneGraphStorage, i, Distance, LaneLocation);
 				TypeIdx2SpawnLoc.Add(ConfigRandIndex, LaneLocation);
-				Distance+=VehicleLenth[ConfigRandIndex] / 2.0f;
+				Distance = Distance + VehicleLenth[ConfigRandIndex] / 2.0f;
 				//Debug
 				//TArray<FColor> DebugColors = {FColor::Red,FColor::Green,FColor::Blue};
 				//DrawDebugBox(World, LaneLocation.Position, FVector(VehicleLenth[ConfigRandIndex] / 2.0f, 50.0f, 20.0f), LaneLocation.Direction.ToOrientationQuat(),
@@ -134,17 +134,17 @@ void UVehiclePointsGenerator::Generate(UObject& QueryOwner, TConstArrayView<FMas
 			FMassEntitySpawnDataGeneratorResult& Res = Results.AddDefaulted_GetRef();
 			Res.NumEntities = SpawnLocations.Num();
 			Res.EntityConfigIndex = EntityTypeIdx;
-			UE_LOG(LogTemp, Log, TEXT("EntityIndex:%d, NumEntities:%d"), Res.EntityConfigIndex, Res.NumEntities);
+			//UE_LOG(LogTemp, Log, TEXT("EntityIndex:%d, NumEntities:%d"), Res.EntityConfigIndex, Res.NumEntities);
 		}
 	}
 
 
 
-	int32 ResultIdx = 0;
+	//int32 ResultIdx = 0;
 	for(FMassEntitySpawnDataGeneratorResult& Result:Results)
 	{
 		TArray<FZoneGraphLaneLocation> SpawnLocations;
-		TypeIdx2SpawnLoc.MultiFind(ResultIdx++, SpawnLocations);
+		TypeIdx2SpawnLoc.MultiFind(Result.EntityConfigIndex, SpawnLocations);
 
 		Result.SpawnDataProcessor = UMassSpawnLocationProcessor::StaticClass();
 		Result.SpawnData.InitializeAs<FMassTransformsSpawnData>();
@@ -160,7 +160,7 @@ void UVehiclePointsGenerator::Generate(UObject& QueryOwner, TConstArrayView<FMas
 			//TransformsSpawnData.Transforms.Add(Transform);
 			
 		}
-		UE_LOG(LogTemp, Log, TEXT("EntityIndex:%d, CurNum:%d"), Result.EntityConfigIndex,Result.NumEntities);
+		UE_LOG(LogTemp, Log, TEXT("EntityIndex:%d, SpawnLocationNum:%d,NumEntities:%d"), Result.EntityConfigIndex, SpawnLocations.Num(),Result.NumEntities);
 
 	}
     

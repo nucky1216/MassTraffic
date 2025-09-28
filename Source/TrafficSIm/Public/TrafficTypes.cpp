@@ -153,6 +153,7 @@ void FIntersectionData::SetSideOpenLanes(int32 SideIndex, ETurnType TurnType, bo
 			Elem.Value = false;
 		}
 	}
+	if (SideIndex < 0) return;
 
 	FSide& side = Sides[SideIndex];
 

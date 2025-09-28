@@ -55,7 +55,7 @@ void USpeedControlProcessor::Execute(FMassEntityManager& EntityManager, FMassExe
 					VehicleMovement.NextLane, Context.GetEntity(i), FrontVehicleMovement);
 				
 
-				if (HasFrontCar && FrontVehicleMovement)//设置目标速度为前车速度
+				if (FrontVehicleMovement)//设置目标速度为前车速度
 				{
 					float DistanceToFrontVehicle = FVector::Distance(VehicleMovement.LaneLocation.Position, FrontVehicleMovement->LaneLocation.Position);
 					float HalfLength = (VehicleMovement.VehicleLength + FrontVehicleMovement->VehicleLength) * 0.5f;
@@ -75,7 +75,7 @@ void USpeedControlProcessor::Execute(FMassEntityManager& EntityManager, FMassExe
 				}
 
 				//第一辆车如果距离红绿灯小于500米 ，并且下一个车道是红灯，则停车 或者当前速度为0且下一车道位绿灯，则起步
-				if (!HasFrontCar && (VehicleMovement.LeftDistance < VehicleMovement.CrossStopDistance || VehicleMovement.Speed==0))
+				if (!HasFrontCar && (VehicleMovement.LeftDistance < VehicleMovement.VehicleLength || VehicleMovement.Speed==0))
 				{
 					bool IntersectionLane = false,OpenLane=true;
 

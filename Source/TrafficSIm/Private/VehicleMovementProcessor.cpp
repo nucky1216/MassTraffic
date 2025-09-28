@@ -58,7 +58,7 @@ void UVehicleMovementProcessor::Execute(FMassEntityManager& EntityManager, FMass
 			UE::ZoneGraph::Query::GetLaneLength(*TrafficSimSubsystem->ZoneGraphStorage, CurLaneLocation.LaneHandle, CurLaneDistance);
 						
 			//如果超出当前车道长度，则需要切换到下一个车道
-			if (TargetDist > CurLaneDistance )
+			if (TargetDist > CurLaneDistance && QueryLaneIndex>=0)
 			{
 				TargetDist = TargetDist - CurLaneDistance;
 

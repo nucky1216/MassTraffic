@@ -65,24 +65,9 @@ void UTrafficLightInitProcessor::Execute(FMassEntityManager& EntityManager, FMas
 			//Init Light State
 			ETrafficSignalType& CurrentSignal = TrafficLightFragment.CurrentLightState;
 			
-			FIntersectionData* IntersectionData=TrafficLightSubsystem->IntersectionDatas.Find(TrafficLightFragment.ZoneIndex);
-			if (CurrentSignal == ETrafficSignalType::StraightAndRight && (*IntersectionData).Sides.Num() == 4)
-			{
-				// Reset the vehicle count when the light turns green
-				TrafficLightSubsystem->SetOpenLanes(TrafficLightFragment.ZoneIndex, SideIndex, ETurnType::Straight, true);
-				TrafficLightSubsystem->SetOpenLanes(TrafficLightFragment.ZoneIndex, SideIndex, ETurnType::RightTurn);
+			TrafficLightSubsystem->SetCrossBySignalState(TrafficLightFragment.ZoneIndex, CurrentSignal, SideIndex);
 
-				TrafficLightSubsystem->SetOpenLanes(TrafficLightFragment.ZoneIndex, (SideIndex + 2) % 4, ETurnType::Straight);
-				TrafficLightSubsystem->SetOpenLanes(TrafficLightFragment.ZoneIndex, (SideIndex + 2) % 4, ETurnType::RightTurn);
-			}
 
-			if (CurrentSignal == ETrafficSignalType::Left && (*IntersectionData).Sides.Num() == 4)
-			{
-				// Reset the vehicle count when the light turns green
-				TrafficLightSubsystem->SetOpenLanes(TrafficLightFragment.ZoneIndex, SideIndex, ETurnType::LeftTurn, true);
-
-				TrafficLightSubsystem->SetOpenLanes(TrafficLightFragment.ZoneIndex, (SideIndex + 2) % 4, ETurnType::LeftTurn);
-			}
 			TrafficLightSubsystem->DebugDrawState(TrafficLightFragment.ZoneIndex, TimeInDuration);
 		}
 		});

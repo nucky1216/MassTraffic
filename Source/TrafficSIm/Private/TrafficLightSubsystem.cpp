@@ -160,6 +160,11 @@ void UTrafficLightSubsystem::QueryLaneOpenState(int32 LaneIndex, bool& OpenState
 		UE_LOG(LogTrafficLight, Error, TEXT("ZoneGraphStorage is not initialized! Cannot query lane open state."));
 		return ;
 	}
+	if (LaneIndex < 0)
+	{
+		UE_LOG(LogTrafficLight, VeryVerbose, TEXT("Invalid LaneIndex %d! Cannot query lane open state."), LaneIndex);
+		return;
+	}
 	const FZoneLaneData& LaneData = ZoneGraphStorage->Lanes[LaneIndex];
 
 	if (!IntersectionTagFilter.Pass(LaneData.Tags))
@@ -211,6 +216,10 @@ void UTrafficLightSubsystem::SetCrossBySignalState(int32 ZoneIndex, ETrafficSign
 			SetOpenLanes(ZoneIndex, SideIndex, ETurnType::LeftTurn, true);
 			SetOpenLanes(ZoneIndex, OppositeSideIndex, ETurnType::LeftTurn, false);
 			break;
+
+		default:
+			SetOpenLanes(ZoneIndex, -1, ETurnType::LeftTurn, true);
+			break;
 		}
 	}
 	else if (SideNum == 3)
@@ -224,7 +233,7 @@ void UTrafficLightSubsystem::SetCrossBySignalState(int32 ZoneIndex, ETrafficSign
 				SetOpenLanes(ZoneIndex, SideIndex, ETurnType::Straight, true);
 				SetOpenLanes(ZoneIndex, OppositeSideIndex, ETurnType::Straight, false);
 
-				SetOpenLanes(ZoneIndex, AloneSide, ETurnType::RightTurn, false);
+				//SetOpenLanes(ZoneIndex, AloneSide, ETurnType::RightTurn, false);
 				break;
 			case ETrafficSignalType::StraightAndRight:
 				SetOpenLanes(ZoneIndex, SideIndex, ETurnType::Straight, true);
@@ -233,7 +242,7 @@ void UTrafficLightSubsystem::SetCrossBySignalState(int32 ZoneIndex, ETrafficSign
 				SetOpenLanes(ZoneIndex, OppositeSideIndex, ETurnType::Straight, false);
 				SetOpenLanes(ZoneIndex, OppositeSideIndex, ETurnType::RightTurn, false);
 
-				SetOpenLanes(ZoneIndex, AloneSide, ETurnType::RightTurn, false);
+				//SetOpenLanes(ZoneIndex, AloneSide, ETurnType::RightTurn, false);
 				break;
 			case ETrafficSignalType::Left:
 				SetOpenLanes(ZoneIndex, SideIndex, ETurnType::LeftTurn, true);
