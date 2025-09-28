@@ -16,6 +16,7 @@ UVehicleParamsInitProcessor::UVehicleParamsInitProcessor():EntityQuery(*this)
 {
 	//ObservedType = FMassVehicleMovementFragment::StaticStruct();
 	//Operation = EMassObservedOperation::Add;
+	bAutoRegisterWithProcessingPhases = false;
 }
 
 void UVehicleParamsInitProcessor::Initialize(UObject& Owner)
