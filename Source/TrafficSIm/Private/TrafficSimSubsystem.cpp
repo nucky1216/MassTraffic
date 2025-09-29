@@ -13,6 +13,7 @@
 #include "MassEntitySpawnDataGeneratorBase.h"
 #include "VehicleDeletorProcessor.h"
 #include "MassExecutor.h"
+#include "LaneCongestionAdjustProcessor.h"
 
 DEFINE_LOG_CATEGORY(LogTrafficSim);
 
@@ -602,4 +603,31 @@ void UTrafficSimSubsystem::InitOnPostLoadMap(const UWorld::FActorsInitializedPar
 	}
 
 	UE_LOG(LogTemp, Error, TEXT("No valid ZoneGraphData found in the world!"));
+}
+
+void UTrafficSimSubsystem::AdjustLaneCongestion(int32 LaneIndex, ELaneCongestionMetric MetricType, float TargetValue, UMassEntityConfigAsset* OptionalConfig, float MinSafetyGap)
+{
+	UMassEntitySubsystem* EntitySubsystem = UWorld::GetSubsystem<UMassEntitySubsystem>(World);
+	if (!EntitySubsystem)
+	{
+		UE_LOG(LogTrafficSim, Warning, TEXT("AdjustLaneCongestion: Missing EntitySubsystem"));
+		return;
+	}
+	ULaneCongestionAdjustProcessor* Processor = NewObject<ULaneCongestionAdjustProcessor>();
+	Processor->TargetLaneIndex = LaneIndex;
+	Processor->MetricType = MetricType;
+	if (MetricType == ELaneCongestionMetric::DensityPerKm)
+	{
+		Processor->TargetDensityPer1000 = TargetValue; // interpret as vehicles per 1000uu
+	}
+	else
+	{
+		Processor->TargetAverageGap = TargetValue; // uu
+	}
+	Processor->SpawnEntityConfig = OptionalConfig;
+	Processor->MinSafetyGap = MinSafetyGap;
+
+	FMassEntityManager& EntityManager = EntitySubsystem->GetMutableEntityManager();
+	FMassProcessingContext ProcessingContext(EntityManager, 0.f);
+	UE::Mass::Executor::Run(*Processor, ProcessingContext);
 }
