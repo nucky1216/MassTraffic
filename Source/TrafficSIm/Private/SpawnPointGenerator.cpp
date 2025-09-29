@@ -4,6 +4,8 @@
 #include "SpawnPointGenerator.h"
 #include "ZoneGraphSubsystem.h"
 #include "MassSpawnLocationProcessor.h"
+#include "SpawnPointInitProcessor.h"
+#include "TrafficTypes.h"
 #include "ZoneGraphQuery.h"
 
 void USpawnPointGenerator::Generate(UObject& QueryOwner, TConstArrayView<FMassSpawnedEntityType> EntityTypes, int32 Count, FFinishedGeneratingSpawnDataSignature& FinishedGeneratingSpawnPointsDelegate) const
@@ -36,6 +38,7 @@ void USpawnPointGenerator::Generate(UObject& QueryOwner, TConstArrayView<FMassSp
 			if (Link.Type == EZoneLaneLinkType::Incoming)
 			{
 				StartLanes.RemoveAt(StartLanes.Num()-1);
+				break; // 发现有Incoming链接，移除并跳出内层循环
 			}
 		}
 	}
@@ -46,16 +49,16 @@ void USpawnPointGenerator::Generate(UObject& QueryOwner, TConstArrayView<FMassSp
 	Res.EntityConfigIndex = 0; //默认使用第一个配置
 	Res.NumEntities = StartLanes.Num();
 	
-	Res.SpawnDataProcessor = UMassSpawnLocationProcessor::StaticClass();
-	Res.SpawnData.InitializeAs<FMassTransformsSpawnData>();
-	FMassTransformsSpawnData& Transforms = Res.SpawnData.GetMutable<FMassTransformsSpawnData>();
+	Res.SpawnDataProcessor = USpawnPointInitProcessor::StaticClass();
+	Res.SpawnData.InitializeAs<FVehicleInitData>();
+	FVehicleInitData& InitData = Res.SpawnData.GetMutable<FVehicleInitData>();
 
 	for(int32 LaneIndex : StartLanes)
 	{
 		FZoneGraphLaneLocation LaneLocation;
 		UE::ZoneGraph::Query::CalculateLocationAlongLane(ZoneGraphStorage, LaneIndex, 0.0f, LaneLocation);
-		FTransform& Transform = Transforms.Transforms.AddDefaulted_GetRef();
-		Transform.SetLocation(LaneLocation.Position);
+		FZoneGraphLaneLocation& InitLaneLocation = InitData.LaneLocations.AddDefaulted_GetRef();
+		InitLaneLocation = LaneLocation;
 	}
 
 	FinishedGeneratingSpawnPointsDelegate.Execute(Results);

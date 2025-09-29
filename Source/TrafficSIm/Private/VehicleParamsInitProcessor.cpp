@@ -40,7 +40,7 @@ void UVehicleParamsInitProcessor::Execute(FMassEntityManager& EntityManager, FMa
 		UE_LOG(LogTrafficLight, Error, TEXT("TrafficLightInitProcessor requires FVehicleInitData to be set in the context."));
 	}
 	FVehicleInitData& InitData = Context.GetMutableAuxData().GetMutable<FVehicleInitData>();
-	UE_LOG(LogTemp,Log,TEXT("Process EntityNum:%d"),Context.GetEntities().Num());
+	//UE_LOG(LogTemp,Log,TEXT("Process EntityNum:%d"),Context.GetEntities().Num());
 
 	UMassRepresentationSubsystem* RepSubsystem = UWorld::GetSubsystem<UMassRepresentationSubsystem>(GetWorld());
 	const auto SMInfors=RepSubsystem->GetMutableInstancedStaticMeshInfos();

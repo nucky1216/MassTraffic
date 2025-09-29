@@ -15,6 +15,8 @@ void UVehiclePointsGenerator::Generate(UObject& QueryOwner, TConstArrayView<FMas
 {
 	UWorld* World = GetWorld();
 	UZoneGraphSubsystem* ZoneGraphSubsystem = UWorld::GetSubsystem<UZoneGraphSubsystem>(World);
+	UTrafficSimSubsystem* TrafficSimSubsystem = UWorld::GetSubsystem<UTrafficSimSubsystem>(World);
+
 
 	ZoneGraphSubsystem->GetRegisteredZoneGraphData();
 
@@ -26,48 +28,9 @@ void UVehiclePointsGenerator::Generate(UObject& QueryOwner, TConstArrayView<FMas
 
 	//提取所有配置的车辆长度
 	TArray<float> VehicleLenth;
-	float TotalProportion = 0.0f;
-	for (int32 i = 0; i < EntityTypes.Num(); i++)
-	{
-		const FMassSpawnedEntityType& SpawnedType = EntityTypes[i];
-		// 确保 EntityConfig 已加载
-		const UMassEntityConfigAsset* EntityConfig = SpawnedType.EntityConfig.LoadSynchronous();
-		if (!EntityConfig)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("EntityConfig is null for EntityType %d"), i);
-			continue;
-		}
-		TotalProportion += SpawnedType.Proportion;
-		// 获取实体模板
-		const FMassEntityTemplate& EntityTemplate = EntityConfig->GetOrCreateEntityTemplate(*World);
-
-		TConstArrayView<FInstancedStruct> InitialFragmentValues = EntityTemplate.GetInitialFragmentValues();
-
-		for (const FInstancedStruct& Fragment : InitialFragmentValues)
-		{
-			if (Fragment.GetScriptStruct() == TBaseStructure<FMassVehicleMovementFragment>::Get())
-			{
-				const FMassVehicleMovementFragment* InitFrag = Fragment.GetPtr<FMassVehicleMovementFragment>();
-				if (InitFrag)
-				{
-					// 访问 fragment 的属性
-					float VehicleLength = InitFrag->VehicleLength;
-					VehicleLenth.Add(VehicleLength);
-					UE_LOG(LogTemp, Log, TEXT("EntityIndex:%d, VehicleLength:%.2f"), i, VehicleLength);
-				}
-			}
-		}
-	}
-
-	//构建累积概率表
 	TArray<float> PrefixSum;
-	PrefixSum.Reserve(VehicleLenth.Num());
-	float Accumulate = 0.0f;
-	for (int32 i = 0; i < EntityTypes.Num(); i++)
-	{
-		Accumulate += EntityTypes[i].Proportion/TotalProportion;
-		PrefixSum.Add(Accumulate);
-	}
+	TrafficSimSubsystem->InitializeTrafficTypes(EntityTypes);
+	TrafficSimSubsystem->GetVehicleConfigs(VehicleLenth, PrefixSum);
 
 	auto SelectRandomItem = [&]()
 		{
@@ -148,6 +111,7 @@ void UVehiclePointsGenerator::Generate(UObject& QueryOwner, TConstArrayView<FMas
 
 		//设置初始化处理器
 		Result.SpawnDataProcessor = UVehicleParamsInitProcessor::StaticClass();
+		//设置辅助数据类型
 		Result.SpawnData.InitializeAs<FVehicleInitData>();
 		FVehicleInitData& InitData = Result.SpawnData.GetMutable<FVehicleInitData>();
 

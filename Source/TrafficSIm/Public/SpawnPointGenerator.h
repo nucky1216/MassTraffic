@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "MassEntitySpawnDataGeneratorBase.h"
+#include "MassSpawner.h"
 #include "SpawnPointGenerator.generated.h"
 
 /**
@@ -14,4 +15,12 @@ class TRAFFICSIM_API USpawnPointGenerator : public UMassEntitySpawnDataGenerator
 {
 	GENERATED_BODY()
 	
+	virtual void Generate(UObject& QueryOwner, TConstArrayView<FMassSpawnedEntityType> EntityTypes, int32 Count, FFinishedGeneratingSpawnDataSignature& FinishedGeneratingSpawnPointsDelegate) const override;
+	
+	UPROPERTY(EditAnywhere)
+	AZoneGraphData* ZoneGraphData;
+
+	UPROPERTY(EditAnywhere)
+	AMassSpawner* VehicleSpawner;
+
 };

@@ -56,10 +56,19 @@ void UVehicleMovementProcessor::Execute(FMassEntityManager& EntityManager, FMass
 			int32 QueryLaneIndex = CurLaneLocation.LaneHandle.Index;
 			float CurLaneDistance = 0.0f;
 			UE::ZoneGraph::Query::GetLaneLength(*TrafficSimSubsystem->ZoneGraphStorage, CurLaneLocation.LaneHandle, CurLaneDistance);
-						
+			
+
 			//如果超出当前车道长度，则需要切换到下一个车道
 			if (TargetDist > CurLaneDistance && QueryLaneIndex>=0)
 			{
+				if (VehicleMovementFragment.NextLane < 0)
+				{
+					//如果没有下一个车道，则停止车辆
+					DestroyedEntities.Add(Context.GetEntity(EntityIndex));
+					//UE_LOG(LogTrafficSim, Log, TEXT("VehicleMovementProcessor: Entity %d at Lane:%d has no next lane to switch to, destroying entity."), Context.GetEntity(EntityIndex).SerialNumber, CurLaneLocation.LaneHandle.Index);
+					continue;
+				}
+
 				TargetDist = TargetDist - CurLaneDistance;
 
 				QueryLaneIndex = VehicleMovementFragment.NextLane;
@@ -67,12 +76,7 @@ void UVehicleMovementProcessor::Execute(FMassEntityManager& EntityManager, FMass
 				VehicleMovementFragment.NextLane = TrafficSimSubsystem->ChooseNextLane(QueryLaneIndex, NextLanes);
 
 				//bool Success=TrafficSimSubsystem->SwitchToNextLane(CurLaneLocation, TargetDist);
-				if(VehicleMovementFragment.NextLane<0)
-				{
-					//如果没有下一个车道，则停止车辆
-					DestroyedEntities.Add(Context.GetEntity(EntityIndex));
-					continue;
-				}
+
 			}
 
 			UE::ZoneGraph::Query::CalculateLocationAlongLane(*TrafficSimSubsystem->ZoneGraphStorage, QueryLaneIndex, TargetDist, CurLaneLocation);

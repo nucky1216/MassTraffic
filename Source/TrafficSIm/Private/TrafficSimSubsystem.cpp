@@ -423,8 +423,6 @@ void UTrafficSimSubsystem::DebugEntity(int32 TargetLane, int32 EntitySN)
 	
 }
 
-
-
 bool UTrafficSimSubsystem::SwitchToNextLane(FZoneGraphLaneLocation& LaneLocation, float NewDist)
 {
 	TArray<int32> NextLanes;
@@ -517,6 +515,72 @@ void UTrafficSimSubsystem::CollectLaneVehicles(FMassEntityHandle EntityHandle, c
 	LaneVehicles->Sort([](const FLaneVehicle& A, const FLaneVehicle& B) {
 		return A.VehicleMovementFragment->LaneLocation.DistanceAlongLane < B.VehicleMovementFragment->LaneLocation.DistanceAlongLane;
 		});
+}
+
+void UTrafficSimSubsystem::GetLaneVehicles(int32 LaneIndex, TConstArrayView<FLaneVehicle>& Vehilces)
+{
+	if (!LaneToEntitiesMap.Contains(LaneIndex))
+	{
+		UE_LOG(LogTrafficSim, Error, TEXT("Failed to find the lane by index:%d in the LaneToEntityMap!"),LaneIndex);
+	}
+
+	Vehilces=LaneToEntitiesMap.FindRef(LaneIndex);
+}
+
+void UTrafficSimSubsystem::InitializeTrafficTypes(TConstArrayView<FMassSpawnedEntityType> InTrafficTypes)
+{
+	VehicleConfigTypes = InTrafficTypes;
+	EntityTemplates.Empty();
+	for (const FMassSpawnedEntityType& Type : VehicleConfigTypes)
+	{
+		// 获取实体模板
+		const UMassEntityConfigAsset* EntityConfig = Type.EntityConfig.LoadSynchronous();;
+		EntityTemplates.Add( &EntityConfig->GetOrCreateEntityTemplate(*World));
+	}
+}
+
+void UTrafficSimSubsystem::GetVehicleConfigs(TArray<float>& VehicleLenth, TArray<float>& PrefixSum)
+{
+	if(VehicleConfigTypes.Num() == 0)
+	{
+		UE_LOG(LogTrafficSim, Error, TEXT("VehicleConfigTypes is not initialized! Cannot get vehicle configs."));
+		return;
+	}
+	VehicleLenth.Empty();
+	PrefixSum.Empty();
+	float TotalProportion = 0.0f;
+	int32 ConfigIndex = 0;
+	for(const FMassSpawnedEntityType& Type : VehicleConfigTypes)
+	{
+		TotalProportion += Type.Proportion;
+		// 获取实体模板
+		const FMassEntityTemplate& EntityTemplate =*EntityTemplates[ConfigIndex++];
+
+		TConstArrayView<FInstancedStruct> InitialFragmentValues = EntityTemplate.GetInitialFragmentValues();
+
+		for (const FInstancedStruct& Fragment : InitialFragmentValues)
+		{
+			if (Fragment.GetScriptStruct() == TBaseStructure<FMassVehicleMovementFragment>::Get())
+			{
+				const FMassVehicleMovementFragment* InitFrag = Fragment.GetPtr<FMassVehicleMovementFragment>();
+				if (InitFrag)
+				{
+					// 访问 fragment 的属性
+					float VehicleLength = InitFrag->VehicleLength;
+					VehicleLenth.Add(VehicleLength);
+				}
+			}
+		}
+
+	}
+	//构建累积概率表
+	PrefixSum.Reserve(VehicleLenth.Num());
+	float Accumulate = 0.0f;
+	for (int32 i = 0; i < VehicleConfigTypes.Num(); i++)
+	{
+		Accumulate += VehicleConfigTypes[i].Proportion / TotalProportion;
+		PrefixSum.Add(Accumulate);
+	}
 }
 
 

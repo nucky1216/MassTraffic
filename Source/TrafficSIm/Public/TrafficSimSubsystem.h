@@ -8,6 +8,8 @@
 #include "ZoneGraphSubsystem.h"
 #include "MassEntityConfigAsset.h"
 #include "MassVehicleMovementFragment.h"
+#include "MassSpawnerTypes.h"
+#include "MassEntityTemplate.h"
 #include "TrafficSimSubsystem.generated.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogTrafficSim, Log, All);
@@ -69,6 +71,13 @@ public:
 	//laneVehicles
 	void InitializeLaneToEntitiesMap();
 	void CollectLaneVehicles(FMassEntityHandle EntityHandle,const FMassVehicleMovementFragment& VehicleFragment );
+	void GetLaneVehicles(int32 LaneIndex,TConstArrayView<FLaneVehicle>& Vehilces);
+
+	//EntityTypes
+	void InitializeTrafficTypes(TConstArrayView<FMassSpawnedEntityType> InTrafficTypes);
+	void GetVehicleConfigs(TArray<float>& VehicleLenth, TArray<float>& PrefixSum);
+
+
 
 	const UWorld* World = nullptr;
 	const UZoneGraphSubsystem* ZoneGraphSubsystem = nullptr;
@@ -76,5 +85,10 @@ public:
 	FZoneGraphStorage* mutableZoneGraphSotrage = nullptr;
 	AZoneGraphData* ZoneGraphData = nullptr;
 
+
 	TMap<int32, TArray<FLaneVehicle>> LaneToEntitiesMap;
+
+	
+	TConstArrayView<FMassSpawnedEntityType> VehicleConfigTypes;
+	TArray<const FMassEntityTemplate*> EntityTemplates;
 };
