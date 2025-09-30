@@ -613,7 +613,8 @@ void UTrafficSimSubsystem::AdjustLaneCongestion(int32 LaneIndex, ELaneCongestion
 		UE_LOG(LogTrafficSim, Warning, TEXT("AdjustLaneCongestion: Missing EntitySubsystem"));
 		return;
 	}
-	ULaneCongestionAdjustProcessor* Processor = NewObject<ULaneCongestionAdjustProcessor>();
+	ULaneCongestionAdjustProcessor* Processor = NewObject<ULaneCongestionAdjustProcessor>(this);
+	Processor->ManualInit(*this); // 调用包装的初始化
 	Processor->TargetLaneIndex = LaneIndex;
 	Processor->MetricType = MetricType;
 	if (MetricType == ELaneCongestionMetric::DensityPerKm)

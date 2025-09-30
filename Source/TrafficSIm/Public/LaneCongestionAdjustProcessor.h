@@ -24,6 +24,9 @@ class TRAFFICSIM_API ULaneCongestionAdjustProcessor : public UMassProcessor
 public:
 	ULaneCongestionAdjustProcessor();
 
+	// 允许外部手动调用初始化逻辑（因为该Processor是手动执行的）
+	void ManualInit(UObject& Owner) { Initialize(Owner); }
+
 	// 目标车道
 	int32 TargetLaneIndex = -1;
 	// 拥堵指标类型

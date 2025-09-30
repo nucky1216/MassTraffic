@@ -55,6 +55,12 @@ void UVehicleMovementProcessor::Execute(FMassEntityManager& EntityManager, FMass
 			float TargetDist = CurLaneLocation.DistanceAlongLane+ Speed *DeltaTime;
 			int32 QueryLaneIndex = CurLaneLocation.LaneHandle.Index;
 			float CurLaneDistance = 0.0f;
+
+			if (QueryLaneIndex < 0)
+			{
+				continue;
+			}
+
 			UE::ZoneGraph::Query::GetLaneLength(*TrafficSimSubsystem->ZoneGraphStorage, CurLaneLocation.LaneHandle, CurLaneDistance);
 			
 
@@ -77,6 +83,11 @@ void UVehicleMovementProcessor::Execute(FMassEntityManager& EntityManager, FMass
 
 				//bool Success=TrafficSimSubsystem->SwitchToNextLane(CurLaneLocation, TargetDist);
 
+			}
+
+			if (QueryLaneIndex < 0)
+			{
+				continue;
 			}
 
 			UE::ZoneGraph::Query::CalculateLocationAlongLane(*TrafficSimSubsystem->ZoneGraphStorage, QueryLaneIndex, TargetDist, CurLaneLocation);

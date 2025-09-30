@@ -46,7 +46,7 @@ void USpawnPointInitProcessor::Execute(FMassEntityManager& EntityManager, FMassE
 			SpawnPoint.LaneLocation = LaneLocation;
 			
 			//Debug
-			DrawDebugPoint(GetWorld(), LaneLocation.Position, 20.0f, FColor::Red, true, 20.0f);
+			//DrawDebugPoint(GetWorld(), LaneLocation.Position, 20.0f, FColor::Red, true, 20.0f);
 		}
 		});
 }
