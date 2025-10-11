@@ -40,7 +40,7 @@ void UVehicleParamsInitProcessor::Execute(FMassEntityManager& EntityManager, FMa
 		UE_LOG(LogTrafficLight, Error, TEXT("TrafficLightInitProcessor requires FVehicleInitData to be set in the context."));
 	}
 	FVehicleInitData& InitData = Context.GetMutableAuxData().GetMutable<FVehicleInitData>();
-	//UE_LOG(LogTemp,Log,TEXT("Process EntityNum:%d"),Context.GetEntities().Num());
+	
 
 	UMassRepresentationSubsystem* RepSubsystem = UWorld::GetSubsystem<UMassRepresentationSubsystem>(GetWorld());
 	const auto SMInfors=RepSubsystem->GetMutableInstancedStaticMeshInfos();
@@ -56,6 +56,7 @@ void UVehicleParamsInitProcessor::Execute(FMassEntityManager& EntityManager, FMa
 		UE_LOG(LogTemp, Warning, TEXT("Failed to find TrafficSimSubsystem!"));
 	}
 
+	int32 CountInTypes = 0;
 
 	EntityQuery.ForEachEntityChunk(EntityManager, Context, [&](FMassExecutionContext& Context)
 	{
@@ -66,6 +67,11 @@ void UVehicleParamsInitProcessor::Execute(FMassEntityManager& EntityManager, FMa
 		auto RepresentationList = Context.GetMutableFragmentView<FMassRepresentationFragment>();
 		bool Debug = false;
 
+		UE_LOG(LogTrafficSim, VeryVerbose, TEXT("Cur Init Data with LaneLocationNum:%d, CurEntityCount:%d, CountInTypes:%d"),
+			InitData.LaneLocations.Num(),
+			EntityCount,
+			CountInTypes);
+
 		for (int32 EntityIndex = 0; EntityIndex < EntityCount; ++EntityIndex)
 		{
 			FMassVehicleMovementFragment& VehicleMovement = VehicleMovementList[EntityIndex];
@@ -73,10 +79,8 @@ void UVehicleParamsInitProcessor::Execute(FMassEntityManager& EntityManager, FMa
 			FMassRepresentationFragment& Representation = RepresentationList[EntityIndex];
 
 			//设置相关属性			
-			//FBox QueryBox = FBox::BuildAABB(SpawnLocation, VehicleMovement.QueryExtent);
-			//FZoneGraphLaneLocation LaneLocation;
-			//TrafficSimSubsystem->FindEntityLaneByQuery(QueryBox, VehicleMovement.LaneFilter, LaneLocation);
-			FZoneGraphLaneLocation LaneLocation = InitData.LaneLocations[EntityIndex];
+			FZoneGraphLaneLocation LaneLocation = InitData.LaneLocations[CountInTypes++];
+
 			VehicleMovement.LaneLocation = LaneLocation;
 			Transform.SetTransform(FTransform(LaneLocation.Direction.ToOrientationQuat(),LaneLocation.Position));
 			

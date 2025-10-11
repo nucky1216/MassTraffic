@@ -44,6 +44,7 @@ void USpawnPointInitProcessor::Execute(FMassEntityManager& EntityManager, FMassE
 
 			Transform.SetTransform(FTransform(LaneLocation.Direction.ToOrientationQuat(),LaneLocation.Position));
 			SpawnPoint.LaneLocation = LaneLocation;
+			SpawnPoint.Clock = SpawnPoint.Duration+FMath::RandRange(0.f,SpawnPoint.RandOffset);
 			
 			//Debug
 			//DrawDebugPoint(GetWorld(), LaneLocation.Position, 20.0f, FColor::Red, true, 20.0f);

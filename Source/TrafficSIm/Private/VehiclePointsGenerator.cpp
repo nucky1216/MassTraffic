@@ -56,8 +56,8 @@ void UVehiclePointsGenerator::Generate(UObject& QueryOwner, TConstArrayView<FMas
 			//UE_LOG(LogTemp, Warning, TEXT("Lane %d is filtered out by tag mask:%u"), i, LaneTags.GetValue());
 			continue;
 		}
-		float Distance = FMath::RandRange(MinGapBetweenSpaces, MaxGapBetweenSpaces);
-		for (; Distance < LaneLength; )
+		
+		for (float Distance=0; Distance < LaneLength; )
 		{
 			int32 ConfigRandIndex = SelectRandomItem();
 
@@ -69,9 +69,11 @@ void UVehiclePointsGenerator::Generate(UObject& QueryOwner, TConstArrayView<FMas
 				FZoneGraphLaneLocation LaneLocation;
 				UE::ZoneGraph::Query::CalculateLocationAlongLane(ZoneGraphStorage, i, Distance, LaneLocation);
 				TypeIdx2SpawnLoc.Add(ConfigRandIndex, LaneLocation);
+				
 				Distance = Distance + VehicleLenth[ConfigRandIndex] / 2.0f;
 				//Debug
-				//TArray<FColor> DebugColors = {FColor::Red,FColor::Green,FColor::Blue};
+				//UE_LOG(LogTemp, Log, TEXT("Spawned:%d -> SpawnPoint at lane: %d with dist:%f on config:%d"), TypeIdx2SpawnLoc.Num()-1,i,Distance, ConfigRandIndex);
+				//TArray<FColor> DebugColors = {FColor::Red,FColor::Green,FColor::Blue,FColor::Orange,FColor::Cyan,FColor::Emerald,FColor::Magenta,FColor::Purple};
 				//DrawDebugBox(World, LaneLocation.Position, FVector(VehicleLenth[ConfigRandIndex] / 2.0f, 50.0f, 20.0f), LaneLocation.Direction.ToOrientationQuat(),
 				//	DebugColors[ConfigRandIndex], true, 120.0f);
 			}
@@ -118,9 +120,9 @@ void UVehiclePointsGenerator::Generate(UObject& QueryOwner, TConstArrayView<FMas
 		InitData.LaneLocations.Reserve(Result.NumEntities);
 		for(int32 LocationIdx = 0; LocationIdx < SpawnLocations.Num(); ++LocationIdx)
 		{
-
+			FZoneGraphLaneLocation LaneLocation = SpawnLocations[LocationIdx];
 			//FZoneGraphLaneLocation& LaneLocation = InitData.LaneLocations.AddDefaulted_GetRef();
-			InitData.LaneLocations.Add( SpawnLocations[LocationIdx]);
+			InitData.LaneLocations.Add(LaneLocation);
 		}
 		UE_LOG(LogTemp, Log, TEXT("EntityIndex:%d, SpawnLocationNum:%d,NumEntities:%d"), Result.EntityConfigIndex, SpawnLocations.Num(),Result.NumEntities);
 

@@ -16,6 +16,10 @@ struct TRAFFICSIM_API FMassSpawnPointFragment : public FMassFragment
 	UPROPERTY(EditAnywhere)
 	float Duration = 5.f;
 
+	UPROPERTY(EditAnywhere)
+	float RandOffset = 2.f;
+
+	float Clock = 5.f;
 	UPROPERTY()
 	int32 NextVehicleType = -1;
 };

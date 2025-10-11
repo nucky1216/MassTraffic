@@ -7,6 +7,7 @@
 #include "MassCommonFragments.h"
 #include "TrafficTypes.h"
 #include "MassExecutionContext.h"
+#include "ZoneGraphQuery.h"
 #include "VehicleParamsInitProcessor.h"
 #include "MassCommands.h" // added for deferred create command
 #include "MassRepresentationFragments.h" // for representation fragment if needed
@@ -41,7 +42,7 @@ void UDynamicSpawnProcessor::Initialize(UObject& Owner)
 
 void UDynamicSpawnProcessor::ConfigureQueries()
 {
-	EntityQuery.AddRequirement<FMassSpawnPointFragment>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.AddRequirement<FMassSpawnPointFragment>(EMassFragmentAccess::ReadWrite);
 	EntityQuery.AddRequirement<FTransformFragment>(EMassFragmentAccess::ReadOnly);
 }
 
@@ -71,38 +72,53 @@ void UDynamicSpawnProcessor::Execute(FMassEntityManager& EntityManager, FMassExe
 	EntityQuery.ForEachEntityChunk(EntityManager, Context, [&](FMassExecutionContext& Context)
 		{
 			auto LaneLocations = Context.GetMutableFragmentView<FMassSpawnPointFragment>();
+			auto Configs = Context.GetMutableFragmentView<FMassSpawnPointFragment>();
+			float DeltaTime = Context.GetDeltaTimeSeconds();
 			int32 EntityCount = Context.GetNumEntities();
 			for (int32 i = 0; i < EntityCount; i++)
 			{
 				auto& Frag = LaneLocations[i];
-				FZoneGraphLaneLocation& LaneLocation = Frag.LaneLocation;
-				TConstArrayView<FLaneVehicle> LaneVehicles;
-				TrafficSimSubsystem->GetLaneVehicles(LaneLocation.LaneHandle.Index, LaneVehicles);
+				float& Clock = Configs[i].Clock;
 
-				if (LaneVehicles.Num() == 0)
+				Clock -= DeltaTime;
+				if (Clock <= 0)
 				{
-					UE_LOG(LogTrafficSim, Log, TEXT("Get Empty LaneVehicles from LaneIndex:%d"), LaneLocation.LaneHandle.Index);
-					continue;
+					FZoneGraphLaneLocation& LaneLocation = Frag.LaneLocation;
+					TConstArrayView<FLaneVehicle> LaneVehicles;
+					TrafficSimSubsystem->GetLaneVehicles(LaneLocation.LaneHandle.Index, LaneVehicles);
+
+					float LeftSpace = 0;
+					if (LaneVehicles.Num() == 0)
+					{
+						//UE_LOG(LogTrafficSim, Log, TEXT("DynamicSpawnProcessor::Get Empty LaneVehicles from LaneIndex:%d"), LaneLocation.LaneHandle.Index);
+						//continue;
+						UE::ZoneGraph::Query::GetLaneLength(*TrafficSimSubsystem->ZoneGraphStorage, LaneLocation.LaneHandle.Index, LeftSpace);
+					}
+					else
+					{
+						//取出最后一辆车
+						FLaneVehicle LastVehicle = LaneVehicles[0];
+						LeftSpace = LastVehicle.VehicleMovementFragment->LaneLocation.DistanceAlongLane - LastVehicle.VehicleMovementFragment->VehicleLength;
+					}
+
+					if (Frag.NextVehicleType < 0)
+					{
+						Frag.NextVehicleType = SelectRandomItem();
+					}
+
+					if (LeftSpace > VehicleLenth[Frag.NextVehicleType])
+					{
+						ReadySpawnLocs.Add(Frag.NextVehicleType, LaneLocation);
+						Frag.NextVehicleType = -1;
+
+						//TArray<FColor> Colors = {FColor::Red,FColor::Blue,FColor::Green};
+						//DrawDebugBox(Context.GetWorld(), LaneLocation.Position, FVector(VehicleLenth[SpawnConfigIndex], 20, 20), Colors[SpawnConfigIndex]
+						//	, false, 20.f, 0, 10.f);
+					}
+
+					Clock = Configs[i].Duration+FMath::RandRange(0.f,Configs[i].RandOffset);
 				}
 
-				//取出最后一辆车
-				FLaneVehicle LastVehicle = LaneVehicles[0];
-				float LeftSpace = LastVehicle.VehicleMovementFragment->LaneLocation.DistanceAlongLane - LastVehicle.VehicleMovementFragment->VehicleLength;
-
-				if (Frag.NextVehicleType < 0)
-				{
-					Frag.NextVehicleType = SelectRandomItem();
-				}
-
-				if (LeftSpace > VehicleLenth[Frag.NextVehicleType])
-				{
-					ReadySpawnLocs.Add(Frag.NextVehicleType, LaneLocation);
-					Frag.NextVehicleType = -1;
-
-					//TArray<FColor> Colors = {FColor::Red,FColor::Blue,FColor::Green};
-					//DrawDebugBox(Context.GetWorld(), LaneLocation.Position, FVector(VehicleLenth[SpawnConfigIndex], 20, 20), Colors[SpawnConfigIndex]
-					//	, false, 20.f, 0, 10.f);
-				}
 
 			}
 		}
