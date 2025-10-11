@@ -112,6 +112,12 @@ void FIntersectionData::FindAloneSide(const FZoneGraphStorage* ZoneGraphStorage)
 	for (int32 i = 0; i < Sides.Num(); i++)
 	{
 		FSide& side = Sides[i];
+
+		if (side.Lanes.Num() == 0)
+		{
+			UE_LOG(LogTemp, Log, TEXT("Side has 0 Lanes!"));
+			continue;
+		}
 		const FZoneLaneData& lane = ZoneGraphStorage->Lanes[side.Lanes[0]];
 		FZoneGraphLaneLocation StartLocation;
 		UE::ZoneGraph::Query::CalculateLocationAlongLane(*ZoneGraphStorage, side.Lanes[0], 0.f, StartLocation);

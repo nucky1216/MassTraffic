@@ -84,7 +84,7 @@ void UTrafficLightCountingProcessor::Execute(FMassEntityManager& EntityManager, 
 				TimeInDuration = TrafficLightFragment.LightDurations[CurrentSignal];
 				
 				TrafficLightSubsystem->SetCrossBySignalState(TrafficLightFragment.ZoneIndex, CurrentSignal, SideIndex);
-				TrafficLightSubsystem->DebugDrawState(TrafficLightFragment.ZoneIndex, TimeInDuration);
+				//TrafficLightSubsystem->DebugDrawState(TrafficLightFragment.ZoneIndex, TimeInDuration);
 
 				
 			}

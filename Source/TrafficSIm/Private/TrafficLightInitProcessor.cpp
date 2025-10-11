@@ -68,7 +68,7 @@ void UTrafficLightInitProcessor::Execute(FMassEntityManager& EntityManager, FMas
 			TrafficLightSubsystem->SetCrossBySignalState(TrafficLightFragment.ZoneIndex, CurrentSignal, SideIndex);
 
 
-			TrafficLightSubsystem->DebugDrawState(TrafficLightFragment.ZoneIndex, TimeInDuration);
+			//TrafficLightSubsystem->DebugDrawState(TrafficLightFragment.ZoneIndex, TimeInDuration);
 		}
 		});
 }
