@@ -20,7 +20,7 @@ DEFINE_LOG_CATEGORY(LogTrafficSim);
 
 void UTrafficSimSubsystem::InitializeLaneToEntitiesMap()
 {
-	//TODO:: 高效的结合Processor来管理车道车辆映射
+	//TODO:: 高效的结合Processor来管理车道到车辆映射
 
 	LaneToEntitiesMap.Empty();
 	if(!ZoneGraphStorage)
@@ -403,8 +403,9 @@ void UTrafficSimSubsystem::DebugEntity(int32 TargetLane, int32 EntitySN)
 		UE_LOG(LogTrafficSim, Warning, TEXT("No vehicles found in lane %d."), TargetLane);
 		return;
 	}
-	FLaneVehicle TargetVehicle = (*VehicleArray)[EntitySN];
 
+	const FLaneVehicle& TargetVehicle = VehicleArray->Last();
+	
 	const FMassVehicleMovementFragment* Frag = TargetVehicle.VehicleMovementFragment;
 	UTrafficLightSubsystem* TrafficLightSubsystem = UWorld::GetSubsystem<UTrafficLightSubsystem>(World);
 
@@ -415,12 +416,19 @@ void UTrafficSimSubsystem::DebugEntity(int32 TargetLane, int32 EntitySN)
 		Frag->NextLane, Frag->VehicleHandle, FrontVehicleMovement);
 
 	TrafficLightSubsystem->QueryLaneOpenState(Frag->NextLane, OpenLane, IntersectionLane);
-	UE_LOG(LogTemp, Log, TEXT("CurLane:%d, NextLane:%d,TargetSpeed:%f, Speed:%f,NextLaneInInsec:%d,IsOpen:%d,LeftDistance:%f,VehicleLength:%f,HasForntCar:%d"),
+	UE_LOG(LogTemp, Log, TEXT("VehicleSN:%d,CurLane:%d, NextLane:%d,TargetSpeed:%f, Speed:%f,NextLaneInInsec:%d,IsOpen:%d,LeftDistance:%f,VehicleLength:%f,HasForntCar:%d"),
+		Frag->VehicleHandle.SerialNumber,
 		Frag->LaneLocation.LaneHandle.Index, Frag->NextLane,
 		Frag->TargetSpeed, Frag->Speed,
 		IntersectionLane,OpenLane,
 		Frag->LeftDistance, Frag->VehicleLength, HasFrontCar
 		);
+	if (HasFrontCar)
+	{
+		UE_LOG(LogTemp, Log, TEXT("FrontVehicleSN:%d"),FrontVehicleMovement->VehicleHandle.SerialNumber);
+		DrawDebugPoint(GetWorld(), FrontVehicleMovement->LaneLocation.Position, 50.0, FColor::Red, false, 10.0);
+	}
+
 	
 }
 
@@ -443,7 +451,41 @@ bool UTrafficSimSubsystem::SwitchToNextLane(FZoneGraphLaneLocation& LaneLocation
 bool UTrafficSimSubsystem::FindFrontVehicle(int32 LaneIndex, int32 NextLaneIndex,FMassEntityHandle CurVehicle, const FMassVehicleMovementFragment* & FrontVehicle)
 {
 
-	TArray<FLaneVehicle>* LaneVehicles=LaneToEntitiesMap.Find(LaneIndex);
+	TArray<FLaneVehicle>* LaneVehicles = LaneToEntitiesMap.Find(LaneIndex);
+
+	const FZoneLaneData* Lane = &ZoneGraphStorage->Lanes[LaneIndex];
+	const FZoneData* Zone = &ZoneGraphStorage->Zones[Lane->ZoneIndex];
+	if (Zone->Tags.Contains(ConnectorTag))
+	{
+		//找到合并车道上的所有车辆
+		bool hasMergeLanes = false;
+		for (int32 LinkIndex = Lane->LinksBegin; LinkIndex < Lane->LinksEnd; ++LinkIndex)
+		{
+			const FZoneLaneLinkData& LaneLink = ZoneGraphStorage->LaneLinks[LinkIndex];
+			if (LaneLink.Type == EZoneLaneLinkType::Adjacent && LaneLink.HasFlags(EZoneLaneLinkFlags::Merging))
+			{
+				int32 AdjLaneIndex = LaneLink.DestLaneIndex;
+				TArray<FLaneVehicle>* AdjLaneVehicles = LaneToEntitiesMap.Find(AdjLaneIndex);
+
+				if (!AdjLaneVehicles || AdjLaneVehicles->Num() == 0)
+					continue;
+				LaneVehicles->Append(*AdjLaneVehicles);
+				hasMergeLanes = true;
+
+				UE_LOG(LogTemp, Log, TEXT("Add %d Vehicles from Lane:%d"), AdjLaneVehicles->Num(),AdjLaneIndex);
+			}
+		}
+		if(hasMergeLanes)
+		{
+			LaneVehicles->Sort([](const FLaneVehicle& A, const FLaneVehicle& B) {
+				return A.VehicleMovementFragment->LeftDistance > B.VehicleMovementFragment->LeftDistance;
+				});
+		}
+		UE_LOG(LogTemp, Log, TEXT("Total Vehicles Num:%d"), LaneVehicles->Num());
+		
+	}
+
+		
 	if(!LaneVehicles)
 	{
 		UE_LOG(LogTrafficSim, Warning, TEXT("No vehicles found in lane %d."), LaneIndex);
@@ -494,32 +536,32 @@ bool UTrafficSimSubsystem::FindFrontVehicle(int32 LaneIndex, int32 NextLaneIndex
 }
 
 
-//返回true，则当前车辆正常行驶，返回false则需要执行避让等操作
-bool UTrafficSimSubsystem::IsFirstInMergeLanes(FMassVehicleMovementFragment* CurVehicle)
+//返回true则需要执行避让等操作
+bool UTrafficSimSubsystem::WaitForMergeVehilce(FMassVehicleMovementFragment* CurVehicle, const FMassVehicleMovementFragment*& AheadVehicle)
 {
 	if (!ZoneGraphStorage)
 	{
 		UE_LOG(LogTrafficSim, Error, TEXT("ZoneGraphStorage is not initialized! Cannot print lane links."));
-		return true;
+		return false;
 	}
 	int32 LaneIndex = CurVehicle->LaneLocation.LaneHandle.Index;
 	if (LaneIndex < 0 || LaneIndex >= ZoneGraphStorage->Lanes.Num())
 	{
 		UE_LOG(LogTrafficSim, Error, TEXT("Invalid TargetLaneIndex %d! Cannot print lane links."), LaneIndex);
-		return true;
+		return false;
 	}
 
 	//当前Lane是否位于Connector区域
 	int32 ZoneIndex = ZoneGraphStorage->Lanes[LaneIndex].ZoneIndex;
 	if(!ZoneGraphStorage->Zones[ZoneIndex].Tags.Contains(ConnectorTag))
-		return true;
+		return false;
 
 	//是否是当前车道的第一辆车
 	TArray<FLaneVehicle>* Vehicles=LaneToEntitiesMap.Find(LaneIndex);
 	if (!Vehicles )
-		return true;
+		return false;
 	if (Vehicles->Num()>0 && (*Vehicles)[Vehicles->Num() - 1].EntityHandle != CurVehicle->VehicleHandle)
-		return true;
+		return false;
 
 	const FZoneLaneData& CurLaneData = ZoneGraphStorage->Lanes[LaneIndex];
 	int32 FirstLink = CurLaneData.LinksBegin;
@@ -543,7 +585,7 @@ bool UTrafficSimSubsystem::IsFirstInMergeLanes(FMassVehicleMovementFragment* Cur
 	}
 
 	if (AdjVehicles.Num() == 0)
-		return true;
+		return false;
 
 	//找到相邻车道的第一辆车们的最短剩余距离
 	float MinLeftDist=FLT_MAX;
@@ -551,13 +593,16 @@ bool UTrafficSimSubsystem::IsFirstInMergeLanes(FMassVehicleMovementFragment* Cur
 	{
 		float LeftDist=Vehicle.VehicleMovementFragment->LeftDistance - Vehicle.VehicleMovementFragment->VehicleLength / 2;
 		if (LeftDist < MinLeftDist)
+		{
 			MinLeftDist = LeftDist;
+			AheadVehicle = Vehicle.VehicleMovementFragment;
+		}
 	}
 
 	if (CurVehicle->LeftDistance - CurVehicle->VehicleLength / 2 < MinLeftDist)
-		return true;
-	else
 		return false;
+	else
+		return true;
 }
 
 void UTrafficSimSubsystem::CollectLaneVehicles(FMassEntityHandle EntityHandle, const FMassVehicleMovementFragment& VehicleFragment)

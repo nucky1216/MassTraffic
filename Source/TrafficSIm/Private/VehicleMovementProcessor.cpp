@@ -6,6 +6,8 @@
 #include "MassCommonFragments.h"
 #include "MassExecutionContext.h"
 #include "ZoneGraphQuery.h"
+#include "MassRepresentationFragments.h"
+#include "MassRepresentationSubsystem.h"
 
 UVehicleMovementProcessor::UVehicleMovementProcessor():EntityQuery(*this)
 {
@@ -28,6 +30,7 @@ void UVehicleMovementProcessor::ConfigureQueries()
 {
 	EntityQuery.AddRequirement<FMassVehicleMovementFragment>(EMassFragmentAccess::ReadWrite);
 	EntityQuery.AddRequirement<FTransformFragment>(EMassFragmentAccess::ReadWrite);;
+	EntityQuery.AddRequirement<FMassRepresentationFragment>(EMassFragmentAccess::ReadWrite);
 }
 
 void UVehicleMovementProcessor::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context)
@@ -36,16 +39,26 @@ void UVehicleMovementProcessor::Execute(FMassEntityManager& EntityManager, FMass
 	float DeltaTime = Context.GetDeltaTimeSeconds();
 	TArray<FMassEntityHandle> DestroyedEntities;
 
+	UMassRepresentationSubsystem* RepSubsystem = UWorld::GetSubsystem<UMassRepresentationSubsystem>(GetWorld());
+	if (!RepSubsystem)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("No RepresentationSubsystem found"));
+		return;
+	}
+	auto SMInfos = RepSubsystem->GetMutableInstancedStaticMeshInfos();
+
 	EntityQuery.ForEachEntityChunk(EntityManager, Context, [&](FMassExecutionContext& Context)
 	{
 		const int32 NumEntities = Context.GetNumEntities();
 		TArrayView<FMassVehicleMovementFragment> VehicleMovementFragments = Context.GetMutableFragmentView<FMassVehicleMovementFragment>();
 		const TArrayView<FTransformFragment> TransformFragments = Context.GetMutableFragmentView<FTransformFragment>();
+		const TArrayView<FMassRepresentationFragment> RepresentationList = Context.GetMutableFragmentView<FMassRepresentationFragment>();
 
 		for (int32 EntityIndex = 0; EntityIndex < NumEntities; ++EntityIndex)
 		{
 			FMassVehicleMovementFragment& VehicleMovementFragment = VehicleMovementFragments[EntityIndex];
 			FTransformFragment& TransformFragment = TransformFragments[EntityIndex];
+			FMassRepresentationFragment& Representation = RepresentationList[EntityIndex];
 
 			FZoneGraphLaneLocation& CurLaneLocation = VehicleMovementFragment.LaneLocation;
 			
@@ -102,7 +115,42 @@ void UVehicleMovementProcessor::Execute(FMassEntityManager& EntityManager, FMass
 				FTransform(FRotationMatrix::MakeFromX(CurLaneLocation.Direction).ToQuat(),
 										CurLaneLocation.Position,
 										FVector(1, 1, 1)));
+			// 写入 Per-Instance Custom Data（包含实体 SerialNumber 等）
+			{
+				FMassEntityHandle Entity = Context.GetEntity(EntityIndex);
+				const int32 EntitySN = Entity.SerialNumber;
 
+				// 获取 InstancedStaticMesh 的索引
+				const int32 StaticMeshInstanceIndex = Representation.StaticMeshDescIndex;
+				if (StaticMeshInstanceIndex == INDEX_NONE)
+				{
+					continue; // 无效索引，跳过
+				}
+
+				// 获取 InstancedStaticMesh 信息
+				FMassInstancedStaticMeshInfo& MeshInfo = SMInfos[StaticMeshInstanceIndex];
+
+				// 本帧用于选择 LOD 的值；如果你能拿到真实 LODSignificance，建议替换
+				const float LODSignificance = 1.0f;
+
+				struct FVehicleISMCustomData
+				{
+					float SerialNumber;
+					float EntityId;
+					float Speed;
+				};
+				static_assert((sizeof(FVehicleISMCustomData) % sizeof(float)) == 0, "custom data must be float-packed");
+
+				const FVehicleISMCustomData Custom{
+					static_cast<float>(EntitySN),
+					static_cast<float>(Entity.AsNumber()),
+					100.f
+				};
+
+				//UE_LOG(LogTemp, Log, TEXT("MeshIndex:%d"), StaticMeshInstanceIndex);
+				MeshInfo.AddBatchedCustomData(Custom, LODSignificance);
+
+			}
 		}
 		});
 

@@ -7,6 +7,7 @@
 #include "SpawnPointInitProcessor.h"
 #include "TrafficTypes.h"
 #include "ZoneGraphQuery.h"
+#include "TrafficSimSubsystem.h"
 
 void USpawnPointGenerator::Generate(UObject& QueryOwner, TConstArrayView<FMassSpawnedEntityType> EntityTypes, int32 Count, FFinishedGeneratingSpawnDataSignature& FinishedGeneratingSpawnPointsDelegate) const
 {
@@ -24,7 +25,12 @@ void USpawnPointGenerator::Generate(UObject& QueryOwner, TConstArrayView<FMassSp
 	}
 	ZoneGraphSubsystem->GetRegisteredZoneGraphData();
 	const FZoneGraphStorage& ZoneGraphStorage = ZoneGraphData->GetStorage();
-	
+	UTrafficSimSubsystem* TrafficSimSubsystem = World->GetSubsystem<UTrafficSimSubsystem>();
+
+	if (!TrafficSimSubsystem)
+	{
+		UE_LOG(LogTrafficSim, Warning, TEXT("Failed to Get TrafficSimSubsystem"));
+	}
 	//找到所有没有Incoming链接的车道
 	TArray<int32> StartLanes;
 	for (int32 i = 0; i < ZoneGraphStorage.Lanes.Num(); i++)
@@ -32,6 +38,12 @@ void USpawnPointGenerator::Generate(UObject& QueryOwner, TConstArrayView<FMassSp
 		const FZoneLaneData& Lane = ZoneGraphStorage.Lanes[i];
 
 		StartLanes.Add(i); // 先假设是起始车道
+
+		if (Lane.Tags.Contains(TrafficSimSubsystem->ConnectorTag))
+		{
+			StartLanes.RemoveAt(StartLanes.Num() - 1);
+		}
+
 		for (int32 j = Lane.LinksBegin; j < Lane.LinksEnd; j++)
 		{
 			const FZoneLaneLinkData& Link = ZoneGraphStorage.LaneLinks[j];
