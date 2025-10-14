@@ -29,6 +29,9 @@ class TRAFFICSIM_API UVehiclePointsGenerator : public UMassEntitySpawnDataGenera
 	UPROPERTY(EditAnywhere)
 	float MaxGapBetweenSpaces;
 
+	UPROPERTY(EditAnywhere)
+	FZoneGraphTag ConnectorTag;
+
 	virtual void Generate(UObject& QueryOwner, TConstArrayView<FMassSpawnedEntityType> EntityTypes, int32 Count, FFinishedGeneratingSpawnDataSignature& FinishedGeneratingSpawnPointsDelegate) const override;
 	//void BuildResultsFromRandomEntityTypes(TConstArrayView<FMassSpawnedEntityType> EntityTypes, TArray<FMassEntitySpawnDataGeneratorResult>& OutResults) const;
 };

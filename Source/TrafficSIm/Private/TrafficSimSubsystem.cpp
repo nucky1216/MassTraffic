@@ -493,6 +493,73 @@ bool UTrafficSimSubsystem::FindFrontVehicle(int32 LaneIndex, int32 NextLaneIndex
 	return false;
 }
 
+
+//返回true，则当前车辆正常行驶，返回false则需要执行避让等操作
+bool UTrafficSimSubsystem::IsFirstInMergeLanes(FMassVehicleMovementFragment* CurVehicle)
+{
+	if (!ZoneGraphStorage)
+	{
+		UE_LOG(LogTrafficSim, Error, TEXT("ZoneGraphStorage is not initialized! Cannot print lane links."));
+		return true;
+	}
+	int32 LaneIndex = CurVehicle->LaneLocation.LaneHandle.Index;
+	if (LaneIndex < 0 || LaneIndex >= ZoneGraphStorage->Lanes.Num())
+	{
+		UE_LOG(LogTrafficSim, Error, TEXT("Invalid TargetLaneIndex %d! Cannot print lane links."), LaneIndex);
+		return true;
+	}
+
+	//当前Lane是否位于Connector区域
+	int32 ZoneIndex = ZoneGraphStorage->Lanes[LaneIndex].ZoneIndex;
+	if(!ZoneGraphStorage->Zones[ZoneIndex].Tags.Contains(ConnectorTag))
+		return true;
+
+	//是否是当前车道的第一辆车
+	TArray<FLaneVehicle>* Vehicles=LaneToEntitiesMap.Find(LaneIndex);
+	if (!Vehicles )
+		return true;
+	if (Vehicles->Num()>0 && (*Vehicles)[Vehicles->Num() - 1].EntityHandle != CurVehicle->VehicleHandle)
+		return true;
+
+	const FZoneLaneData& CurLaneData = ZoneGraphStorage->Lanes[LaneIndex];
+	int32 FirstLink = CurLaneData.LinksBegin;
+	int32 EndLink = CurLaneData.LinksEnd;
+
+	TArray<FLaneVehicle> AdjVehicles;
+	for (int32 LinkIndex = FirstLink; LinkIndex < EndLink; ++LinkIndex)
+	{
+		const FZoneLaneLinkData& LaneLink = ZoneGraphStorage->LaneLinks[LinkIndex];
+		if (LaneLink.Type == EZoneLaneLinkType::Adjacent && LaneLink.HasFlags(EZoneLaneLinkFlags::Merging))
+		{
+			//找到相邻合并车道的第一辆车
+			int32 AdjLaneIndex = LaneLink.DestLaneIndex;
+			TArray<FLaneVehicle>* AdjLaneVehicles = LaneToEntitiesMap.Find(AdjLaneIndex);
+
+			if (!AdjLaneVehicles || AdjLaneVehicles->Num() == 0)
+				continue;
+
+			AdjVehicles.Add((*AdjLaneVehicles)[AdjLaneVehicles->Num()-1]);
+		}
+	}
+
+	if (AdjVehicles.Num() == 0)
+		return true;
+
+	//找到相邻车道的第一辆车们的最短剩余距离
+	float MinLeftDist=FLT_MAX;
+	for (auto Vehicle : AdjVehicles)
+	{
+		float LeftDist=Vehicle.VehicleMovementFragment->LeftDistance - Vehicle.VehicleMovementFragment->VehicleLength / 2;
+		if (LeftDist < MinLeftDist)
+			MinLeftDist = LeftDist;
+	}
+
+	if (CurVehicle->LeftDistance - CurVehicle->VehicleLength / 2 < MinLeftDist)
+		return true;
+	else
+		return false;
+}
+
 void UTrafficSimSubsystem::CollectLaneVehicles(FMassEntityHandle EntityHandle, const FMassVehicleMovementFragment& VehicleFragment)
 {
 	if(LaneToEntitiesMap.Num() == 0)
@@ -528,9 +595,10 @@ void UTrafficSimSubsystem::GetLaneVehicles(int32 LaneIndex, TConstArrayView<FLan
 	Vehilces=LaneToEntitiesMap.FindRef(LaneIndex);
 }
 
-void UTrafficSimSubsystem::InitializeTrafficTypes(TConstArrayView<FMassSpawnedEntityType> InTrafficTypes)
+void UTrafficSimSubsystem::InitializeTrafficTypes(TConstArrayView<FMassSpawnedEntityType> InTrafficTypes,FZoneGraphTag ConnectorTagIn)
 {
 	VehicleConfigTypes = InTrafficTypes;
+	ConnectorTag = ConnectorTagIn;
 	EntityTemplates.Empty();
 	for (const FMassSpawnedEntityType& Type : VehicleConfigTypes)
 	{

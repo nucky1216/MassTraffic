@@ -29,7 +29,7 @@ void UVehiclePointsGenerator::Generate(UObject& QueryOwner, TConstArrayView<FMas
 	//提取所有配置的车辆长度
 	TArray<float> VehicleLenth;
 	TArray<float> PrefixSum;
-	TrafficSimSubsystem->InitializeTrafficTypes(EntityTypes);
+	TrafficSimSubsystem->InitializeTrafficTypes(EntityTypes, ConnectorTag);
 	TrafficSimSubsystem->GetVehicleConfigs(VehicleLenth, PrefixSum);
 
 	auto SelectRandomItem = [&]()

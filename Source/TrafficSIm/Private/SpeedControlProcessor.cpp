@@ -65,13 +65,19 @@ void USpeedControlProcessor::Execute(FMassEntityManager& EntityManager, FMassExe
 							VehicleMovement.TargetSpeed = FrontVehicleMovement->Speed;
 						//跟车过近了
 						if(DistanceToFrontVehicle < HalfLength * 1.5)
-							VehicleMovement.TargetSpeed = VehicleMovement.Speed-100.f;
+							VehicleMovement.TargetSpeed = 0;
 					}
 					else
 					{
 						VehicleMovement.TargetSpeed = VehicleMovement.MaxSpeed;
 					}
 				
+				}
+
+				//避让合并车道的车辆
+				if (!TrafficSimSubsystem->IsFirstInMergeLanes(&VehicleMovement))
+				{
+					VehicleMovement.TargetSpeed = 0;
 				}
 
 				//第一辆车如果距离红绿灯小于500米 ，并且下一个车道是红灯，则停车 或者当前速度为0且下一车道位绿灯，则起步

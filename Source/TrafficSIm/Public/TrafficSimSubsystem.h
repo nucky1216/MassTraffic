@@ -55,14 +55,16 @@ public:
 	UFUNCTION(BlueprintCallable, Category="TrafficSim| Test")
 	void DebugEntity(int32 TargetLane, int32 EntitySN);
 
+
 	bool SwitchToNextLane(FZoneGraphLaneLocation& LaneLocation, float NewDist);
 	bool FindFrontVehicle(int32 LaneIndex, int32 NextLaneIndex, FMassEntityHandle CurVehicle, const FMassVehicleMovementFragment*& FrontVehicle);
+	bool IsFirstInMergeLanes(FMassVehicleMovementFragment* CurVehicle);
 
 	void InitializeLaneToEntitiesMap();
 	void CollectLaneVehicles(FMassEntityHandle EntityHandle, const FMassVehicleMovementFragment& VehicleFragment);
 	void GetLaneVehicles(int32 LaneIndex, TConstArrayView<FLaneVehicle>& Vehilces);
 
-	void InitializeTrafficTypes(TConstArrayView<FMassSpawnedEntityType> InTrafficTypes);
+	void InitializeTrafficTypes(TConstArrayView<FMassSpawnedEntityType> InTrafficTypes, FZoneGraphTag IntersectionTagIn);
 	void GetVehicleConfigs(TArray<float>& VehicleLenth, TArray<float>& PrefixSum);
 
 	UFUNCTION(BlueprintCallable, Category="TrafficSim|Control")
@@ -77,4 +79,5 @@ public:
 	TMap<int32, TArray<FLaneVehicle>> LaneToEntitiesMap;
 	TConstArrayView<FMassSpawnedEntityType> VehicleConfigTypes;
 	TArray<const FMassEntityTemplate*> EntityTemplates;
+	FZoneGraphTag ConnectorTag;
 };
