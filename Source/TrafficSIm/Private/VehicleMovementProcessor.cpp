@@ -116,6 +116,7 @@ void UVehicleMovementProcessor::Execute(FMassEntityManager& EntityManager, FMass
 										CurLaneLocation.Position,
 										FVector(1, 1, 1)));
 			// 写入 Per-Instance Custom Data（包含实体 SerialNumber 等）
+			if(0)
 			{
 				FMassEntityHandle Entity = Context.GetEntity(EntityIndex);
 				const int32 EntitySN = Entity.SerialNumber;

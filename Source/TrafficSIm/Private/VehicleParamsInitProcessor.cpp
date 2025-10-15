@@ -97,6 +97,7 @@ void UVehicleParamsInitProcessor::Execute(FMassEntityManager& EntityManager, FMa
 					*VehicleMovement.LaneLocation.LaneHandle.ToString(), VehicleMovement.NextLane, VehicleMovement.Speed, VehicleMovement.TargetSpeed);
 
 				// 写入 Per-Instance Custom Data（包含实体 SerialNumber 等）
+				if(0)
 				{
 					FMassEntityHandle Entity = Context.GetEntity(EntityIndex);
 					const int32 EntitySN = Entity.SerialNumber;

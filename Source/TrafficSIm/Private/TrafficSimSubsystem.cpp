@@ -455,7 +455,7 @@ bool UTrafficSimSubsystem::FindFrontVehicle(int32 LaneIndex, int32 NextLaneIndex
 
 	const FZoneLaneData* Lane = &ZoneGraphStorage->Lanes[LaneIndex];
 	const FZoneData* Zone = &ZoneGraphStorage->Zones[Lane->ZoneIndex];
-	if (Zone->Tags.Contains(ConnectorTag))
+	if (0 && Zone->Tags.Contains(ConnectorTag))
 	{
 		//找到合并车道上的所有车辆
 		bool hasMergeLanes = false;
