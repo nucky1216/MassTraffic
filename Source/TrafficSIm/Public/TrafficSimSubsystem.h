@@ -62,8 +62,8 @@ public:
 	UFUNCTION(BlueprintCallable,Category="TrafficSim| Convert")
 	void RoadToLanes(UDataTable* RoadGeos, UPARAM(ref)UDataTable*& LanesMap, ACesiumGeoreference* GeoRef, FZoneGraphTag AnyTag,float QueryHeight);
 
-	UFUNCTION((BlueprintCallable, Category = "TrafficSim| Congestion"))
-	void BathSetCongestionByDT(UPARAM(ref)UDataTable*& LanesMap,TMap<int32,float> CongestionIndex);
+	UFUNCTION(BlueprintCallable, Category = "TrafficSim| Congestion")
+	void BathSetCongestionByDT(UPARAM(ref)UDataTable*& LanesMap, float TagetValue, TMap<int32,float> CongestionIndex);
 
 	bool SwitchToNextLane(FZoneGraphLaneLocation& LaneLocation, float NewDist);
 	bool FindFrontVehicle(int32 LaneIndex, int32 NextLaneIndex, FMassEntityHandle CurVehicle, const FMassVehicleMovementFragment*& FrontVehicle);
@@ -77,7 +77,7 @@ public:
 	void GetVehicleConfigs(TArray<float>& VehicleLenth, TArray<float>& PrefixSum);
 
 	UFUNCTION(BlueprintCallable, Category="TrafficSim|Control")
-	void AdjustLaneCongestion(int32 LaneIndex, ELaneCongestionMetric MetricType, float TargetValue, UMassEntityConfigAsset* OptionalConfig, float MinSafetyGap = 200.f);
+	void AdjustLaneCongestion(int32 LaneIndex, ELaneCongestionMetric MetricType, float TargetValue, UMassEntityConfigAsset* OptionalConfig, float StartDist,float EndDist,float MinSafetyGap = 200.f);
 
 	const UWorld* World = nullptr;
 	const UZoneGraphSubsystem* ZoneGraphSubsystem = nullptr;

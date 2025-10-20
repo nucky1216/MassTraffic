@@ -552,14 +552,22 @@ void UTrafficSimSubsystem::RoadToLanes(UDataTable* RoadGeos, UPARAM(ref)UDataTab
 	}
 }
 
-void UTrafficSimSubsystem::BathSetCongestionByDT(UPARAM(ref)UDataTable*& LanesMap, TMap<int32, float> CongestionIndex)
+void UTrafficSimSubsystem::BathSetCongestionByDT(UPARAM(ref)UDataTable*& LanesMap,float TagetValue, TMap<int32, float> CongestionIndex)
 {
 	for (auto& Row : LanesMap->GetRowMap())
 	{
 		FDTRoadLanes* RoadLanes = (FDTRoadLanes*)Row.Value;
 		if (!RoadLanes || RoadLanes->ZoneSegLanes.Num() == 0)
 			continue;
-
+		for (auto& ZoneSegLane : RoadLanes->ZoneSegLanes)
+		{
+			
+			for (auto Lane : ZoneSegLane.Lanes)
+			{
+				UE_LOG(LogTemp, Log, TEXT("Setting Congetion at Lane:%d"),Lane);
+				AdjustLaneCongestion(Lane,ELaneCongestionMetric::AverageGap, TagetValue,nullptr,ZoneSegLane.StartDist,ZoneSegLane.EndDist);
+			}
+		}
 	}
 }
 
@@ -849,7 +857,7 @@ void UTrafficSimSubsystem::InitOnPostLoadMap(const UWorld::FActorsInitializedPar
 	UE_LOG(LogTemp, Error, TEXT("No valid ZoneGraphData found in the world!"));
 }
 
-void UTrafficSimSubsystem::AdjustLaneCongestion(int32 LaneIndex, ELaneCongestionMetric MetricType, float TargetValue, UMassEntityConfigAsset* OptionalConfig, float MinSafetyGap)
+void UTrafficSimSubsystem::AdjustLaneCongestion(int32 LaneIndex, ELaneCongestionMetric MetricType, float TargetValue, UMassEntityConfigAsset* OptionalConfig, float StartDist, float EndDist, float MinSafetyGap)
 {
 	UMassEntitySubsystem* EntitySubsystem = UWorld::GetSubsystem<UMassEntitySubsystem>(World);
 	if (!EntitySubsystem)
@@ -860,6 +868,8 @@ void UTrafficSimSubsystem::AdjustLaneCongestion(int32 LaneIndex, ELaneCongestion
 	ULaneCongestionAdjustProcessor* Processor = NewObject<ULaneCongestionAdjustProcessor>(this);
 	Processor->ManualInit(*this); // 调用包装的初始化
 	Processor->TargetLaneIndex = LaneIndex;
+	Processor->StartDist = StartDist;
+	Processor->EndDist = EndDist;
 	Processor->MetricType = MetricType;
 	if (MetricType == ELaneCongestionMetric::DensityPerKm)
 	{

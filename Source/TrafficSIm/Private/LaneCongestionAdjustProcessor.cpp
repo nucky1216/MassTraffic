@@ -11,6 +11,8 @@
 
 ULaneCongestionAdjustProcessor::ULaneCongestionAdjustProcessor() : EntityQuery(*this)
 {
+	ExecutionOrder.ExecuteAfter.Add("CollectLaneVehiclesProcessor");
+	ExecutionOrder.ExecuteBefore.Add("VehicleMovementProcessor");
 	bAutoRegisterWithProcessingPhases = false; // 手动触发
 }
 
@@ -24,221 +26,6 @@ void ULaneCongestionAdjustProcessor::ConfigureQueries()
 {
 	EntityQuery.AddRequirement<FMassVehicleMovementFragment>(EMassFragmentAccess::ReadWrite);
 	EntityQuery.AddRequirement<FTransformFragment>(EMassFragmentAccess::ReadWrite);
-}
-
-void ULaneCongestionAdjustProcessor::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context)
-{
-	if (!TrafficSimSubsystem || !TrafficSimSubsystem->ZoneGraphStorage)
-	{
-		UE_LOG(LogTrafficSim, Warning, TEXT("LaneCongestionAdjust: Missing TrafficSimSubsystem or ZoneGraphStorage"));
-		if(!TrafficSimSubsystem)
-		{
-			UE_LOG(LogTrafficSim, Warning, TEXT("LaneCongestionAdjust: TrafficSimSubsystem is nullptr"));
-			return;
-		}
-	}
-	if (TargetLaneIndex < 0 || TargetLaneIndex >= TrafficSimSubsystem->ZoneGraphStorage->Lanes.Num())
-	{
-		UE_LOG(LogTrafficSim, Warning, TEXT("LaneCongestionAdjust: Invalid TargetLaneIndex %d"), TargetLaneIndex);
-		return;
-	}
-
-	TConstArrayView<FLaneVehicle> Vehicles;
-	TrafficSimSubsystem->GetLaneVehicles(TargetLaneIndex, Vehicles);
-
-
-
-	float LaneLength = 0.f;
-	UE::ZoneGraph::Query::GetLaneLength(*TrafficSimSubsystem->ZoneGraphStorage, TargetLaneIndex, LaneLength);
-	if (LaneLength <= 0.f)
-	{
-		UE_LOG(LogTrafficSim, Warning, TEXT("LaneCongestionAdjust: Lane length invalid"));
-		return;
-	}
-
-	TArray<float> VehicleLenth, PrefixSum;
-	TrafficSimSubsystem->GetVehicleConfigs(VehicleLenth, PrefixSum);
-	if (VehicleLenth.Num() == 0)
-	{
-		UE_LOG(LogTrafficSim, Warning, TEXT("LaneCongestionAdjust: No vehicle configs available"));
-		return;
-	}
-	TArray<float> SortedVehicleLenth = VehicleLenth;
-	SortedVehicleLenth.Sort([](const float& A, const float& B) {return A > B; });
-	const float MinVehicleLen = SortedVehicleLenth.Num() ? SortedVehicleLenth.Last() : 0.f;
-
-	// Strict removal gap (keep front car, remove followers too close)
-	const float StrictRemovalGap = FMath::Max(TargetAverageGap, MinSafetyGap);
-	// Relaxed insertion gap to improve packing
-	const float GapRelaxPercent = 0.2f; // 20%
-	float InsertionGap = TargetAverageGap > 0.f ? TargetAverageGap * (1.f - GapRelaxPercent) : MinSafetyGap;
-	InsertionGap = FMath::Clamp(InsertionGap, MinSafetyGap, StrictRemovalGap);
-
-	// 1) Remove too-close vehicles (tail-head gap < StrictRemovalGap)
-	TArray<FMassEntityHandle> ToDelete;
-	TArray<const FLaneVehicle*> KeptVehicles;
-	for (int32 i = 0; i < Vehicles.Num(); ++i)
-	{
-		const FLaneVehicle& Cur = Vehicles[i];
-		if (KeptVehicles.Num() == 0)
-		{
-			KeptVehicles.Add(&Cur);
-			continue;
-		}
-		const FLaneVehicle* PrevKept = KeptVehicles.Last();
-		float PrevCenter = PrevKept->VehicleMovementFragment->LaneLocation.DistanceAlongLane;
-		float PrevLen = PrevKept->VehicleMovementFragment->VehicleLength;
-		float PrevEnd = PrevCenter + PrevLen * 0.5f;
-		float CurCenter = Cur.VehicleMovementFragment->LaneLocation.DistanceAlongLane;
-		float CurLen = Cur.VehicleMovementFragment->VehicleLength;
-		float CurStart = CurCenter - CurLen * 0.5f;
-		float Headway = CurStart - PrevEnd;
-		if (Headway < StrictRemovalGap)
-		{
-			ToDelete.Add(Cur.EntityHandle); // keep previous, drop current
-		}
-		else
-		{
-			KeptVehicles.Add(&Cur);
-		}
-	}
-	if (ToDelete.Num() > 0)
-	{
-		for (const FMassEntityHandle& E : ToDelete)
-			EntityManager.Defer().DestroyEntity(E);
-		UE_LOG(LogTrafficSim, Log, TEXT("LaneCongestionAdjust: Removed %d vehicles (strict gap %.1f)"), ToDelete.Num(), StrictRemovalGap);
-	}
-
-	// 2) Build relaxed gaps using InsertionGap
-	struct FGap { float Start=0.f; float End=0.f; };
-	TArray<FGap> Gaps;
-	if (KeptVehicles.Num() == 0)
-	{
-		Gaps.Add({0.f, LaneLength});
-	}
-	else
-	{
-		float FirstCenter = KeptVehicles[0]->VehicleMovementFragment->LaneLocation.DistanceAlongLane;
-		float FirstLen = KeptVehicles[0]->VehicleMovementFragment->VehicleLength;
-		float FirstStart = FirstCenter - FirstLen * 0.5f;
-		float HeadGapEnd = FirstStart - InsertionGap;
-		if (HeadGapEnd > 0.f) Gaps.Add({0.f, HeadGapEnd});
-		for (int32 i = 0; i < KeptVehicles.Num() - 1; ++i)
-		{
-			const FLaneVehicle* A = KeptVehicles[i];
-			const FLaneVehicle* B = KeptVehicles[i+1];
-			float ACenter = A->VehicleMovementFragment->LaneLocation.DistanceAlongLane;
-			float ALen = A->VehicleMovementFragment->VehicleLength;
-			float AEnd = ACenter + ALen * 0.5f;
-			float BCenter = B->VehicleMovementFragment->LaneLocation.DistanceAlongLane;
-			float BLen = B->VehicleMovementFragment->VehicleLength;
-			float BStart = BCenter - BLen * 0.5f;
-			float GapStart = AEnd + InsertionGap;
-			float GapEnd = BStart - InsertionGap;
-			if (GapEnd - GapStart >= MinVehicleLen + KINDA_SMALL_NUMBER)
-				Gaps.Add({GapStart, GapEnd});
-		}
-		float LastCenter = KeptVehicles.Last()->VehicleMovementFragment->LaneLocation.DistanceAlongLane;
-		float LastLen = KeptVehicles.Last()->VehicleMovementFragment->VehicleLength;
-		float LastEnd = LastCenter + LastLen * 0.5f;
-		float TailGapStart = LastEnd + InsertionGap;
-		if (LaneLength - TailGapStart >= MinVehicleLen + KINDA_SMALL_NUMBER)
-			Gaps.Add({TailGapStart, LaneLength});
-	}
-	if (Gaps.Num() == 0)
-	{
-		UE_LOG(LogTrafficSim, Log, TEXT("LaneCongestionAdjust: No usable gaps after cleanup"));
-		return;
-	}
-
-	auto ChooseRandomVehicleIndex = [&PrefixSum]() -> int32
-	{
-		float R = FMath::FRand();
-		for (int32 i = 0; i < PrefixSum.Num(); ++i)
-			if (R <= PrefixSum[i]) return i;
-		return PrefixSum.Num() - 1;
-	};
-
-	// 3) Fill each gap iteratively
-	TMap<int32, TArray<float>> TemplateToDistances;
-	const int32 MaxSpawnPerGapLoop = 512;
-
-	for (const FGap& Gap : Gaps)
-	{
-		float Cursor = Gap.Start;
-		int32 Iter = 0;
-		while (Iter++ < MaxSpawnPerGapLoop)
-		{
-			float Remaining = Gap.End - Cursor;
-			if (Remaining < MinVehicleLen + KINDA_SMALL_NUMBER)
-				break;
-			float ChosenLen = 0.f; int32 VehicleIdx = INDEX_NONE;
-			const int32 RandomAttempts = 6;
-			for (int32 Attempt = 0; Attempt < RandomAttempts; ++Attempt)
-			{
-				int32 CandIdx = ChooseRandomVehicleIndex();
-				float Len = VehicleLenth.IsValidIndex(CandIdx) ? VehicleLenth[CandIdx] : MinVehicleLen;
-				if (Len <= Remaining) { ChosenLen = Len; VehicleIdx = CandIdx; break; }
-			}
-			if (VehicleIdx == INDEX_NONE)
-			{
-				for (float Len : SortedVehicleLenth) // descending
-				{
-					if (Len <= Remaining)
-					{ ChosenLen = Len; VehicleIdx = VehicleLenth.IndexOfByPredicate([Len](float V){ return FMath::IsNearlyEqual(V, Len); }); break; }
-				}
-			}
-			if (VehicleIdx == INDEX_NONE || ChosenLen <= 0.f)
-				break;
-			float Start = Cursor;
-			float End = Start + ChosenLen;
-			if (End > Gap.End + KINDA_SMALL_NUMBER)
-				break;
-			float CenterDist = Start + ChosenLen * 0.5f;
-			TemplateToDistances.FindOrAdd(VehicleIdx).Add(CenterDist);
-			Cursor = End + InsertionGap; // advance
-		}
-	}
-
-	if (TemplateToDistances.Num() == 0)
-	{
-		UE_LOG(LogTrafficSim, Log, TEXT("LaneCongestionAdjust: No vehicles spawned (all gaps too small after relax)"));
-		return;
-	}
-	if (TrafficSimSubsystem->EntityTemplates.Num() == 0)
-	{
-		UE_LOG(LogTrafficSim, Warning, TEXT("LaneCongestionAdjust: No entity templates available for spawning"));
-		return;
-	}
-
-	int32 TotalSpawned = 0;
-	for (auto& Pair : TemplateToDistances)
-	{
-		int32 TemplateIdx = Pair.Key;
-		TArray<float>& DistList = Pair.Value;
-		if (!TrafficSimSubsystem->EntityTemplates.IsValidIndex(TemplateIdx)) continue;
-		const FMassEntityTemplate* Template = TrafficSimSubsystem->EntityTemplates[TemplateIdx];
-		if (!Template || !Template->IsValid()) continue;
-		TArray<FMassEntityHandle> NewEntities;
-		TSharedRef<FMassEntityManager::FEntityCreationContext> CreationContext = EntityManager.BatchCreateEntities(Template->GetArchetype(), Template->GetSharedFragmentValues(), DistList.Num(), NewEntities);
-		EntityManager.BatchSetEntityFragmentsValues(CreationContext->GetEntityCollection(), Template->GetInitialFragmentValues());
-		for (int32 i = 0; i < NewEntities.Num(); ++i)
-		{
-			float DistAlong = DistList[i];
-			FZoneGraphLaneLocation LaneLoc;
-			UE::ZoneGraph::Query::CalculateLocationAlongLane(*TrafficSimSubsystem->ZoneGraphStorage, TargetLaneIndex, DistAlong, LaneLoc);
-			const FMassEntityHandle Entity = NewEntities[i];
-			FTransformFragment& TransformFrag = EntityManager.GetFragmentDataChecked<FTransformFragment>(Entity);
-			FTransform& MutableTransform = TransformFrag.GetMutableTransform();
-			MutableTransform.SetLocation(LaneLoc.Position);
-			FMassVehicleMovementFragment& MoveFrag = EntityManager.GetFragmentDataChecked<FMassVehicleMovementFragment>(Entity);
-			MoveFrag.LaneLocation = LaneLoc;
-			MoveFrag.DistanceAlongLane = LaneLoc.DistanceAlongLane;
-		}
-		TotalSpawned += NewEntities.Num();
-		UE_LOG(LogTrafficSim, Verbose, TEXT("LaneCongestionAdjust: Spawned %d (template %d)"), NewEntities.Num(), TemplateIdx);
-	}
-	UE_LOG(LogTrafficSim, Log, TEXT("LaneCongestionAdjust: Spawn finished. Spawned=%d Removed=%d StrictGap=%.1f InsertGap=%.1f"), TotalSpawned, ToDelete.Num(), StrictRemovalGap, InsertionGap);
 }
 
 void ULaneCongestionAdjustProcessor::CollectLaneVehicles(FMassEntityManager& EntityManager, FMassExecutionContext& Context, TArray<FLaneVehicleRuntime>& OutVehicles)
@@ -374,4 +161,342 @@ void ULaneCongestionAdjustProcessor::SpawnAdditionalVehicles(FMassEntityManager&
 		MoveFrag.LaneLocation = LaneLoc;
 	}
 	UE_LOG(LogTrafficSim, Log, TEXT("LaneCongestionAdjust: Spawned %d vehicles (EntityManager)"), NewEntities.Num());
+}
+void ULaneCongestionAdjustProcessor::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context)
+{
+	if (!TrafficSimSubsystem || !TrafficSimSubsystem->ZoneGraphStorage)
+	{
+		UE_LOG(LogTrafficSim, Warning, TEXT("LaneCongestionAdjust: Missing TrafficSimSubsystem or ZoneGraphStorage"));
+		if (!TrafficSimSubsystem)
+		{
+			UE_LOG(LogTrafficSim, Warning, TEXT("LaneCongestionAdjust: TrafficSimSubsystem is nullptr"));
+			return;
+		}
+	}
+	if (TargetLaneIndex < 0 || TargetLaneIndex >= TrafficSimSubsystem->ZoneGraphStorage->Lanes.Num())
+	{
+		UE_LOG(LogTrafficSim, Warning, TEXT("LaneCongestionAdjust: Invalid TargetLaneIndex %d"), TargetLaneIndex);
+		return;
+	}
+
+	float LaneLength = 0.f;
+	UE::ZoneGraph::Query::GetLaneLength(*TrafficSimSubsystem->ZoneGraphStorage, TargetLaneIndex, LaneLength);
+	if (LaneLength <= 0.f)
+	{
+		UE_LOG(LogTrafficSim, Warning, TEXT("LaneCongestionAdjust: Lane length invalid"));
+		return;
+	}
+
+	// 仅在区间 [S, E] 内调整
+	const float S = FMath::Clamp(FMath::Min(StartDist, EndDist), 0.f, LaneLength);
+	const float E = FMath::Clamp(FMath::Max(StartDist, EndDist), 0.f, LaneLength);
+	if (E - S <= KINDA_SMALL_NUMBER)
+	{
+		UE_LOG(LogTrafficSim, Warning, TEXT("LaneCongestionAdjust: Invalid range [%.1f, %.1f] after clamp"), StartDist, EndDist);
+		return;
+	}
+
+	TArray<float> VehicleLenth, PrefixSum;
+	TrafficSimSubsystem->GetVehicleConfigs(VehicleLenth, PrefixSum);
+	if (VehicleLenth.Num() == 0)
+	{
+		UE_LOG(LogTrafficSim, Warning, TEXT("LaneCongestionAdjust: No vehicle configs available"));
+		return;
+	}
+	TArray<float> SortedVehicleLenth = VehicleLenth;
+	SortedVehicleLenth.Sort([](const float& A, const float& B) { return A > B; });
+	const float MinVehicleLen = SortedVehicleLenth.Num() ? SortedVehicleLenth.Last() : 0.f;
+
+	// Strict removal gap / insertion gap
+	const float StrictRemovalGap = FMath::Max(TargetAverageGap, MinSafetyGap);
+	const float GapRelaxPercent = 0.2f; // 20%
+	float InsertionGap = TargetAverageGap > 0.f ? TargetAverageGap * (1.f - GapRelaxPercent) : MinSafetyGap;
+	InsertionGap = FMath::Clamp(InsertionGap, MinSafetyGap, StrictRemovalGap);
+
+	// 用 EntityQuery 遍历当前帧有效的实体，构建值类型快照
+	struct FVehicleInfo
+	{
+		FMassEntityHandle Entity;
+		float Center = 0.f;
+		float Length = 0.f;
+	};
+	TArray<FVehicleInfo> All;
+	All.Reserve(256);
+
+	EntityQuery.ForEachEntityChunk(EntityManager, Context, [this, &All](FMassExecutionContext& Ctx)
+		{
+			const TConstArrayView<FMassVehicleMovementFragment> MoveList = Ctx.GetFragmentView<FMassVehicleMovementFragment>();
+			const int32 Num = Ctx.GetNumEntities();
+			for (int32 i = 0; i < Num; ++i)
+			{
+				const FMassVehicleMovementFragment& Move = MoveList[i];
+				if (Move.LaneLocation.LaneHandle.Index != TargetLaneIndex)
+					continue;
+
+				FVehicleInfo Info;
+				Info.Entity = Ctx.GetEntity(i);
+				Info.Center = Move.LaneLocation.DistanceAlongLane;
+				Info.Length = Move.VehicleLength;
+				All.Add(Info);
+			}
+		});
+
+	if (All.Num() == 0)
+	{
+		UE_LOG(LogTrafficSim, Verbose, TEXT("LaneCongestionAdjust: No vehicles to process on lane %d"), TargetLaneIndex);
+		return;
+	}
+
+	// 预处理：区间内车辆 + 两侧边界车（基于快照）
+	const FVehicleInfo* PrevOuter = nullptr;
+	const FVehicleInfo* NextOuter = nullptr;
+	TArray<const FVehicleInfo*> InRange;
+	InRange.Reserve(All.Num());
+
+	for (const FVehicleInfo& V : All)
+	{
+		const float Center = V.Center;
+		if (Center < S)
+		{
+			if (!PrevOuter || Center > PrevOuter->Center)
+				PrevOuter = &V;
+		}
+		else if (Center > E)
+		{
+			if (!NextOuter || Center < NextOuter->Center)
+				NextOuter = &V;
+		}
+		else
+		{
+			InRange.Add(&V);
+		}
+	}
+
+	ensureMsgf(!InRange.Contains(nullptr), TEXT("InRange contains nullptr"));
+	// 指针元素排序：比较器使用“被指对象的引用”以配合 TDereferenceWrapper
+	InRange.Sort([](const FVehicleInfo& A, const FVehicleInfo& B)
+		{
+			return A.Center < B.Center;
+		});
+
+	// 1) 删除过近车辆
+	TArray<FMassEntityHandle> ToDelete;
+	TArray<const FVehicleInfo*> KeptInRange;
+
+	bool bHasPrevEnd = false;
+	float PrevEnd = 0.f;
+	if (PrevOuter)
+	{
+		PrevEnd = PrevOuter->Center + PrevOuter->Length * 0.5f;
+		bHasPrevEnd = true;
+	}
+
+	for (int32 i = 0; i < InRange.Num(); ++i)
+	{
+		const FVehicleInfo* Cur = InRange[i];
+		const float CurCenter = Cur->Center;
+		const float CurLen = Cur->Length;
+		const float CurStart = CurCenter - CurLen * 0.5f;
+
+		if (!bHasPrevEnd && KeptInRange.Num() == 0)
+		{
+			KeptInRange.Add(Cur);
+			PrevEnd = CurCenter + CurLen * 0.5f;
+			bHasPrevEnd = true;
+			continue;
+		}
+
+		const float Headway = CurStart - PrevEnd;
+		if (Headway < StrictRemovalGap)
+		{
+			ToDelete.Add(Cur->Entity);
+		}
+		else
+		{
+			KeptInRange.Add(Cur);
+			PrevEnd = CurCenter + CurLen * 0.5f;
+		}
+	}
+
+	if (ToDelete.Num() > 0)
+	{
+		for (const FMassEntityHandle& EHandle : ToDelete)
+		{
+			EntityManager.Defer().DestroyEntity(EHandle);
+		}
+		UE_LOG(LogTrafficSim, Log, TEXT("LaneCongestionAdjust: Removed %d vehicles in [%.1f, %.1f] (strict gap %.1f)"),
+			ToDelete.Num(), S, E, StrictRemovalGap);
+	}
+
+	// 2) 构造可用间隙
+	struct FGap { float Start = 0.f; float End = 0.f; };
+	TArray<FGap> Gaps;
+
+	float BoundStart = S;
+	if (PrevOuter)
+	{
+		const float PrevOuterEnd = PrevOuter->Center + PrevOuter->Length * 0.5f;
+		BoundStart = FMath::Max(BoundStart, PrevOuterEnd + InsertionGap);
+	}
+
+	float BoundEnd = E;
+	if (NextOuter)
+	{
+		const float NextOuterStart = NextOuter->Center - NextOuter->Length * 0.5f;
+		BoundEnd = FMath::Min(BoundEnd, NextOuterStart - InsertionGap);
+	}
+
+	auto AddGapIfUsable = [&](float GS, float GE)
+		{
+			const float Start = FMath::Max(GS, BoundStart);
+			const float End = FMath::Min(GE, BoundEnd);
+			if (End - Start >= MinVehicleLen + KINDA_SMALL_NUMBER)
+			{
+				Gaps.Add({ Start, End });
+			}
+		};
+
+	if (KeptInRange.Num() == 0)
+	{
+		AddGapIfUsable(S, E);
+	}
+	else
+	{
+		const FVehicleInfo* First = KeptInRange[0];
+		const float FirstStart = First->Center - First->Length * 0.5f;
+		AddGapIfUsable(S, FirstStart - InsertionGap);
+
+		for (int32 i = 0; i < KeptInRange.Num() - 1; ++i)
+		{
+			const FVehicleInfo* A = KeptInRange[i];
+			const FVehicleInfo* B = KeptInRange[i + 1];
+			const float AEnd = A->Center + A->Length * 0.5f;
+			const float BStart = B->Center - B->Length * 0.5f;
+			AddGapIfUsable(AEnd + InsertionGap, BStart - InsertionGap);
+		}
+
+		const FVehicleInfo* Last = KeptInRange.Last();
+		const float LastEnd = Last->Center + Last->Length * 0.5f;
+		AddGapIfUsable(LastEnd + InsertionGap, E);
+	}
+
+	if (Gaps.Num() == 0)
+	{
+		UE_LOG(LogTrafficSim, Log, TEXT("LaneCongestionAdjust: No usable gaps in [%.1f, %.1f] after cleanup"), S, E);
+		return;
+	}
+
+	auto ChooseRandomVehicleIndex = [&PrefixSum]() -> int32
+		{
+			const float R = FMath::FRand();
+			for (int32 i = 0; i < PrefixSum.Num(); ++i)
+				if (R <= PrefixSum[i]) return i;
+			return PrefixSum.Num() - 1;
+		};
+
+	// 3) 按 Gaps 迭代填充
+	TMap<int32, TArray<float>> TemplateToDistances;
+	const int32 MaxSpawnPerGapLoop = 512;
+
+	for (const FGap& Gap : Gaps)
+	{
+		float Cursor = Gap.Start;
+		int32 Iter = 0;
+		while (Iter++ < MaxSpawnPerGapLoop)
+		{
+			const float Remaining = Gap.End - Cursor;
+			if (Remaining < MinVehicleLen + KINDA_SMALL_NUMBER)
+				break;
+
+			float ChosenLen = 0.f;
+			int32 VehicleIdx = INDEX_NONE;
+
+			const int32 RandomAttempts = 6;
+			for (int32 Attempt = 0; Attempt < RandomAttempts; ++Attempt)
+			{
+				const int32 CandIdx = ChooseRandomVehicleIndex();
+				const float Len = VehicleLenth.IsValidIndex(CandIdx) ? VehicleLenth[CandIdx] : MinVehicleLen;
+				if (Len <= Remaining) { ChosenLen = Len; VehicleIdx = CandIdx; break; }
+			}
+
+			if (VehicleIdx == INDEX_NONE)
+			{
+				for (float Len : SortedVehicleLenth) // descending
+				{
+					if (Len <= Remaining)
+					{
+						ChosenLen = Len;
+						VehicleIdx = VehicleLenth.IndexOfByPredicate([Len](float V) { return FMath::IsNearlyEqual(V, Len); });
+						break;
+					}
+				}
+			}
+
+			if (VehicleIdx == INDEX_NONE || ChosenLen <= 0.f)
+				break;
+
+			const float Start = Cursor;
+			const float End = Start + ChosenLen;
+			if (End > Gap.End + KINDA_SMALL_NUMBER)
+				break;
+
+			const float CenterDist = Start + ChosenLen * 0.5f;
+			TemplateToDistances.FindOrAdd(VehicleIdx).Add(CenterDist);
+			Cursor = End + InsertionGap; // advance
+		}
+	}
+
+	if (TemplateToDistances.Num() == 0)
+	{
+		UE_LOG(LogTrafficSim, Log, TEXT("LaneCongestionAdjust: No vehicles spawned in [%.1f, %.1f] (gaps too small)"), S, E);
+		return;
+	}
+	if (TrafficSimSubsystem->EntityTemplates.Num() == 0)
+	{
+		UE_LOG(LogTrafficSim, Warning, TEXT("LaneCongestionAdjust: No entity templates available for spawning"));
+		return;
+	}
+
+	int32 TotalSpawned = 0;
+	for (auto& Pair : TemplateToDistances)
+	{
+		const int32 TemplateIdx = Pair.Key;
+		TArray<float>& DistList = Pair.Value;
+		if (!TrafficSimSubsystem->EntityTemplates.IsValidIndex(TemplateIdx)) continue;
+
+		const FMassEntityTemplate* Template = TrafficSimSubsystem->EntityTemplates[TemplateIdx];
+		if (!Template || !Template->IsValid()) continue;
+
+		TArray<FMassEntityHandle> NewEntities;
+		TSharedRef<FMassEntityManager::FEntityCreationContext> CreationContext =
+			EntityManager.BatchCreateEntities(Template->GetArchetype(), Template->GetSharedFragmentValues(), DistList.Num(), NewEntities);
+		EntityManager.BatchSetEntityFragmentsValues(CreationContext->GetEntityCollection(), Template->GetInitialFragmentValues());
+
+		for (int32 i = 0; i < NewEntities.Num(); ++i)
+		{
+			const float DistAlong = DistList[i];
+			FZoneGraphLaneLocation LaneLoc;
+			UE::ZoneGraph::Query::CalculateLocationAlongLane(*TrafficSimSubsystem->ZoneGraphStorage, TargetLaneIndex, DistAlong, LaneLoc);
+
+			const FMassEntityHandle Entity = NewEntities[i];
+			FTransformFragment& TransformFrag = EntityManager.GetFragmentDataChecked<FTransformFragment>(Entity);
+			FTransform& MutableTransform = TransformFrag.GetMutableTransform();
+			MutableTransform.SetLocation(LaneLoc.Position);
+
+			FMassVehicleMovementFragment& MoveFrag = EntityManager.GetFragmentDataChecked<FMassVehicleMovementFragment>(Entity);
+			MoveFrag.LaneLocation = LaneLoc;
+			MoveFrag.DistanceAlongLane = LaneLoc.DistanceAlongLane;
+			TArray<int32> NextLanes;
+			MoveFrag.NextLane = TrafficSimSubsystem->ChooseNextLane(MoveFrag.LaneLocation.LaneHandle.Index, NextLanes);
+			MoveFrag.TargetSpeed = FMath::RandRange(MoveFrag.MinSpeed, MoveFrag.MaxSpeed);
+			MoveFrag.Speed = FMath::RandRange(MoveFrag.MinSpeed, MoveFrag.TargetSpeed);
+		}
+
+		TotalSpawned += NewEntities.Num();
+		UE_LOG(LogTrafficSim, Verbose, TEXT("LaneCongestionAdjust: Spawned %d (template %d) in [%.1f, %.1f]"),
+			NewEntities.Num(), TemplateIdx, S, E);
+	}
+
+	UE_LOG(LogTrafficSim, Log, TEXT("LaneCongestionAdjust: Spawn finished in [%.1f, %.1f]. Spawned=%d Removed=%d StrictGap=%.1f InsertGap=%.1f"),
+		S, E, TotalSpawned, ToDelete.Num(), StrictRemovalGap, InsertionGap);
 }
