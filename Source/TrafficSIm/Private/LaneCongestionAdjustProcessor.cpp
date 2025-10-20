@@ -46,6 +46,8 @@ void ULaneCongestionAdjustProcessor::Execute(FMassEntityManager& EntityManager, 
 	TConstArrayView<FLaneVehicle> Vehicles;
 	TrafficSimSubsystem->GetLaneVehicles(TargetLaneIndex, Vehicles);
 
+
+
 	float LaneLength = 0.f;
 	UE::ZoneGraph::Query::GetLaneLength(*TrafficSimSubsystem->ZoneGraphStorage, TargetLaneIndex, LaneLength);
 	if (LaneLength <= 0.f)

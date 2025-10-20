@@ -10,7 +10,8 @@
 #include "MassVehicleMovementFragment.h"
 #include "MassSpawnerTypes.h"
 #include "MassEntityTemplate.h"
-
+#include "CesiumGeoreference.h"
+#include "Engine/DataTable.h"
 // Forward declare congestion enum (defined in LaneCongestionAdjustProcessor.h)
 enum class ELaneCongestionMetric : uint8;
 
@@ -42,6 +43,9 @@ public:
 	void InitOnPostLoadMap(const UWorld::FActorsInitializedParams& Params);
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 
+	UFUNCTION(BlueprintCallable, Category = "TrafficSim")
+	void GetZonesSeg(TArray<FVector> Points, FZoneGraphTag AnyTag, float Height, FDTRoadLanes& ZoneSegLanes);
+
 	UFUNCTION(BlueprintCallable, Category="TrafficSim")
 	void SpawnMassEntities(int32 NumEntities, int32 TargetLane, UMassEntityConfigAsset* EntityConfigAsset);
 	UFUNCTION(BlueprintCallable, Category="TrafficSim")
@@ -55,6 +59,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category="TrafficSim| Test")
 	void DebugEntity(int32 TargetLane, int32 EntitySN);
 
+	UFUNCTION(BlueprintCallable,Category="TrafficSim| Convert")
+	void RoadToLanes(UDataTable* RoadGeos, UPARAM(ref)UDataTable*& LanesMap, ACesiumGeoreference* GeoRef, FZoneGraphTag AnyTag,float QueryHeight);
+
+	UFUNCTION((BlueprintCallable, Category = "TrafficSim| Congestion"))
+	void BathSetCongestionByDT(UPARAM(ref)UDataTable*& LanesMap,TMap<int32,float> CongestionIndex);
 
 	bool SwitchToNextLane(FZoneGraphLaneLocation& LaneLocation, float NewDist);
 	bool FindFrontVehicle(int32 LaneIndex, int32 NextLaneIndex, FMassEntityHandle CurVehicle, const FMassVehicleMovementFragment*& FrontVehicle);

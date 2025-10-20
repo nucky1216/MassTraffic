@@ -44,7 +44,8 @@ public class TrafficSIm : ModuleRules
 				"MassEntity",
 				"ZoneGraph",
                 "MassCommon",
-				"MassRepresentation"
+				"MassRepresentation",
+                "CesiumRuntime"
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);

@@ -29,6 +29,7 @@ public:
 
 	// 目标车道
 	int32 TargetLaneIndex = -1;
+	float StartDist, EndDist;
 	// 拥堵指标类型
 	ELaneCongestionMetric MetricType = ELaneCongestionMetric::AverageGap;
 	// 目标密度 (车辆 / 1000uu) 当 MetricType=DensityPerKm 时使用

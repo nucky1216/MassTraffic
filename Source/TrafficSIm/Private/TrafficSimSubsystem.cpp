@@ -95,6 +95,85 @@ void UTrafficSimSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	GetWorld()->OnActorsInitialized.AddUObject(this, &UTrafficSimSubsystem::InitOnPostLoadMap);
 }
 
+void UTrafficSimSubsystem::GetZonesSeg(TArray<FVector> Points, FZoneGraphTag AnyTag,float Height, FDTRoadLanes& RoadLanes)
+{
+	if (!ZoneGraphStorage)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Get Invalid ZoneGraphStorage!"));
+		return;
+	}
+	FZoneGraphTagFilter TagFilter;
+	TagFilter.AnyTags.Add(AnyTag);
+
+	TArray<int32> LaneIndiceSingle;
+	TArray<TTuple<float, float>> StartEnd;
+	UE::ZoneGraph::Query::FindNearestLanesBySeg(*ZoneGraphStorage, Points, Height, TagFilter, LaneIndiceSingle, StartEnd);
+
+	//Debug Draw
+	//for(int32 i=0;i< LaneIndiceSingle.Num();i++)
+	//{
+	//	FZoneGraphLaneLocation Start, End;
+	//	UE::ZoneGraph::Query::CalculateLocationAlongLane(*ZoneGraphStorage, LaneIndiceSingle[i],StartEnd[i].Get<0>(), Start);
+	//	UE::ZoneGraph::Query::CalculateLocationAlongLane(*ZoneGraphStorage, LaneIndiceSingle[i], StartEnd[i].Get<1>(), End);
+	//	UE_LOG(LogTemp, Log, TEXT("LaneIndex:%d,Start:%f,End:%f"), LaneIndiceSingle[i], StartEnd[i].Get<0>(), StartEnd[i].Get<1>());
+	//	DrawDebugDirectionalArrow(GetWorld(), Start.Position+FVector(0,0,300), End.Position + FVector(0, 0, 300), 3000, FColor::Blue, false, 30.f, 0, 35);
+	//}
+	for (int32 i=0;i<LaneIndiceSingle.Num() ;i++)
+	{
+		const FZoneLaneData& LaneData=ZoneGraphStorage->Lanes[LaneIndiceSingle[i]];
+		const FZoneData& Zone = ZoneGraphStorage->Zones[LaneData.ZoneIndex];
+	 
+		FZoneSegLane SegLanes;
+		SegLanes.StartDist=StartEnd[i].Get<0>();
+		SegLanes.EndDist=StartEnd[i].Get<1>();
+
+		TArray<int32>& VisitedLanes=SegLanes.Lanes;
+		
+		if(!Zone.Tags.Contains(ConnectorTag))
+		{
+			TQueue<int32> NeibourLanes;
+			NeibourLanes.Enqueue(LaneIndiceSingle[i]);
+			while(!NeibourLanes.IsEmpty())
+			{
+				int32 CurLaneIndex;
+				NeibourLanes.Dequeue(CurLaneIndex);
+
+				VisitedLanes.Add(CurLaneIndex);
+
+				//if(1){
+				//	FZoneGraphLaneLocation Start, End;
+				//	UE::ZoneGraph::Query::CalculateLocationAlongLane(*ZoneGraphStorage, CurLaneIndex, SegLanes.StartDist, Start);
+				//	UE::ZoneGraph::Query::CalculateLocationAlongLane(*ZoneGraphStorage, CurLaneIndex, SegLanes.EndDist, End);
+				//	UE_LOG(LogTemp, Log, TEXT("		--**LaneIndex:%d,Start:%f,End:%f"), CurLaneIndex, StartEnd[i].Get<0>(), StartEnd[i].Get<1>());
+				//	DrawDebugDirectionalArrow(GetWorld(), Start.Position + FVector(0, 0, 300), End.Position + FVector(0, 0, 300), 3000, FColor::Red, false, 15.f, 0, 35);
+				//}
+				
+				const FZoneLaneData& CurLane = ZoneGraphStorage->Lanes[CurLaneIndex];
+
+				for (int32 j = CurLane.LinksBegin; j < CurLane.LinksEnd; j++)
+				{
+					const FZoneLaneLinkData& LinkData = ZoneGraphStorage->LaneLinks[j];
+					
+					if (LinkData.Type == EZoneLaneLinkType::Adjacent && !LinkData.HasFlags(EZoneLaneLinkFlags::OppositeDirection))
+					{
+						if(!VisitedLanes.Contains(LinkData.DestLaneIndex))
+						{
+							NeibourLanes.Enqueue(LinkData.DestLaneIndex);
+						}
+					}
+				}
+			}
+		}
+		else {
+			VisitedLanes.Add(LaneIndiceSingle[i]);
+		}
+
+		RoadLanes.ZoneSegLanes.Add(SegLanes);
+		
+	}
+	
+}
+
 void UTrafficSimSubsystem::SpawnMassEntities(int32 NumEntities, int32 TargetLane, UMassEntityConfigAsset* EntityConfigAsset)
 {
 	if (!ZoneGraphStorage)
@@ -430,6 +509,58 @@ void UTrafficSimSubsystem::DebugEntity(int32 TargetLane, int32 EntitySN)
 	}
 
 	
+}
+
+void UTrafficSimSubsystem::RoadToLanes(UDataTable* RoadGeos, UPARAM(ref)UDataTable*& LanesMap, ACesiumGeoreference* GeoRef,FZoneGraphTag AnyTag,float QueryHeight)
+{
+
+	if (!ZoneGraphStorage)
+	{
+		UE_LOG(LogTemp, Log, TEXT("Failed to get ZoneGraphStorage! Init the TrafficSubsystem Firstly!"));
+	}
+	if (!GeoRef)
+	{
+		UE_LOG(LogTemp, Log, TEXT("Failed to get GeoReference! Assign a Valid GeoReference Firstly!"));
+	}
+	
+	if (LanesMap->GetRowStruct() == nullptr)
+	{
+		// 运行时构造/未设置时，显式指定
+		LanesMap->RowStruct = FDTRoadLanes::StaticStruct();
+	}
+	LanesMap->EmptyTable();
+
+	for (auto& RoadRow : RoadGeos->GetRowMap())
+	{
+		FName RoadID = RoadRow.Key;
+		FDTRoadGeoStatus* RoadGeo = (FDTRoadGeoStatus*)RoadRow.Value;
+		TArray<FVector> UELocs;
+		for (auto LongLatiHeight : RoadGeo->coords)
+		{
+			FVector UELoc= GeoRef->TransformLongitudeLatitudeHeightPositionToUnreal(LongLatiHeight);
+			UELocs.Add(UELoc);
+			
+		}
+		FDTRoadLanes RoadLanes;
+		GetZonesSeg(UELocs,AnyTag,QueryHeight,RoadLanes);
+
+		RoadLanes.speed = RoadGeo->speed;
+		RoadLanes.state = RoadGeo->state;
+		RoadLanes.traveltime = RoadGeo->traveltime;
+
+		LanesMap->AddRow(RoadID, RoadLanes);
+	}
+}
+
+void UTrafficSimSubsystem::BathSetCongestionByDT(UPARAM(ref)UDataTable*& LanesMap, TMap<int32, float> CongestionIndex)
+{
+	for (auto& Row : LanesMap->GetRowMap())
+	{
+		FDTRoadLanes* RoadLanes = (FDTRoadLanes*)Row.Value;
+		if (!RoadLanes || RoadLanes->ZoneSegLanes.Num() == 0)
+			continue;
+
+	}
 }
 
 bool UTrafficSimSubsystem::SwitchToNextLane(FZoneGraphLaneLocation& LaneLocation, float NewDist)

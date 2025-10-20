@@ -1,6 +1,7 @@
 #pragma once
 #include "CoreMinimal.h"
 #include "ZoneGraphTypes.h"
+#include "Engine/DataTable.h"
 #include "TrafficTypes.generated.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogTrafficLight, Log, All);
@@ -89,5 +90,60 @@ struct FVehicleInitData
 {
 	GENERATED_BODY()
 	TArray<FZoneGraphLaneLocation> LaneLocations;
+
+};
+
+USTRUCT(BlueprintType)
+struct FZoneSegLane
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Road")
+	TArray<int32> Lanes;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Road")
+	float StartDist;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Road")
+	float EndDist;
+};
+
+USTRUCT(BlueprintType)
+struct FDTRoadLanes :public FTableRowBase
+{
+	GENERATED_BODY()
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Road")
+	//int64 RoadID;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Road")
+	TArray<FZoneSegLane> ZoneSegLanes;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Nav")
+	int32 state=-1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Nav")
+	float speed;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Nav")
+	float traveltime;
+
+};
+
+USTRUCT(BlueprintType)
+struct FDTRoadGeoStatus : public FTableRowBase
+{
+	GENERATED_BODY();
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite,Category="Nav")
+	FString name;
+
+	UPROPERTY(EditAnywhere,BlueprintReadWrite,Category="Nav")
+	TArray<FVector> coords;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Nav")
+	int32 state;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Nav")
+	float speed;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Nav")
+	float traveltime;
 
 };
