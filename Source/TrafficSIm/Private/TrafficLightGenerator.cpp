@@ -6,7 +6,7 @@
 #include "MassGameplaySettings.h"
 #include "TrafficSimSubsystem.h"
 #include "TrafficTypes.h"
-#include "TrafficlightInitProcessor.h"
+#include "TrafficLightInitProcessor.h"
 #include "MassAssortedFragmentsTrait.h"
 #include "TrafficLightSubsystem.h"
 
