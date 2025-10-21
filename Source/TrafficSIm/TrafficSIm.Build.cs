@@ -13,7 +13,7 @@ public class TrafficSIm : ModuleRules
 				// ... add public include paths required here ...
 			}
 			);
-				
+			
 		
 		PrivateIncludePaths.AddRange(
 			new string[] {
@@ -39,13 +39,15 @@ public class TrafficSIm : ModuleRules
 				"CoreUObject",
 				"Engine",
 				"Slate",
+				"Json",
 				"SlateCore",
                 "StructUtils",
 				"MassEntity",
 				"ZoneGraph",
                 "MassCommon",
 				"MassRepresentation",
-                "CesiumRuntime"
+                "CesiumRuntime",
+                "HTTP"
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);

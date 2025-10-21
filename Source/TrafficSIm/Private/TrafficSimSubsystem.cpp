@@ -511,7 +511,7 @@ void UTrafficSimSubsystem::DebugEntity(int32 TargetLane, int32 EntitySN)
 	
 }
 
-void UTrafficSimSubsystem::RoadToLanes(UDataTable* RoadGeos, UPARAM(ref)UDataTable*& LanesMap, ACesiumGeoreference* GeoRef,FZoneGraphTag AnyTag,float QueryHeight)
+void UTrafficSimSubsystem::RoadToLanes(UDataTable* UpdatedRoadStatus, UDataTable* StaticRoadGeos,UPARAM(ref)UDataTable*& LanesMap, ACesiumGeoreference* GeoRef,FZoneGraphTag AnyTag,float QueryHeight)
 {
 
 	if (!ZoneGraphStorage)
@@ -530,12 +530,19 @@ void UTrafficSimSubsystem::RoadToLanes(UDataTable* RoadGeos, UPARAM(ref)UDataTab
 	}
 	LanesMap->EmptyTable();
 
-	for (auto& RoadRow : RoadGeos->GetRowMap())
+	for (auto& RoadRow : UpdatedRoadStatus->GetRowMap())
 	{
 		FName RoadID = RoadRow.Key;
-		FDTRoadGeoStatus* RoadGeo = (FDTRoadGeoStatus*)RoadRow.Value;
+		FDTRoadGeoStatus* UpdatedRoadStatus = (FDTRoadGeoStatus*)RoadRow.Value;
+
+		FDTRoadGeoStatus* StaticGeoRow=StaticRoadGeos->FindRow<FDTRoadGeoStatus>(RoadID,TEXT("Look Up StaticRoads"),false);
+		
+		if (!StaticGeoRow)
+		{
+			continue;
+		}
 		TArray<FVector> UELocs;
-		for (auto LongLatiHeight : RoadGeo->coords)
+		for (auto LongLatiHeight : StaticGeoRow->coords)
 		{
 			FVector UELoc= GeoRef->TransformLongitudeLatitudeHeightPositionToUnreal(LongLatiHeight);
 			UELocs.Add(UELoc);
@@ -544,11 +551,12 @@ void UTrafficSimSubsystem::RoadToLanes(UDataTable* RoadGeos, UPARAM(ref)UDataTab
 		FDTRoadLanes RoadLanes;
 		GetZonesSeg(UELocs,AnyTag,QueryHeight,RoadLanes);
 
-		RoadLanes.speed = RoadGeo->speed;
-		RoadLanes.state = RoadGeo->state;
-		RoadLanes.traveltime = RoadGeo->traveltime;
+		RoadLanes.speed = UpdatedRoadStatus->speed;
+		RoadLanes.state = UpdatedRoadStatus->state;
+		RoadLanes.traveltime = UpdatedRoadStatus->traveltime;
 
 		LanesMap->AddRow(RoadID, RoadLanes);
+
 	}
 }
 
@@ -564,7 +572,7 @@ void UTrafficSimSubsystem::BathSetCongestionByDT(UPARAM(ref)UDataTable*& LanesMa
 			
 			for (auto Lane : ZoneSegLane.Lanes)
 			{
-				UE_LOG(LogTemp, Log, TEXT("Setting Congetion at Lane:%d"),Lane);
+				//UE_LOG(LogTemp, Log, TEXT("Setting Congetion at Lane:%d"),Lane);
 				AdjustLaneCongestion(Lane,ELaneCongestionMetric::AverageGap, TagetValue,nullptr,ZoneSegLane.StartDist,ZoneSegLane.EndDist);
 			}
 		}

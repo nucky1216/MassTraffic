@@ -1,4 +1,4 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+// Copyright notice in the Description page of Project Settings.
 
 #pragma once
 
@@ -16,7 +16,15 @@ class TRAFFICSIM_API UBPFLTools : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
 	
-
 public:
-	static void MapRoadToLanes(UDataTable* RoadGeo,UDataTable*& LaneMap);
+	// Blueprint dynamic delegate for HTTP responses
+	DECLARE_DYNAMIC_DELEGATE_ThreeParams(FOnHttpResponseBP, int32, StatusCode, const FString&, Content, bool, bWasSuccessful);
+	DECLARE_DYNAMIC_DELEGATE_OneParam(FOnDataTableFinished, UDataTable*, RoadDT);
+
+	UFUNCTION(BlueprintCallable, Category = "DataTable")
+	static void JsonToDT(const TArray<uint8>& RawData , UPARAM(ref)UDataTable*& LaneMap,FOnDataTableFinished OnFinished);
+
+	// Send HTTP POST with JSON body and return via Blueprint callback
+	UFUNCTION(BlueprintCallable, Category = "HTTP", meta=(AutoCreateRefTerm="OnCompleted,BodyJson"))
+	static void SendGetRequest(const FString& URL, const FString& BodyJson, FOnHttpResponseBP OnCompleted);
 };

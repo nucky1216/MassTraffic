@@ -60,7 +60,7 @@ public:
 	void DebugEntity(int32 TargetLane, int32 EntitySN);
 
 	UFUNCTION(BlueprintCallable,Category="TrafficSim| Convert")
-	void RoadToLanes(UDataTable* RoadGeos, UPARAM(ref)UDataTable*& LanesMap, ACesiumGeoreference* GeoRef, FZoneGraphTag AnyTag,float QueryHeight);
+	void RoadToLanes(UDataTable* UpdatedRoadStatus, UDataTable* StaticRoadGeos, UPARAM(ref)UDataTable*& LanesMap, ACesiumGeoreference* GeoRef, FZoneGraphTag AnyTag, float QueryHeight);
 
 	UFUNCTION(BlueprintCallable, Category = "TrafficSim| Congestion")
 	void BathSetCongestionByDT(UPARAM(ref)UDataTable*& LanesMap, float TagetValue, TMap<int32,float> CongestionIndex);
