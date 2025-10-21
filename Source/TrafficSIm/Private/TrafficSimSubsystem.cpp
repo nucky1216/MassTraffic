@@ -534,7 +534,7 @@ void UTrafficSimSubsystem::RoadToLanes(UDataTable* UpdatedRoadStatus, UDataTable
 	for (auto& RoadRow : UpdatedRoadStatus->GetRowMap())
 	{
 		FName RoadID = RoadRow.Key;
-		FDTRoadGeoStatus* UpdatedRoadStatus = (FDTRoadGeoStatus*)RoadRow.Value;
+		FDTRoadGeoStatus* UpdatedRoadStatusRow = (FDTRoadGeoStatus*)RoadRow.Value;
 
 		FDTRoadGeoStatus* StaticGeoRow=StaticRoadGeos->FindRow<FDTRoadGeoStatus>(RoadID,TEXT("Look Up StaticRoads"),false);
 		
@@ -552,9 +552,9 @@ void UTrafficSimSubsystem::RoadToLanes(UDataTable* UpdatedRoadStatus, UDataTable
 		FDTRoadLanes RoadLanes;
 		GetZonesSeg(UELocs,AnyTag,QueryHeight,RoadLanes);
 
-		RoadLanes.speed = UpdatedRoadStatus->speed;
-		RoadLanes.state = UpdatedRoadStatus->state;
-		RoadLanes.traveltime = UpdatedRoadStatus->traveltime;
+		RoadLanes.speed = UpdatedRoadStatusRow->speed;
+		RoadLanes.state = UpdatedRoadStatusRow->state;
+		RoadLanes.traveltime = UpdatedRoadStatusRow->traveltime;
 
 		LanesMap->AddRow(RoadID, RoadLanes);
 
