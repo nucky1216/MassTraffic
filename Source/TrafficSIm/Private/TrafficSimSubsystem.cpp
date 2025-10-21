@@ -567,13 +567,15 @@ void UTrafficSimSubsystem::BathSetCongestionByDT(UPARAM(ref)UDataTable*& LanesMa
 		FDTRoadLanes* RoadLanes = (FDTRoadLanes*)Row.Value;
 		if (!RoadLanes || RoadLanes->ZoneSegLanes.Num() == 0)
 			continue;
+
+		float TargetAverGap=CongestionIndex.FindRef(RoadLanes->state);
 		for (auto& ZoneSegLane : RoadLanes->ZoneSegLanes)
 		{
 			
 			for (auto Lane : ZoneSegLane.Lanes)
 			{
 				//UE_LOG(LogTemp, Log, TEXT("Setting Congetion at Lane:%d"),Lane);
-				AdjustLaneCongestion(Lane,ELaneCongestionMetric::AverageGap, TagetValue,nullptr,ZoneSegLane.StartDist,ZoneSegLane.EndDist);
+				AdjustLaneCongestion(Lane,ELaneCongestionMetric::AverageGap, TargetAverGap,nullptr,ZoneSegLane.StartDist,ZoneSegLane.EndDist);
 			}
 		}
 	}

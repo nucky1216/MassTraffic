@@ -19,7 +19,7 @@ ULaneCongestionAdjustProcessor::ULaneCongestionAdjustProcessor() : EntityQuery(*
 void ULaneCongestionAdjustProcessor::Initialize(UObject& Owner)
 {
 	TrafficSimSubsystem = GetWorld() ? GetWorld()->GetSubsystem<UTrafficSimSubsystem>() : nullptr;
-	UE_LOG(LogTrafficSim,Log,TEXT("LaneCongestionAdjustProcessor Initialized."));
+	UE_LOG(LogTrafficSim,VeryVerbose,TEXT("LaneCongestionAdjustProcessor Initialized."));
 }
 
 void ULaneCongestionAdjustProcessor::ConfigureQueries()
@@ -80,7 +80,7 @@ void ULaneCongestionAdjustProcessor::RemoveExcessVehicles(FMassEntityManager& En
 		FMassEntityHandle Entity = Vehicles[Vehicles.Num() - 1 - i].Entity;
 		EntityManager.Defer().DestroyEntity(Entity);
 	}
-	UE_LOG(LogTrafficSim, Log, TEXT("LaneCongestionAdjust: Removed %d vehicles"), ToRemove);
+	UE_LOG(LogTrafficSim, Verbose, TEXT("LaneCongestionAdjust: Removed %d vehicles"), ToRemove);
 }
 
 void ULaneCongestionAdjustProcessor::SpawnAdditionalVehicles(FMassEntityManager& EntityManager, int32 AdditionalCount, float LaneLength, const TArray<FLaneVehicleRuntime>& ExistingVehicles) const
@@ -324,7 +324,7 @@ void ULaneCongestionAdjustProcessor::Execute(FMassEntityManager& EntityManager, 
 		{
 			EntityManager.Defer().DestroyEntity(EHandle);
 		}
-		UE_LOG(LogTrafficSim, Log, TEXT("LaneCongestionAdjust: Removed %d vehicles in [%.1f, %.1f] (strict gap %.1f)"),
+		UE_LOG(LogTrafficSim, Verbose, TEXT("LaneCongestionAdjust: Removed %d vehicles in [%.1f, %.1f] (strict gap %.1f)"),
 			ToDelete.Num(), S, E, StrictRemovalGap);
 	}
 
@@ -382,7 +382,7 @@ void ULaneCongestionAdjustProcessor::Execute(FMassEntityManager& EntityManager, 
 
 	if (Gaps.Num() == 0)
 	{
-		UE_LOG(LogTrafficSim, Log, TEXT("LaneCongestionAdjust: No usable gaps in [%.1f, %.1f] after cleanup"), S, E);
+		UE_LOG(LogTrafficSim, Verbose, TEXT("LaneCongestionAdjust: No usable gaps in [%.1f, %.1f] after cleanup"), S, E);
 		return;
 	}
 
@@ -497,6 +497,6 @@ void ULaneCongestionAdjustProcessor::Execute(FMassEntityManager& EntityManager, 
 			NewEntities.Num(), TemplateIdx, S, E);
 	}
 
-	UE_LOG(LogTrafficSim, Log, TEXT("LaneCongestionAdjust: Spawn finished in [%.1f, %.1f]. Spawned=%d Removed=%d StrictGap=%.1f InsertGap=%.1f"),
+	UE_LOG(LogTrafficSim, Verbose, TEXT("LaneCongestionAdjust: Spawn finished in [%.1f, %.1f]. Spawned=%d Removed=%d StrictGap=%.1f InsertGap=%.1f"),
 		S, E, TotalSpawned, ToDelete.Num(), StrictRemovalGap, InsertionGap);
 }
