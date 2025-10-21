@@ -8,6 +8,7 @@
 UVehicleDeletorProcessor::UVehicleDeletorProcessor():EntityQuery(*this)
 {
 	ExecutionFlags = (int32)EProcessorExecutionFlags::All;
+	bAutoRegisterWithProcessingPhases = false;
 }
 
 void UVehicleDeletorProcessor::Initialize(UObject& Owner)

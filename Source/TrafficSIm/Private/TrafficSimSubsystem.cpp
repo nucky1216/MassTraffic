@@ -14,6 +14,7 @@
 #include "VehicleDeletorProcessor.h"
 #include "MassExecutor.h"
 #include "LaneCongestionAdjustProcessor.h"
+#include "ClearVehicleProcessor.h"
 
 DEFINE_LOG_CATEGORY(LogTrafficSim);
 
@@ -579,6 +580,21 @@ void UTrafficSimSubsystem::BathSetCongestionByDT(UPARAM(ref)UDataTable*& LanesMa
 			}
 		}
 	}
+}
+
+void UTrafficSimSubsystem::ClearAllVehicles()
+{
+	UMassEntitySubsystem* EntitySubsystem = UWorld::GetSubsystem<UMassEntitySubsystem>(World);
+	if(!EntitySubsystem)
+	{
+		UE_LOG(LogTrafficSim,Warning,TEXT("Failed to Get EntitySubsystem!"));
+		return;
+	}
+
+	UClearVehicleProcessor* ClearProcessor = NewObject<UClearVehicleProcessor>();
+	FMassEntityManager& EntityManager = EntitySubsystem->GetMutableEntityManager();
+	FMassProcessingContext ProcessingContext(EntityManager,0.f);
+	UE::Mass::Executor::Run(*ClearProcessor,ProcessingContext);
 }
 
 bool UTrafficSimSubsystem::SwitchToNextLane(FZoneGraphLaneLocation& LaneLocation, float NewDist)

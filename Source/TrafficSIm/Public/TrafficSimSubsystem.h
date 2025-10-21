@@ -65,6 +65,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "TrafficSim| Congestion")
 	void BathSetCongestionByDT(UPARAM(ref)UDataTable*& LanesMap, float TagetValue, TMap<int32,float> CongestionIndex);
 
+
+	UFUNCTION(BlueprintCallable, Category = "TrafficSim| Clear")
+	void ClearAllVehicles();
+
 	bool SwitchToNextLane(FZoneGraphLaneLocation& LaneLocation, float NewDist);
 	bool FindFrontVehicle(int32 LaneIndex, int32 NextLaneIndex, FMassEntityHandle CurVehicle, const FMassVehicleMovementFragment*& FrontVehicle);
 	bool WaitForMergeVehilce(FMassVehicleMovementFragment* CurVehicle, const FMassVehicleMovementFragment*& AheadVehicle);
