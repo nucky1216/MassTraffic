@@ -147,3 +147,9 @@ struct FDTRoadGeoStatus : public FTableRowBase
 	float traveltime;
 
 };
+
+USTRUCT()
+struct FMassGlobalDespawnTag : public FMassTag
+{
+	GENERATED_BODY()
+};

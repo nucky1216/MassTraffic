@@ -88,7 +88,7 @@ public:
 
 
 	UFUNCTION(BlueprintCallable, Category = "TrafficSim| Clear")
-	void ClearAllVehicles();
+	void ClearAllEntities();
 
 	bool SwitchToNextLane(FZoneGraphLaneLocation& LaneLocation, float NewDist);
 	bool FindFrontVehicle(int32 LaneIndex, int32 NextLaneIndex, FMassEntityHandle CurVehicle, const FMassVehicleMovementFragment*& FrontVehicle);

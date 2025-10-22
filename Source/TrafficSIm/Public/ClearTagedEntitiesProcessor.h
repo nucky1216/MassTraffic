@@ -4,18 +4,18 @@
 
 #include "CoreMinimal.h"
 #include "MassProcessor.h"
-#include "ClearVehicleProcessor.generated.h"
+#include "ClearTagedEntitiesProcessor.generated.h"
 
 /**
  * 
  */
 UCLASS()
-class TRAFFICSIM_API UClearVehicleProcessor : public UMassProcessor
+class TRAFFICSIM_API UClearTagedEntitiesProcessor : public UMassProcessor
 {
 	GENERATED_BODY()
 
 public:
-	UClearVehicleProcessor();
+	UClearTagedEntitiesProcessor();
 	virtual void Initialize(UObject& Owner) override;
 	virtual void ConfigureQueries() override;
 	virtual void Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context) override;

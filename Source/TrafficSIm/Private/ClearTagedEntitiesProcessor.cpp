@@ -1,25 +1,26 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 
-#include "ClearVehicleProcessor.h"
+#include "ClearTagedEntitiesProcessor.h"
 #include "MassVehicleMovementFragment.h"
+#include "TrafficTypes.h"
 
-UClearVehicleProcessor::UClearVehicleProcessor() :EntityQuery(*this)
+UClearTagedEntitiesProcessor::UClearTagedEntitiesProcessor() :EntityQuery(*this)
 {
 	bAutoRegisterWithProcessingPhases = false;
 }
 
-void UClearVehicleProcessor::Initialize(UObject& Owner) 
+void UClearTagedEntitiesProcessor::Initialize(UObject& Owner)
 {
 	
 }
 
-void UClearVehicleProcessor::ConfigureQueries()
+void UClearTagedEntitiesProcessor::ConfigureQueries()
 {
-	EntityQuery.AddRequirement<FMassVehicleMovementFragment>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.AddTagRequirement<FMassGlobalDespawnTag>(EMassFragmentPresence::All);
 }
 
-void UClearVehicleProcessor::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context)
+void UClearTagedEntitiesProcessor::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context)
 {
 	TArray<FMassEntityHandle> EntitiesToDelete;
 
@@ -27,9 +28,6 @@ void UClearVehicleProcessor::Execute(FMassEntityManager& EntityManager, FMassExe
 		{
 
 			const int32 EntityCount = Context.GetNumEntities();
-
-			const TArrayView<FMassVehicleMovementFragment> VehicleMovementFragments = Context.GetMutableFragmentView<FMassVehicleMovementFragment>();
-
 			for (int32 i = 0; i < EntityCount; ++i)
 			{
 				EntitiesToDelete.Add(Context.GetEntity(i));
