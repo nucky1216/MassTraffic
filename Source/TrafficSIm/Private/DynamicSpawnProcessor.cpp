@@ -98,7 +98,7 @@ void UDynamicSpawnProcessor::Execute(FMassEntityManager& EntityManager, FMassExe
 					{
 						//取出最后一辆车
 						FLaneVehicle LastVehicle = LaneVehicles[0];
-						LeftSpace = LastVehicle.VehicleMovementFragment->LaneLocation.DistanceAlongLane - LastVehicle.VehicleMovementFragment->VehicleLength;
+						LeftSpace = LastVehicle.VehicleMovementFragment.LaneLocation.DistanceAlongLane - LastVehicle.VehicleMovementFragment.VehicleLength;
 					}
 
 					if (Frag.NextVehicleType < 0)

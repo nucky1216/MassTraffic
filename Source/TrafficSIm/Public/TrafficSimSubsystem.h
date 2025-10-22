@@ -26,11 +26,32 @@ struct FLaneVehicle
 	GENERATED_BODY()
 
 	FMassEntityHandle EntityHandle;
-	const FMassVehicleMovementFragment* VehicleMovementFragment;
+	FMassVehicleMovementFragment VehicleMovementFragment;
 
-	FLaneVehicle() : EntityHandle(), VehicleMovementFragment(nullptr) {}
-	FLaneVehicle(FMassEntityHandle InEntity, const FMassVehicleMovementFragment* InFrag)
-		: EntityHandle(InEntity), VehicleMovementFragment(InFrag) {}
+	FLaneVehicle() = default;
+
+	FLaneVehicle(FMassEntityHandle InEntity, const FMassVehicleMovementFragment& InFrag)
+		: EntityHandle(InEntity)
+	{
+
+			VehicleMovementFragment.Accelaration =		InFrag.Accelaration;
+			VehicleMovementFragment.CrossStopDistance = InFrag.CrossStopDistance;
+			VehicleMovementFragment.Decelaration =		InFrag.Decelaration;
+			VehicleMovementFragment.DistanceAlongLane = InFrag.DistanceAlongLane;
+			VehicleMovementFragment.LaneFilter =		InFrag.LaneFilter;
+			VehicleMovementFragment.LaneLocation =		InFrag.LaneLocation;
+			VehicleMovementFragment.LeftDistance =		InFrag.LeftDistance;
+			VehicleMovementFragment.MaxGap =			InFrag.MaxGap;
+			VehicleMovementFragment.MaxSpeed =			InFrag.MaxSpeed;
+			VehicleMovementFragment.MinGap =			InFrag.MinGap;
+			VehicleMovementFragment.MinSpeed =			InFrag.MinSpeed;
+			VehicleMovementFragment.NextLane =			InFrag.NextLane;
+			VehicleMovementFragment.QueryExtent =		InFrag.QueryExtent;
+			VehicleMovementFragment.Speed =				InFrag.Speed;
+			VehicleMovementFragment.TargetSpeed =		InFrag.TargetSpeed;
+			VehicleMovementFragment.VehicleHandle =		InFrag.VehicleHandle;
+			VehicleMovementFragment.VehicleLength =		InFrag.VehicleLength;
+		}
 };
 
 UCLASS()
