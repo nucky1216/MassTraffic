@@ -31,6 +31,9 @@ void UVehicleMovementProcessor::ConfigureQueries()
 	EntityQuery.AddRequirement<FMassVehicleMovementFragment>(EMassFragmentAccess::ReadWrite);
 	EntityQuery.AddRequirement<FTransformFragment>(EMassFragmentAccess::ReadWrite);;
 	EntityQuery.AddRequirement<FMassRepresentationFragment>(EMassFragmentAccess::ReadWrite);
+	EntityQuery.AddRequirement<FMassRepresentationLODFragment >(EMassFragmentAccess::ReadOnly);
+	// 可选：按 Chunk 过滤，仅当本帧会更新可视化时才写（避免数量对不齐）
+	EntityQuery.AddChunkRequirement<FMassVisualizationChunkFragment>(EMassFragmentAccess::ReadOnly);
 }
 
 void UVehicleMovementProcessor::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context)
@@ -53,7 +56,7 @@ void UVehicleMovementProcessor::Execute(FMassEntityManager& EntityManager, FMass
 		TArrayView<FMassVehicleMovementFragment> VehicleMovementFragments = Context.GetMutableFragmentView<FMassVehicleMovementFragment>();
 		const TArrayView<FTransformFragment> TransformFragments = Context.GetMutableFragmentView<FTransformFragment>();
 		const TArrayView<FMassRepresentationFragment> RepresentationList = Context.GetMutableFragmentView<FMassRepresentationFragment>();
-
+		const TArrayView<FMassRepresentationLODFragment> RepresentationLODList = Context.GetMutableFragmentView<FMassRepresentationLODFragment>();
 		for (int32 EntityIndex = 0; EntityIndex < NumEntities; ++EntityIndex)
 		{
 			FMassVehicleMovementFragment& VehicleMovementFragment = VehicleMovementFragments[EntityIndex];
@@ -68,6 +71,44 @@ void UVehicleMovementProcessor::Execute(FMassEntityManager& EntityManager, FMass
 			float TargetDist = CurLaneLocation.DistanceAlongLane+ Speed *DeltaTime;
 			int32 QueryLaneIndex = CurLaneLocation.LaneHandle.Index;
 			float CurLaneDistance = 0.0f;
+
+			// 写入 Per-Instance Custom Data（包含实体 SerialNumber 等）
+			if (0)
+			{
+				FMassEntityHandle Entity = Context.GetEntity(EntityIndex);
+				const int32 EntitySN = Entity.SerialNumber;
+
+				// 获取 InstancedStaticMesh 的索引
+				const int32 StaticMeshInstanceIndex = Representation.StaticMeshDescIndex;
+				if (StaticMeshInstanceIndex == INDEX_NONE)
+				{
+					continue; // 无效索引，跳过
+				}
+
+				// 获取 InstancedStaticMesh 信息
+				FMassInstancedStaticMeshInfo& MeshInfo = SMInfos[StaticMeshInstanceIndex];
+
+				// 用与表示管线一致的 LODSignificance（关键）
+				const float LODSignificance = RepresentationLODList[EntityIndex].LODSignificance;
+				struct FVehicleISMCustomData
+				{
+					float SerialNumber;
+					float EntityId;
+					float Speed;
+				};
+				static_assert((sizeof(FVehicleISMCustomData) % sizeof(float)) == 0, "custom data must be float-packed");
+				float testFloat = 100.f;
+				const FVehicleISMCustomData Custom{
+					static_cast<float>(EntitySN),
+					static_cast<float>(VehicleMovementFragment.NextLane),
+					testFloat
+				};
+
+				//UE_LOG(LogTemp, Log, TEXT("MeshIndex:%d"), StaticMeshInstanceIndex);
+				MeshInfo.AddBatchedCustomData(Custom, LODSignificance);
+
+			}
+
 
 			if (QueryLaneIndex < 0)
 			{
@@ -115,43 +156,7 @@ void UVehicleMovementProcessor::Execute(FMassEntityManager& EntityManager, FMass
 				FTransform(FRotationMatrix::MakeFromX(CurLaneLocation.Direction).ToQuat(),
 										CurLaneLocation.Position,
 										FVector(1, 1, 1)));
-			// 写入 Per-Instance Custom Data（包含实体 SerialNumber 等）
-			if(0)
-			{
-				FMassEntityHandle Entity = Context.GetEntity(EntityIndex);
-				const int32 EntitySN = Entity.SerialNumber;
 
-				// 获取 InstancedStaticMesh 的索引
-				const int32 StaticMeshInstanceIndex = Representation.StaticMeshDescIndex;
-				if (StaticMeshInstanceIndex == INDEX_NONE)
-				{
-					continue; // 无效索引，跳过
-				}
-
-				// 获取 InstancedStaticMesh 信息
-				FMassInstancedStaticMeshInfo& MeshInfo = SMInfos[StaticMeshInstanceIndex];
-
-				// 本帧用于选择 LOD 的值；如果你能拿到真实 LODSignificance，建议替换
-				const float LODSignificance = 1.0f;
-
-				struct FVehicleISMCustomData
-				{
-					float SerialNumber;
-					float EntityId;
-					float Speed;
-				};
-				static_assert((sizeof(FVehicleISMCustomData) % sizeof(float)) == 0, "custom data must be float-packed");
-
-				const FVehicleISMCustomData Custom{
-					static_cast<float>(EntitySN),
-					static_cast<float>(Entity.AsNumber()),
-					100.f
-				};
-
-				//UE_LOG(LogTemp, Log, TEXT("MeshIndex:%d"), StaticMeshInstanceIndex);
-				MeshInfo.AddBatchedCustomData(Custom, LODSignificance);
-
-			}
 		}
 		});
 

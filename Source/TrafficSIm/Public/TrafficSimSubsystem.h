@@ -93,6 +93,7 @@ public:
 	bool SwitchToNextLane(FZoneGraphLaneLocation& LaneLocation, float NewDist);
 	bool FindFrontVehicle(int32 LaneIndex, int32 NextLaneIndex, FMassEntityHandle CurVehicle, const FMassVehicleMovementFragment*& FrontVehicle);
 	bool WaitForMergeVehilce(FMassVehicleMovementFragment* CurVehicle, const FMassVehicleMovementFragment*& AheadVehicle);
+	void CollectAdjMergeLanes();
 
 	void InitializeLaneToEntitiesMap();
 	void CollectLaneVehicles(FMassEntityHandle EntityHandle, const FMassVehicleMovementFragment& VehicleFragment);
@@ -110,6 +111,7 @@ public:
 	FZoneGraphStorage* mutableZoneGraphSotrage = nullptr;
 	AZoneGraphData* ZoneGraphData = nullptr;
 
+	TMap<int32, TArray<int32>> AdjMergeLanes;
 	TMap<int32, TArray<FLaneVehicle>> LaneToEntitiesMap;
 	TConstArrayView<FMassSpawnedEntityType> VehicleConfigTypes;
 	TArray<const FMassEntityTemplate*> EntityTemplates;

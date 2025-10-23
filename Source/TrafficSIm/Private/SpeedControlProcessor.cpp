@@ -71,21 +71,20 @@ void USpeedControlProcessor::Execute(FMassEntityManager& EntityManager, FMassExe
 					{
 						VehicleMovement.TargetSpeed = VehicleMovement.MaxSpeed;
 					}
-				
 				}
 
 				//避让合并车道的车辆
-				const FMassVehicleMovementFragment* AheadVehicle = nullptr;
-				if (TrafficSimSubsystem->WaitForMergeVehilce(&VehicleMovement, AheadVehicle))
-				{
-					//if (AheadVehicle)
-					//{
-					//	float AheadGap = AheadVehicle->VehicleLength / 2 + AheadVehicle->LeftDistance + VehicleMovement.VehicleLength / 2;
-					//	if(AheadGap< VehicleMovement.LeftDistance)
-					//		
-					//}
-					VehicleMovement.TargetSpeed = 0;
-				}
+				//const FMassVehicleMovementFragment* AheadVehicle = nullptr;
+				//if (TrafficSimSubsystem->WaitForMergeVehilce(&VehicleMovement, AheadVehicle))
+				//{
+				//	//if (AheadVehicle)
+				//	//{
+				//	//	float AheadGap = AheadVehicle->VehicleLength / 2 + AheadVehicle->LeftDistance + VehicleMovement.VehicleLength / 2;
+				//	//	if(AheadGap< VehicleMovement.LeftDistance)
+				//	//		
+				//	//}
+				//	VehicleMovement.TargetSpeed = 0;
+				//}
 
 				//第一辆车如果距离红绿灯小于500米 ，并且下一个车道是红灯，则停车 或者当前速度为0且下一车道位绿灯，则起步
 				if (!HasFrontCar && (VehicleMovement.LeftDistance < VehicleMovement.VehicleLength || VehicleMovement.Speed==0))

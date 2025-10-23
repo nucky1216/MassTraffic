@@ -29,6 +29,9 @@ void UVehicleParamsInitProcessor::ConfigureQueries()
 	EntityQuery.AddRequirement<FMassVehicleMovementFragment>(EMassFragmentAccess::ReadWrite);
 	EntityQuery.AddRequirement<FTransformFragment>(EMassFragmentAccess::ReadWrite);
 	EntityQuery.AddRequirement<FMassRepresentationFragment>(EMassFragmentAccess::ReadWrite);
+	EntityQuery.AddRequirement<FMassRepresentationLODFragment >(EMassFragmentAccess::ReadOnly);
+	// 可选：按 Chunk 过滤，仅当本帧会更新可视化时才写（避免数量对不齐）
+	EntityQuery.AddChunkRequirement<FMassVisualizationChunkFragment>(EMassFragmentAccess::ReadOnly);
 }
 
 void UVehicleParamsInitProcessor::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context)
@@ -65,6 +68,7 @@ void UVehicleParamsInitProcessor::Execute(FMassEntityManager& EntityManager, FMa
 			const TArrayView<FTransformFragment> TransformList = Context.GetMutableFragmentView<FTransformFragment>();
 			const TArrayView<FMassVehicleMovementFragment> VehicleMovementList = Context.GetMutableFragmentView<FMassVehicleMovementFragment>();
 			const TArrayView<FMassRepresentationFragment> RepresentationList = Context.GetMutableFragmentView<FMassRepresentationFragment>();
+			const TArrayView<FMassRepresentationLODFragment> RepresentationLODList = Context.GetMutableFragmentView<FMassRepresentationLODFragment>();
 
 			UE_LOG(LogTrafficSim, VeryVerbose, TEXT("Cur Init Data with LaneLocationNum:%d, CurEntityCount:%d, CountInTypes:%d"),
 				InitData.LaneLocations.Num(),
@@ -81,7 +85,7 @@ void UVehicleParamsInitProcessor::Execute(FMassEntityManager& EntityManager, FMa
 				FZoneGraphLaneLocation LaneLocation = InitData.LaneLocations[CountInTypes++];
 
 				VehicleMovement.LaneLocation = LaneLocation;
-				Transform.SetTransform(FTransform(LaneLocation.Direction.ToOrientationQuat(), LaneLocation.Position));
+				//Transform.SetTransform(FTransform(LaneLocation.Direction.ToOrientationQuat(), LaneLocation.Position));
 
 				//UE_LOG(LogTemp, Log, TEXT("Found Lane: %s"), *LaneLocation.LaneHandle.ToString());
 				TArray<int32> NextLanes;
@@ -99,6 +103,13 @@ void UVehicleParamsInitProcessor::Execute(FMassEntityManager& EntityManager, FMa
 				// 写入 Per-Instance Custom Data（包含实体 SerialNumber 等）
 				if(0)
 				{
+					// 快速跳过不会更新的 Chunk
+					if (!FMassVisualizationChunkFragment::ShouldUpdateVisualizationForChunk(Context))
+					{
+						return;
+					}
+
+
 					FMassEntityHandle Entity = Context.GetEntity(EntityIndex);
 					const int32 EntitySN = Entity.SerialNumber;
 
@@ -113,16 +124,16 @@ void UVehicleParamsInitProcessor::Execute(FMassEntityManager& EntityManager, FMa
 					FMassInstancedStaticMeshInfo& MeshInfo = SMInfos[StaticMeshInstanceIndex];
 
 					// 本帧用于选择 LOD 的值；如果你能拿到真实 LODSignificance，建议替换
-					const float LODSignificance = 1.0f;
+					const float LODSignificance = RepresentationLODList[EntityIndex].LODSignificance;
 
 					// 1) 为该实例追加一次 Transform 更新（InstanceId 使用实体唯一值即可）
-					const FTransform CurrentXf = Transform.GetTransform();
-					MeshInfo.AddBatchedTransform(
-						EntitySN,             // InstanceId（与自定义数据同一实例要一致）
-						CurrentXf,            // Transform
-						CurrentXf,            // PrevTransform（初始化用相同值即可）
-						LODSignificance
-					);
+					//const FTransform CurrentXf = Transform.GetTransform();
+					//MeshInfo.AddBatchedTransform(
+					//	EntitySN,             // InstanceId（与自定义数据同一实例要一致）
+					//	CurrentXf,            // Transform
+					//	CurrentXf,            // PrevTransform（初始化用相同值即可）
+					//	LODSignificance
+					//);
 
 					// 2) 逐实例写入自定义数据（数量与上面的 AddBatchedTransform 调用次数严格一致）
 					struct FVehicleISMCustomData
@@ -135,12 +146,13 @@ void UVehicleParamsInitProcessor::Execute(FMassEntityManager& EntityManager, FMa
 
 					const FVehicleISMCustomData Custom{
 						static_cast<float>(EntitySN),
-						static_cast<float>(Entity.AsNumber()),
+						static_cast<float>(VehicleMovement.NextLane),
 						VehicleMovement.Speed
 					};
 					
-					UE_LOG(LogTemp, Log, TEXT("MeshIndex:%d"), StaticMeshInstanceIndex);
-					MeshInfo.AddBatchedCustomData(Custom, LODSignificance);
+					//UE_LOG(LogTemp, Log, TEXT("MeshIndex:%d"), StaticMeshInstanceIndex);
+					//MeshInfo.AddBatchedCustomData(Custom, LODSignificance);
+
 					
 				}
 			}

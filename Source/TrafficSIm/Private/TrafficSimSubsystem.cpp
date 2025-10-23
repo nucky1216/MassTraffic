@@ -15,6 +15,7 @@
 #include "MassExecutor.h"
 #include "LaneCongestionAdjustProcessor.h"
 #include "ClearTagedEntitiesProcessor.h"
+#include "Algo/MaxElement.h" 
 
 DEFINE_LOG_CATEGORY(LogTrafficSim);
 
@@ -33,6 +34,7 @@ void UTrafficSimSubsystem::InitializeLaneToEntitiesMap()
 	{
 		LaneToEntitiesMap.Add(i, TArray<FLaneVehicle>());
 	}
+	CollectAdjMergeLanes();
 }
 
 int32 UTrafficSimSubsystem::ChooseNextLane(int32 CurLaneIndex,TArray<int32>& NextLanes) const
@@ -453,6 +455,17 @@ void UTrafficSimSubsystem::PrintLaneLinks(int32 TargetLaneIndex)
 
 		
 	}
+
+	TArray<int32>* AdjMergeLaneArr = AdjMergeLanes.Find(TargetLaneIndex);
+	if (!AdjMergeLaneArr)
+	{
+		UE_LOG(LogTrafficSim, Warning, TEXT("No Adjacent Mergine Lanes Found!"));
+		return;
+	}
+	for (int32 i = 0; i < AdjMergeLaneArr->Num(); i++)
+	{
+		UE_LOG(LogTrafficSim, Warning, TEXT("===== Found a AdjMergeLane:%d"),(*AdjMergeLaneArr)[i]);
+	}
 }
 
 void UTrafficSimSubsystem::InitializeManual()
@@ -618,48 +631,38 @@ bool UTrafficSimSubsystem::FindFrontVehicle(int32 LaneIndex, int32 NextLaneIndex
 
 	TArray<FLaneVehicle>* LaneVehicles = LaneToEntitiesMap.Find(LaneIndex);
 
-	const FZoneLaneData* Lane = &ZoneGraphStorage->Lanes[LaneIndex];
-	const FZoneData* Zone = &ZoneGraphStorage->Zones[Lane->ZoneIndex];
-	if (0 && Zone->Tags.Contains(ConnectorTag))
+	TArray<FLaneVehicle> LaneVehicleCopy;
+	for(auto & Veh : *LaneVehicles)
+	{
+		LaneVehicleCopy.Add(Veh);
+	}
+
+	TArray<int32>* AdjLanes = AdjMergeLanes.Find(LaneIndex);
+	if (AdjLanes)
 	{
 		//找到合并车道上的所有车辆
-		bool hasMergeLanes = false;
-		for (int32 LinkIndex = Lane->LinksBegin; LinkIndex < Lane->LinksEnd; ++LinkIndex)
+		for (int32 i=0; i < AdjLanes->Num(); ++i)
 		{
-			const FZoneLaneLinkData& LaneLink = ZoneGraphStorage->LaneLinks[LinkIndex];
-			if (LaneLink.Type == EZoneLaneLinkType::Adjacent && LaneLink.HasFlags(EZoneLaneLinkFlags::Merging))
-			{
-				int32 AdjLaneIndex = LaneLink.DestLaneIndex;
-				TArray<FLaneVehicle>* AdjLaneVehicles = LaneToEntitiesMap.Find(AdjLaneIndex);
-
-				if (!AdjLaneVehicles || AdjLaneVehicles->Num() == 0)
-					continue;
-				LaneVehicles->Append(*AdjLaneVehicles);
-				hasMergeLanes = true;
-
-				UE_LOG(LogTemp, Log, TEXT("Add %d Vehicles from Lane:%d"), AdjLaneVehicles->Num(),AdjLaneIndex);
-			}
+			LaneVehicleCopy.Append(*LaneToEntitiesMap.Find((*AdjLanes)[i]));
 		}
-		if(hasMergeLanes)
-		{
-			LaneVehicles->Sort([](const FLaneVehicle& A, const FLaneVehicle& B) {
-				return A.VehicleMovementFragment.LeftDistance > B.VehicleMovementFragment.LeftDistance;
-				});
-		}
-		UE_LOG(LogTemp, Log, TEXT("Total Vehicles Num:%d"), LaneVehicles->Num());
+
+		LaneVehicleCopy.Sort([](const FLaneVehicle& A, const FLaneVehicle& B) {
+			return A.VehicleMovementFragment.LeftDistance > B.VehicleMovementFragment.LeftDistance;
+			});
+		//UE_LOG(LogTemp, Log, TEXT("Total Vehicles Num:%d"), LaneVehicleCopy.Num());
 		
 	}
 
 		
-	if(!LaneVehicles)
+	if(LaneVehicleCopy.Num()==0)
 	{
 		UE_LOG(LogTrafficSim, Warning, TEXT("No vehicles found in lane %d."), LaneIndex);
 		return false;
 	}
 
-	int32 VehicleNumInCurLane = LaneVehicles->Num();
+	int32 VehicleNumInCurLane = LaneVehicleCopy.Num();
 
-	int32 CurVehicleIndex = LaneVehicles->IndexOfByPredicate([CurVehicle](const FLaneVehicle& Vehicle) {
+	int32 CurVehicleIndex = LaneVehicleCopy.IndexOfByPredicate([CurVehicle](const FLaneVehicle& Vehicle) {
 		return Vehicle.EntityHandle == CurVehicle;
 		});
 
@@ -672,7 +675,7 @@ bool UTrafficSimSubsystem::FindFrontVehicle(int32 LaneIndex, int32 NextLaneIndex
 	//当前车辆不是车道第一辆车 (越靠前的车辆下标越大)
 	if (CurVehicleIndex < VehicleNumInCurLane - 1)
 	{
-		FrontVehicle = &(*LaneVehicles)[CurVehicleIndex + 1].VehicleMovementFragment;
+		FrontVehicle = &LaneVehicleCopy[CurVehicleIndex + 1].VehicleMovementFragment;
 		return true;
 	}
 	if (NextLaneIndex < 0)
@@ -683,18 +686,38 @@ bool UTrafficSimSubsystem::FindFrontVehicle(int32 LaneIndex, int32 NextLaneIndex
 	//当前车辆是车道第一辆车，即将进入下一车道且下条车道有车辆
 	if(CurVehicleIndex == VehicleNumInCurLane - 1 )
 	{
-		//TArray<int32> NextLanes;
-		//ChooseNextLane((*LaneVehicles)[CurVehicleIndex].VehicleMovementFragment->LaneLocation.LaneHandle.Index, NextLanes);
-
-		TArray<FLaneVehicle>* NextLaneVehicles = LaneToEntitiesMap.Find(NextLaneIndex);
-		if (!LaneVehicles || NextLaneVehicles->Num()==0)
+		TArray<int32>* NextAdjLanes = AdjMergeLanes.Find(NextLaneIndex);
+		if (NextAdjLanes)
 		{
-			return false;
-		}
-		FrontVehicle = &(*NextLaneVehicles)[0].VehicleMovementFragment;
-		return false;
+			LaneVehicleCopy.Empty();
+			LaneVehicleCopy.Append(*LaneToEntitiesMap.Find(NextLaneIndex));
+			for (int32 i = 0; i < NextAdjLanes->Num(); ++i)
+			{
+				LaneVehicleCopy.Append(*LaneToEntitiesMap.Find((*NextAdjLanes)[i]));
+			}
+			const FLaneVehicle* MaxVeh = Algo::MaxElementBy(
+				LaneVehicleCopy,
+				[](const FLaneVehicle& V) { return V.VehicleMovementFragment.LeftDistance; }
+			);
+			
+			if(LaneVehicleCopy.Num() == 0)
+				return false;
 
+			FrontVehicle = &MaxVeh->VehicleMovementFragment;
+			return true;
+		}
+		else 
+		{
+			TArray<FLaneVehicle>* NextLaneVehicles = LaneToEntitiesMap.Find(NextLaneIndex);
+			if (LaneVehicleCopy.Num()==0 || NextLaneVehicles->Num() == 0)
+			{
+				return false;
+			}
+			FrontVehicle = &(*NextLaneVehicles)[0].VehicleMovementFragment;
+			return true;
+		}
 	}
+
 	//TODO:: 当前车辆处于合并车道，如何避免周围的车的距离过近？
 
 	return false;
@@ -768,6 +791,32 @@ bool UTrafficSimSubsystem::WaitForMergeVehilce(FMassVehicleMovementFragment* Cur
 		return false;
 	else
 		return true;
+}
+
+void UTrafficSimSubsystem::CollectAdjMergeLanes()
+{
+	AdjMergeLanes.Empty();
+	if (!ZoneGraphStorage)
+	{
+		UE_LOG(LogTrafficSim, Warning, TEXT("Failed to Get ZoneGraphStorage when CollectAdjMergeLanes!"));
+	}
+	for (int32 i = 0; i < ZoneGraphStorage->Lanes.Num(); i++)
+	{
+		const FZoneLaneData& Lane = ZoneGraphStorage->Lanes[i];
+		TArray<int32> AdjMergeLaneArr;
+		for (int32 j = Lane.LinksBegin; j < Lane.LinksEnd; j++)
+		{
+			const FZoneLaneLinkData& Link = ZoneGraphStorage->LaneLinks[j];
+			if (Link.HasFlags(EZoneLaneLinkFlags::Merging)|| Link.HasFlags(EZoneLaneLinkFlags::Splitting))
+			{
+				AdjMergeLaneArr.Add(Link.DestLaneIndex);
+			}
+		}
+		if (AdjMergeLaneArr.Num() != 0)
+		{
+			AdjMergeLanes.Add(i, AdjMergeLaneArr);
+		}
+	}
 }
 
 void UTrafficSimSubsystem::CollectLaneVehicles(FMassEntityHandle EntityHandle, const FMassVehicleMovementFragment& VehicleFragment)
