@@ -82,7 +82,7 @@ void UVehicleParamsInitProcessor::Execute(FMassEntityManager& EntityManager, FMa
 				FMassRepresentationFragment& Representation = RepresentationList[EntityIndex];
 
 				//设置相关属性			
-				FZoneGraphLaneLocation LaneLocation = InitData.LaneLocations[CountInTypes++];
+				FZoneGraphLaneLocation LaneLocation = InitData.LaneLocations[CountInTypes];
 
 				VehicleMovement.LaneLocation = LaneLocation;
 				//Transform.SetTransform(FTransform(LaneLocation.Direction.ToOrientationQuat(), LaneLocation.Position));
@@ -93,7 +93,11 @@ void UVehicleParamsInitProcessor::Execute(FMassEntityManager& EntityManager, FMa
 
 				VehicleMovement.VehicleHandle = Context.GetEntity(EntityIndex);
 
-				VehicleMovement.TargetSpeed = FMath::RandRange(VehicleMovement.MinSpeed, VehicleMovement.MaxSpeed);
+				VehicleMovement.TargetSpeed = InitData.TargetSpeeds[CountInTypes];
+				VehicleMovement.MinSpeed = InitData.MinSpeeds[CountInTypes];
+				VehicleMovement.MaxSpeed = InitData.MaxSpeeds[CountInTypes];
+				VehicleMovement.LaneSpeedTag = InitData.LaneSpeedTags[CountInTypes];
+				CountInTypes++;
 
 				VehicleMovement.Speed = FMath::RandRange(VehicleMovement.MinSpeed, VehicleMovement.TargetSpeed);
 

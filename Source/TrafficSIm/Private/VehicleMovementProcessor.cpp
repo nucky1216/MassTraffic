@@ -67,8 +67,8 @@ void UVehicleMovementProcessor::Execute(FMassEntityManager& EntityManager, FMass
 			
 			float Speed = VehicleMovementFragment.Speed;
 			// Update the transform based on the vehicle movement fragment
-
-			float TargetDist = CurLaneLocation.DistanceAlongLane+ Speed *DeltaTime;
+			//1km/h = 1000/3600 m/s =1000 00cm/3600s= 500/18 cm/s
+			float TargetDist = CurLaneLocation.DistanceAlongLane+ Speed*DeltaTime* 500.0 / 18.0;
 			int32 QueryLaneIndex = CurLaneLocation.LaneHandle.Index;
 			float CurLaneDistance = 0.0f;
 
@@ -100,8 +100,8 @@ void UVehicleMovementProcessor::Execute(FMassEntityManager& EntityManager, FMass
 				float testFloat = 100.f;
 				const FVehicleISMCustomData Custom{
 					static_cast<float>(EntitySN),
-					static_cast<float>(VehicleMovementFragment.NextLane),
-					testFloat
+					VehicleMovementFragment.TargetSpeed,
+					VehicleMovementFragment.Speed
 				};
 
 				//UE_LOG(LogTemp, Log, TEXT("MeshIndex:%d"), StaticMeshInstanceIndex);
@@ -132,9 +132,17 @@ void UVehicleMovementProcessor::Execute(FMassEntityManager& EntityManager, FMass
 				TargetDist = TargetDist - CurLaneDistance;
 
 				QueryLaneIndex = VehicleMovementFragment.NextLane;
+				//更新速度限制
+				FZoneLaneData NewLane=TrafficSimSubsystem->ZoneGraphStorage->Lanes[VehicleMovementFragment.NextLane];
+				TrafficSimSubsystem->GetLaneSpeedByTag(NewLane.Tags, VehicleMovementFragment.MaxSpeed, VehicleMovementFragment.MinSpeed, VehicleMovementFragment.LaneSpeedTag);
+				VehicleMovementFragment.TargetSpeed = FMath::RandRange(VehicleMovementFragment.MinSpeed, VehicleMovementFragment.MaxSpeed);
+
+				//更新NextLane
 				TArray<int32> NextLanes;
 				VehicleMovementFragment.NextLane = TrafficSimSubsystem->ChooseNextLane(QueryLaneIndex, NextLanes);
 
+
+				
 				//bool Success=TrafficSimSubsystem->SwitchToNextLane(CurLaneLocation, TargetDist);
 
 			}

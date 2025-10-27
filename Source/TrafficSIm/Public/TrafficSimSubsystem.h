@@ -12,6 +12,7 @@
 #include "MassEntityTemplate.h"
 #include "CesiumGeoreference.h"
 #include "Engine/DataTable.h"
+#include "TrafficTypes.h"
 // Forward declare congestion enum (defined in LaneCongestionAdjustProcessor.h)
 enum class ELaneCongestionMetric : uint8;
 
@@ -105,6 +106,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category="TrafficSim|Control")
 	void AdjustLaneCongestion(int32 LaneIndex, ELaneCongestionMetric MetricType, float TargetValue, UMassEntityConfigAsset* OptionalConfig, float StartDist,float EndDist,float MinSafetyGap = 200.f);
 
+
+	void TagLaneSpeedGapSetup(const TMap<FZoneGraphTag, FTagLaneSpeed>& InTagLaneSpeed,
+		const TMap<FZoneGraphTag, FTagLaneGap>& InTagLaneGap);
+	float GetLaneSpeedByTag(FZoneGraphTagMask LaneTagMask, float& OutMaxSpeed, float& OutMinSpeed, FZoneGraphTag& ZoneLaneTag);
+	
+
 	const UWorld* World = nullptr;
 	const UZoneGraphSubsystem* ZoneGraphSubsystem = nullptr;
 	const FZoneGraphStorage* ZoneGraphStorage = nullptr;
@@ -116,4 +123,7 @@ public:
 	TConstArrayView<FMassSpawnedEntityType> VehicleConfigTypes;
 	TArray<const FMassEntityTemplate*> EntityTemplates;
 	FZoneGraphTag ConnectorTag;
+
+	TMap<FZoneGraphTag, FTagLaneSpeed> TagLaneSpeed;
+	TMap<FZoneGraphTag, FTagLaneGap> TagLaneGap;
 };

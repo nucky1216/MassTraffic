@@ -90,6 +90,10 @@ struct FVehicleInitData
 {
 	GENERATED_BODY()
 	TArray<FZoneGraphLaneLocation> LaneLocations;
+	TArray<float> TargetSpeeds;
+	TArray<float> MaxSpeeds;
+	TArray<float> MinSpeeds;
+	TArray<FZoneGraphTag> LaneSpeedTags;
 
 };
 
@@ -152,4 +156,26 @@ USTRUCT()
 struct FMassGlobalDespawnTag : public FMassTag
 {
 	GENERATED_BODY()
+};
+
+USTRUCT(BlueprintType)
+struct FTagLaneSpeed
+{
+	GENERATED_BODY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TrafficSim")
+	float MaxSpeed;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TrafficSim")
+	float MinSpeed; // in meters
+
+};
+
+USTRUCT(BlueprintType)
+struct FTagLaneGap
+{
+	GENERATED_BODY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TrafficSim")
+	float MaxGap;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TrafficSim")
+	float MinGap; // in meters
+
 };

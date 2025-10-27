@@ -625,7 +625,7 @@ bool UTrafficSimSubsystem::SwitchToNextLane(FZoneGraphLaneLocation& LaneLocation
 
 	return true;
 }
-
+//返回该车是否是当前车道的第一辆车
 bool UTrafficSimSubsystem::FindFrontVehicle(int32 LaneIndex, int32 NextLaneIndex,FMassEntityHandle CurVehicle, const FMassVehicleMovementFragment* & FrontVehicle)
 {
 
@@ -704,7 +704,7 @@ bool UTrafficSimSubsystem::FindFrontVehicle(int32 LaneIndex, int32 NextLaneIndex
 				return false;
 
 			FrontVehicle = &MaxVeh->VehicleMovementFragment;
-			return true;
+			return false;
 		}
 		else 
 		{
@@ -714,7 +714,7 @@ bool UTrafficSimSubsystem::FindFrontVehicle(int32 LaneIndex, int32 NextLaneIndex
 				return false;
 			}
 			FrontVehicle = &(*NextLaneVehicles)[0].VehicleMovementFragment;
-			return true;
+			return false;
 		}
 	}
 
@@ -960,4 +960,25 @@ void UTrafficSimSubsystem::AdjustLaneCongestion(int32 LaneIndex, ELaneCongestion
 	FMassEntityManager& EntityManager = EntitySubsystem->GetMutableEntityManager();
 	FMassProcessingContext ProcessingContext(EntityManager, 0.f);
 	UE::Mass::Executor::Run(*Processor, ProcessingContext);
+}
+
+void UTrafficSimSubsystem::TagLaneSpeedGapSetup(const TMap<FZoneGraphTag, FTagLaneSpeed>& InTagLaneSpeed, const TMap<FZoneGraphTag, FTagLaneGap>& InTagLaneGap)
+{
+	TagLaneSpeed = InTagLaneSpeed;
+	TagLaneGap = InTagLaneGap;
+}
+
+float UTrafficSimSubsystem::GetLaneSpeedByTag(FZoneGraphTagMask LaneTagMask, float& OutMaxSpeed, float& OutMinSpeed,FZoneGraphTag& ZoneLaneTag)
+{
+	for (auto& TagSpeedPair : TagLaneSpeed)
+	{
+		if (LaneTagMask.Contains(TagSpeedPair.Key))
+		{
+			OutMaxSpeed = TagSpeedPair.Value.MaxSpeed;
+			OutMinSpeed = TagSpeedPair.Value.MinSpeed;
+			ZoneLaneTag = TagSpeedPair.Key;
+			return FMath::RandRange(OutMinSpeed, OutMaxSpeed);
+		}
+	}
+	return  FMath::RandRange(40.f, 60.f);;
 }

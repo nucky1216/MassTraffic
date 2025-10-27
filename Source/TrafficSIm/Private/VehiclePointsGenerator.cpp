@@ -10,7 +10,7 @@
 #include "MassEntityConfigAsset.h"
 #include "MassVehicleMovementFragment.h"
 #include "MassAssortedFragmentsTrait.h"
-#include "TrafficTypes.h"
+
 void UVehiclePointsGenerator::Generate(UObject& QueryOwner, TConstArrayView<FMassSpawnedEntityType> EntityTypes, int32 Count, FFinishedGeneratingSpawnDataSignature& FinishedGeneratingSpawnPointsDelegate) const
 {
 	UWorld* World = GetWorld();
@@ -23,13 +23,25 @@ void UVehiclePointsGenerator::Generate(UObject& QueryOwner, TConstArrayView<FMas
     
     const FZoneGraphStorage& ZoneGraphStorage = ZoneGraphData->GetStorage();
 
-	TMultiMap<int32, FZoneGraphLaneLocation> TypeIdx2SpawnLoc;
+	struct FLaneConfigs {
+		FZoneGraphLaneLocation LaneLocation;
+		float TargetSpeed;
+		float MaxSpeed;
+		float MinSpeed;
+		FZoneGraphTag ZoneLaneTag;
+
+		FLaneConfigs(FZoneGraphLaneLocation LaneLocationIn, float TargetSpeedIn, float MaxSpeedIn, float MinSpeedIn, FZoneGraphTag ZoneLaneTagIn):
+			LaneLocation(LaneLocationIn),TargetSpeed(TargetSpeedIn),MaxSpeed(MaxSpeedIn),MinSpeed(MinSpeedIn),ZoneLaneTag{ZoneLaneTagIn}{}
+	};
+
+	TMultiMap<int32, FLaneConfigs> TypeIdx2SpawnLoc;
 	TypeIdx2SpawnLoc.Empty();
 
 	//提取所有配置的车辆长度
 	TArray<float> VehicleLenth;
 	TArray<float> PrefixSum;
 	TrafficSimSubsystem->InitializeTrafficTypes(EntityTypes, ConnectorTag);
+	TrafficSimSubsystem->TagLaneSpeedGapSetup(TagLaneSpeed, TagLaneGap);
 	TrafficSimSubsystem->GetVehicleConfigs(VehicleLenth, PrefixSum);
 
 	auto SelectRandomItem = [&]()
@@ -60,15 +72,20 @@ void UVehiclePointsGenerator::Generate(UObject& QueryOwner, TConstArrayView<FMas
 		for (float Distance=0; Distance < LaneLength; )
 		{
 			int32 ConfigRandIndex = SelectRandomItem();
-
-			float Gap = FMath::RandRange(MinGapBetweenSpaces, MaxGapBetweenSpaces);
+			
+			float Gap = GetTagBasedGap(LaneTags);
 			Distance = Gap + Distance + VehicleLenth[ConfigRandIndex] / 2.0f;
 			if (Distance+ VehicleLenth[ConfigRandIndex]< LaneLength)
 			{
 				// 在ZoneGraph上计算位置
 				FZoneGraphLaneLocation LaneLocation;
 				UE::ZoneGraph::Query::CalculateLocationAlongLane(ZoneGraphStorage, i, Distance, LaneLocation);
-				TypeIdx2SpawnLoc.Add(ConfigRandIndex, LaneLocation);
+				float MaxSpeed, MinSpeed;
+				FZoneGraphTag LaneTag;
+				float Speed = TrafficSimSubsystem->GetLaneSpeedByTag(LaneTags, MinSpeed, MaxSpeed,LaneTag);
+
+				FLaneConfigs LaneConfigInfor(LaneLocation, Speed, MinSpeed, MaxSpeed, LaneTag);
+				TypeIdx2SpawnLoc.Add(ConfigRandIndex, LaneConfigInfor);
 				
 				Distance = Distance + VehicleLenth[ConfigRandIndex] / 2.0f;
 				//Debug
@@ -92,7 +109,7 @@ void UVehiclePointsGenerator::Generate(UObject& QueryOwner, TConstArrayView<FMas
 	for (int32 i = 0; i < ResultsIdx.Num(); i++)
 	{
 		int32 EntityTypeIdx = ResultsIdx[i];
-		TArray<FZoneGraphLaneLocation> SpawnLocations;
+		TArray<FLaneConfigs> SpawnLocations;
 		TypeIdx2SpawnLoc.MultiFind(ResultsIdx[i], SpawnLocations);
 		if (SpawnLocations.Num() > 0)
 		{
@@ -108,7 +125,7 @@ void UVehiclePointsGenerator::Generate(UObject& QueryOwner, TConstArrayView<FMas
 	//int32 ResultIdx = 0;
 	for(FMassEntitySpawnDataGeneratorResult& Result:Results)
 	{
-		TArray<FZoneGraphLaneLocation> SpawnLocations;
+		TArray<FLaneConfigs> SpawnLocations;
 		TypeIdx2SpawnLoc.MultiFind(Result.EntityConfigIndex, SpawnLocations);
 
 		//设置初始化处理器
@@ -118,11 +135,19 @@ void UVehiclePointsGenerator::Generate(UObject& QueryOwner, TConstArrayView<FMas
 		FVehicleInitData& InitData = Result.SpawnData.GetMutable<FVehicleInitData>();
 
 		InitData.LaneLocations.Reserve(Result.NumEntities);
+		InitData.TargetSpeeds.Reserve(Result.NumEntities);
+		InitData.MinSpeeds.Reserve(Result.NumEntities);
+		InitData.MaxSpeeds.Reserve(Result.NumEntities);
+
 		for(int32 LocationIdx = 0; LocationIdx < SpawnLocations.Num(); ++LocationIdx)
 		{
-			FZoneGraphLaneLocation LaneLocation = SpawnLocations[LocationIdx];
+			FZoneGraphLaneLocation LaneLocation = SpawnLocations[LocationIdx].LaneLocation;
 			//FZoneGraphLaneLocation& LaneLocation = InitData.LaneLocations.AddDefaulted_GetRef();
 			InitData.LaneLocations.Add(LaneLocation);
+			InitData.TargetSpeeds.Add(SpawnLocations[LocationIdx].TargetSpeed);
+			InitData.MinSpeeds.Add(SpawnLocations[LocationIdx].MinSpeed);
+			InitData.MaxSpeeds.Add(SpawnLocations[LocationIdx].MaxSpeed);
+			InitData.LaneSpeedTags.Add(SpawnLocations[LocationIdx].ZoneLaneTag);
 		}
 		UE_LOG(LogTemp, Log, TEXT("EntityIndex:%d, SpawnLocationNum:%d,NumEntities:%d"), Result.EntityConfigIndex, SpawnLocations.Num(),Result.NumEntities);
 
@@ -130,5 +155,19 @@ void UVehiclePointsGenerator::Generate(UObject& QueryOwner, TConstArrayView<FMas
     
 	FinishedGeneratingSpawnPointsDelegate.Execute(Results);
 
+}
+
+
+
+float UVehiclePointsGenerator::GetTagBasedGap(FZoneGraphTagMask LaneTagMask) const
+{
+	for(auto& TagGapPair:TagLaneGap)
+	{
+		if(LaneTagMask.Contains(TagGapPair.Key))
+		{
+			return FMath::RandRange(TagGapPair.Value.MinGap, TagGapPair.Value.MaxGap);
+		}
+	}
+	return FMath::RandRange(600.f, 1200.f);;
 }
 

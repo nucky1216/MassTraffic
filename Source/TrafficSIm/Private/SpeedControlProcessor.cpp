@@ -51,7 +51,7 @@ void USpeedControlProcessor::Execute(FMassEntityManager& EntityManager, FMassExe
 				//FTransformFragment				
 
 				const FMassVehicleMovementFragment* FrontVehicleMovement = nullptr;
-				bool HasFrontCar=TrafficSimSubsystem->FindFrontVehicle(VehicleMovement.LaneLocation.LaneHandle.Index,
+				bool HasFrontCarAtCurLane=TrafficSimSubsystem->FindFrontVehicle(VehicleMovement.LaneLocation.LaneHandle.Index,
 					VehicleMovement.NextLane, Context.GetEntity(i), FrontVehicleMovement);
 				
 
@@ -59,17 +59,20 @@ void USpeedControlProcessor::Execute(FMassEntityManager& EntityManager, FMassExe
 				{
 					float DistanceToFrontVehicle = FVector::Distance(VehicleMovement.LaneLocation.Position, FrontVehicleMovement->LaneLocation.Position);
 					float HalfLength = (VehicleMovement.VehicleLength + FrontVehicleMovement->VehicleLength) * 0.5f;
-					if (DistanceToFrontVehicle < HalfLength * 2.0)
+					//距离小于 车长+速度*5秒的距离
+					
+					if (DistanceToFrontVehicle < HalfLength*2.5 + VehicleMovement.Speed*500.0/18.0*5.0)
 					{
 						if(VehicleMovement.Speed> FrontVehicleMovement->Speed)
 							VehicleMovement.TargetSpeed = FrontVehicleMovement->Speed;
 						//跟车过近了
-						if(DistanceToFrontVehicle < HalfLength * 1.5)
+						if(DistanceToFrontVehicle < HalfLength * 2.5)
 							VehicleMovement.TargetSpeed = 0;
 					}
 					else
 					{
-						VehicleMovement.TargetSpeed = VehicleMovement.MaxSpeed;
+						float NewTargetSpeed = FMath::RandRange(VehicleMovement.MinSpeed, VehicleMovement.MaxSpeed);
+						VehicleMovement.TargetSpeed = NewTargetSpeed;
 					}
 				}
 
@@ -87,7 +90,7 @@ void USpeedControlProcessor::Execute(FMassEntityManager& EntityManager, FMassExe
 				//}
 
 				//第一辆车如果距离红绿灯小于500米 ，并且下一个车道是红灯，则停车 或者当前速度为0且下一车道位绿灯，则起步
-				if (!HasFrontCar && (VehicleMovement.LeftDistance < VehicleMovement.VehicleLength || VehicleMovement.Speed==0))
+				if (!HasFrontCarAtCurLane && (VehicleMovement.LeftDistance < VehicleMovement.VehicleLength || VehicleMovement.Speed==0))
 				{
 					bool IntersectionLane = false,OpenLane=true;
 
@@ -95,7 +98,8 @@ void USpeedControlProcessor::Execute(FMassEntityManager& EntityManager, FMassExe
 
 					if(IntersectionLane)
 					{
-						VehicleMovement.TargetSpeed = OpenLane?VehicleMovement.MaxSpeed:0.f;
+						float NewTargetSpeed = FMath::RandRange(VehicleMovement.MinSpeed, VehicleMovement.MaxSpeed);
+						VehicleMovement.TargetSpeed = OpenLane? NewTargetSpeed :0.f;
 					}
 				}
 

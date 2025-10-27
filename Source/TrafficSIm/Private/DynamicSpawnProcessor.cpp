@@ -177,6 +177,13 @@ void UDynamicSpawnProcessor::Execute(FMassEntityManager& EntityManager, FMassExe
 					MoveFrag.LaneLocation = LaneLoc;
 					TransformFrag.SetTransform(FTransform(LaneLoc.Direction.ToOrientationQuat(), LaneLoc.Position));
 					MoveFrag.VehicleHandle = NewEntities[i];
+
+					const FZoneLaneData& LaneData = WeakTrafficSim->ZoneGraphStorage->Lanes[LaneLoc.LaneHandle.Index];
+					WeakTrafficSim->GetLaneSpeedByTag(
+						LaneData.Tags,
+						MoveFrag.MaxSpeed,
+						MoveFrag.MinSpeed,
+						MoveFrag.LaneSpeedTag);
 					MoveFrag.TargetSpeed = FMath::RandRange(MoveFrag.MinSpeed, MoveFrag.MaxSpeed);
 					MoveFrag.Speed = FMath::RandRange(MoveFrag.MinSpeed, MoveFrag.TargetSpeed);
 
