@@ -109,6 +109,13 @@ void UVehicleMovementProcessor::Execute(FMassEntityManager& EntityManager, FMass
 
 			}
 
+			if(VehicleMovementFragment.FreezeTime>=VehicleMovementFragment.MaxFreezeTime)
+			{
+				//冻结时间过长，销毁实体
+				DestroyedEntities.Add(Context.GetEntity(EntityIndex));
+				//UE_LOG(LogTrafficSim, Log, TEXT("VehicleMovementProcessor: Entity %d has freeze time over max limit, destroying entity."), Context.GetEntity(EntityIndex).SerialNumber);
+				continue;
+			}
 
 			if (QueryLaneIndex < 0)
 			{

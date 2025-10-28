@@ -66,7 +66,7 @@ void USpeedControlProcessor::Execute(FMassEntityManager& EntityManager, FMassExe
 						if(VehicleMovement.Speed> FrontVehicleMovement->Speed)
 							VehicleMovement.TargetSpeed = FrontVehicleMovement->Speed;
 						//跟车过近了
-						if(DistanceToFrontVehicle < HalfLength * 2.5)
+						if(DistanceToFrontVehicle < HalfLength * 3.0)
 							VehicleMovement.TargetSpeed = 0;
 					}
 					else
@@ -114,6 +114,15 @@ void USpeedControlProcessor::Execute(FMassEntityManager& EntityManager, FMassExe
 					VehicleMovement.Speed -= VehicleMovement.Decelaration * DeltaTime;
 				}
 				VehicleMovement.Speed= FMath::Clamp(VehicleMovement.Speed,0, VehicleMovement.MaxSpeed);
+
+				if(VehicleMovement.Speed<=0.0f)
+				{
+					VehicleMovement.FreezeTime+=Context.GetDeltaTimeSeconds();
+				}
+				else
+				{
+					VehicleMovement.FreezeTime = 0.0f;
+				}
 			}
 		});
 }
