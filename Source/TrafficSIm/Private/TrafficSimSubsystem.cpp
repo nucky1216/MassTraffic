@@ -505,21 +505,29 @@ void UTrafficSimSubsystem::DebugEntity(int32 TargetLane, int32 EntitySN)
 	bool OpenLane = false,IntersectionLane = false;
 	const FMassVehicleMovementFragment* FrontVehicleMovement = nullptr;
 
-	bool HasFrontCar = FindFrontVehicle(Frag.LaneLocation.LaneHandle.Index,
+	bool First = FindFrontVehicle(Frag.LaneLocation.LaneHandle.Index,
 		Frag.NextLane, Frag.VehicleHandle, FrontVehicleMovement);
 
 	TrafficLightSubsystem->QueryLaneOpenState(Frag.NextLane, OpenLane, IntersectionLane);
-	UE_LOG(LogTemp, Log, TEXT("VehicleSN:%d,CurLane:%d, NextLane:%d,TargetSpeed:%f, Speed:%f,NextLaneInInsec:%d,IsOpen:%d,LeftDistance:%f,VehicleLength:%f,HasForntCar:%d"),
+	bool hasFrontVehicle = (FrontVehicleMovement != nullptr);
+	UE_LOG(LogTemp, Log, TEXT("VehicleSN:%d,CurLane:%d, NextLane:%d,TargetSpeed:%f, Speed:%f,NextLaneInInsec:%d,IsOpen:%d,LeftDistance:%f,VehicleLength:%f,FirstAtCurLane:%d HasFrontVehilce:%d"),
 		Frag.VehicleHandle.SerialNumber,
 		Frag.LaneLocation.LaneHandle.Index, Frag.NextLane,
 		Frag.TargetSpeed, Frag.Speed,
 		IntersectionLane,OpenLane,
-		Frag.LeftDistance, Frag.VehicleLength, HasFrontCar
+		Frag.LeftDistance, Frag.VehicleLength, First, hasFrontVehicle
 		);
-	if (HasFrontCar)
+	if (hasFrontVehicle)
 	{
-		UE_LOG(LogTemp, Log, TEXT("FrontVehicleSN:%d"),FrontVehicleMovement->VehicleHandle.SerialNumber);
-		DrawDebugPoint(GetWorld(), FrontVehicleMovement->LaneLocation.Position, 50.0, FColor::Red, false, 10.0);
+		UE_LOG(LogTemp, Log, TEXT("FrontVehicleSN:%d Speed:%f TargetSpeed:%f at lane:%d HalfLenght:%f,Dist:%f"),
+			FrontVehicleMovement->VehicleHandle.SerialNumber,
+			FrontVehicleMovement->Speed,
+			FrontVehicleMovement->TargetSpeed,
+			FrontVehicleMovement->LaneLocation.LaneHandle.Index,
+			(FrontVehicleMovement->VehicleLength+Frag.VehicleLength)/2,
+			FVector::Distance(FrontVehicleMovement->LaneLocation.Position,Frag.LaneLocation.Position)
+			);
+		DrawDebugPoint(GetWorld(), FrontVehicleMovement->LaneLocation.Position+FVector(0,0,500.f), 50.0, FColor::Red, false, 10.0);
 	}
 
 	
@@ -630,12 +638,9 @@ bool UTrafficSimSubsystem::FindFrontVehicle(int32 LaneIndex, int32 NextLaneIndex
 {
 
 	TArray<FLaneVehicle>* LaneVehicles = LaneToEntitiesMap.Find(LaneIndex);
-
 	TArray<FLaneVehicle> LaneVehicleCopy;
-	for(auto & Veh : *LaneVehicles)
-	{
-		LaneVehicleCopy.Add(Veh);
-	}
+
+	LaneVehicleCopy.Append(*LaneVehicles);
 
 	TArray<int32>* AdjLanes = AdjMergeLanes.Find(LaneIndex);
 	if (AdjLanes)
@@ -676,7 +681,7 @@ bool UTrafficSimSubsystem::FindFrontVehicle(int32 LaneIndex, int32 NextLaneIndex
 	if (CurVehicleIndex < VehicleNumInCurLane - 1)
 	{
 		FrontVehicle = &LaneVehicleCopy[CurVehicleIndex + 1].VehicleMovementFragment;
-		return true;
+		return false;
 	}
 	if (NextLaneIndex < 0)
 	{
@@ -701,24 +706,24 @@ bool UTrafficSimSubsystem::FindFrontVehicle(int32 LaneIndex, int32 NextLaneIndex
 			);
 			
 			if(LaneVehicleCopy.Num() == 0)
-				return false;
+				return true;
 
 			FrontVehicle = &MaxVeh->VehicleMovementFragment;
-			return false;
+			return true;
 		}
 		else 
 		{
 			TArray<FLaneVehicle>* NextLaneVehicles = LaneToEntitiesMap.Find(NextLaneIndex);
 			if (LaneVehicleCopy.Num()==0 || NextLaneVehicles->Num() == 0)
 			{
-				return false;
+				return true;
 			}
 			FrontVehicle = &(*NextLaneVehicles)[0].VehicleMovementFragment;
-			return false;
+			return true;
 		}
 	}
 
-	//TODO:: 当前车辆处于合并车道，如何避免周围的车的距离过近？
+	
 
 	return false;
 }
@@ -980,5 +985,8 @@ float UTrafficSimSubsystem::GetLaneSpeedByTag(FZoneGraphTagMask LaneTagMask, flo
 			return FMath::RandRange(OutMinSpeed, OutMaxSpeed);
 		}
 	}
+	OutMaxSpeed = 60.f;
+	OutMinSpeed = 40.f;
+	ZoneLaneTag = FZoneGraphTag::None;
 	return  FMath::RandRange(40.f, 60.f);;
 }

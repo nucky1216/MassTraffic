@@ -55,6 +55,20 @@ struct FLaneVehicle
 		}
 };
 
+namespace TrafficSim::MoveFrag::Debug {
+
+	bool bEnbaleCustomData = false;
+	//bool bRemoveSameDestination = true;
+	//bool bFillEmptyDestination = true;
+
+	FAutoConsoleVariableRef VarsGeneration[] = {
+		FAutoConsoleVariableRef(TEXT("trafficsim.debug.customdata"), bEnbaleCustomData, TEXT("show movefrag by custom data writing.")),
+		//FAutoConsoleVariableRef(TEXT("ai.debug.zonegraph.generation.RemoveSameDestination"), bRemoveSameDestination, TEXT("Remove merging lanes leading to same destination.")),
+		//FAutoConsoleVariableRef(TEXT("ai.debug.zonegraph.generation.FillEmptyDestination"), bFillEmptyDestination, TEXT("Fill stray empty destination lanes.")),
+	};
+
+} // UE::ZoneGraph::Debug
+
 UCLASS()
 class TRAFFICSIM_API UTrafficSimSubsystem : public UWorldSubsystem
 {

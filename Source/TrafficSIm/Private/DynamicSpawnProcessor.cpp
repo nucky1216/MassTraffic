@@ -11,6 +11,7 @@
 #include "VehicleParamsInitProcessor.h"
 #include "MassCommands.h" // added for deferred create command
 #include "MassRepresentationFragments.h" // for representation fragment if needed
+#include "MassRepresentationSubsystem.h"
 
 UDynamicSpawnProcessor::UDynamicSpawnProcessor() :EntityQuery(*this)
 {
@@ -126,7 +127,7 @@ void UDynamicSpawnProcessor::Execute(FMassEntityManager& EntityManager, FMassExe
 	);
 
 
-	if (1 && ReadySpawnLocs.Num() > 0)
+	if (ReadySpawnLocs.Num() > 0)
 	{
 		TArray<int32> Keys;
 		ReadySpawnLocs.GetKeys(Keys);
@@ -147,12 +148,23 @@ void UDynamicSpawnProcessor::Execute(FMassEntityManager& EntityManager, FMassExe
 				UE_LOG(LogTrafficSim, Warning, TEXT("Invalid EntityTemplate for Key %d"), Key);
 				continue;
 			}
+
+			UMassRepresentationSubsystem* RepSubsystem = UWorld::GetSubsystem<UMassRepresentationSubsystem>(GetWorld());
+			if (!RepSubsystem)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("No RepresentationSubsystem found"));
+				return;
+			}
+			
+
 			// Capture by value to ensure safety until deferred execution
 			int32 ConfigIndexCopy = Key;
 			TArray<FZoneGraphLaneLocation> LaneLocationsCopy = LaneLocations;
 			TWeakObjectPtr<UTrafficSimSubsystem> WeakTrafficSim = TrafficSimSubsystem;
+			TWeakObjectPtr<UMassRepresentationSubsystem> WeakRepSubsystem = RepSubsystem;
+
 			FMassEntityTemplate EntityTemplateCopy = *EntityTemplatePtr; // full copy (immutable data)
-			EntityManager.Defer().PushCommand<FMassDeferredCreateCommand>([EntityTemplateCopy, LaneLocationsCopy = MoveTemp(LaneLocationsCopy), ConfigIndexCopy, WeakTrafficSim](FMassEntityManager& System) mutable
+			EntityManager.Defer().PushCommand<FMassDeferredCreateCommand>([EntityTemplateCopy,  LaneLocationsCopy = MoveTemp(LaneLocationsCopy), ConfigIndexCopy, WeakTrafficSim, WeakRepSubsystem](FMassEntityManager& System) mutable
 			{
 				// 1. Create with shared fragments
 				TArray<FMassEntityHandle> NewEntities;
@@ -174,6 +186,9 @@ void UDynamicSpawnProcessor::Execute(FMassEntityManager& EntityManager, FMassExe
 					const FZoneGraphLaneLocation& LaneLoc = LaneLocationsCopy[i];
 					FMassVehicleMovementFragment& MoveFrag = System.GetFragmentDataChecked<FMassVehicleMovementFragment>(NewEntities[i]);
 					FTransformFragment& TransformFrag = System.GetFragmentDataChecked<FTransformFragment>(NewEntities[i]);
+					const FMassRepresentationFragment& Representation = System.GetFragmentDataChecked<FMassRepresentationFragment>(NewEntities[i]);
+					const FMassRepresentationLODFragment& RepresentationLOD = System.GetFragmentDataChecked<FMassRepresentationLODFragment>(NewEntities[i]);
+
 					MoveFrag.LaneLocation = LaneLoc;
 					TransformFrag.SetTransform(FTransform(LaneLoc.Direction.ToOrientationQuat(), LaneLoc.Position));
 					MoveFrag.VehicleHandle = NewEntities[i];
@@ -187,8 +202,46 @@ void UDynamicSpawnProcessor::Execute(FMassEntityManager& EntityManager, FMassExe
 					MoveFrag.TargetSpeed = FMath::RandRange(MoveFrag.MinSpeed, MoveFrag.MaxSpeed);
 					MoveFrag.Speed = FMath::RandRange(MoveFrag.MinSpeed, MoveFrag.TargetSpeed);
 
+					if(MoveFrag.Speed==0.0 || MoveFrag.TargetSpeed==0.0)
+					{
+						UE_LOG(LogTrafficSim, Warning, TEXT("Spawned Vehicle with Zero Speed on Lane %d"), LaneLoc.LaneHandle.Index);
+					}
+
 					TArray<int32> NextLanes;
 					MoveFrag.NextLane= WeakTrafficSim->ChooseNextLane(LaneLoc.LaneHandle.Index, NextLanes);
+
+					if (TrafficSim::MoveFrag::Debug::bEnbaleCustomData)
+					{
+						auto SMInfos = WeakRepSubsystem->GetMutableInstancedStaticMeshInfos();
+
+						// 获取 InstancedStaticMesh 的索引
+						const int32 StaticMeshInstanceIndex = Representation.StaticMeshDescIndex;
+						if (StaticMeshInstanceIndex == INDEX_NONE)
+						{
+							continue; // 无效索引，跳过
+						}
+
+						// 获取 InstancedStaticMesh 信息
+						FMassInstancedStaticMeshInfo& MeshInfo = SMInfos[StaticMeshInstanceIndex];
+
+						const float LODSignificance = RepresentationLOD.LODSignificance;
+						struct FVehicleISMCustomData
+						{
+							float SerialNumber;
+							float EntityId;
+							float Speed;
+						};
+						static_assert((sizeof(FVehicleISMCustomData) % sizeof(float)) == 0, "custom data must be float-packed");
+						float testFloat = 100.f;
+						const FVehicleISMCustomData Custom{
+							static_cast<float>(NewEntities[i].SerialNumber),
+							MoveFrag.TargetSpeed,
+							MoveFrag.Speed
+						};
+
+						//UE_LOG(LogTemp, Log, TEXT("MeshIndex:%d"), StaticMeshInstanceIndex);
+						MeshInfo.AddBatchedCustomData(Custom, LODSignificance);
+					}
 
 				}
 				//UE_LOG(LogTrafficSim, Log, TEXT("Deferred Spawned Entity Num:%d ConfigIndex:%d"), NewEntities.Num(), ConfigIndexCopy);
