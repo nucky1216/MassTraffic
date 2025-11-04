@@ -6,6 +6,7 @@
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "CesiumGeoreference.h"
 #include "Engine/DataTable.h"
+#include "ZoneGraphTypes.h"
 #include "BPFLTools.generated.h"
 
 /**
@@ -27,4 +28,7 @@ public:
 	// Send HTTP POST with JSON body and return via Blueprint callback
 	UFUNCTION(BlueprintCallable, Category = "HTTP", meta=(AutoCreateRefTerm="OnCompleted,BodyJson"))
 	static void SendGetRequest(const FString& URL, const FString& BodyJson, FOnHttpResponseBP OnCompleted);
+
+	UFUNCTION(BlueprintCallable, BlueprintPure,Category = "ZoneShapeTag")
+	static void AddShapeTag(const FZoneGraphTagMask AddedTag, FZoneGraphTagMask OriginTag, FZoneGraphTagMask& NewTag);
 };

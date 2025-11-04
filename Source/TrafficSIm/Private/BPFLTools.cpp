@@ -172,3 +172,9 @@ void UBPFLTools::SendGetRequest(const FString& URL, const FString& BodyJson, FOn
 
 	Request->ProcessRequest();
 }
+
+void UBPFLTools::AddShapeTag(const FZoneGraphTagMask AddedTag, FZoneGraphTagMask OriginTag,FZoneGraphTagMask& NewTag)
+{
+	OriginTag.Add(AddedTag);
+	NewTag = OriginTag;
+}
