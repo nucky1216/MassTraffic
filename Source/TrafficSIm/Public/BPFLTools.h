@@ -7,6 +7,7 @@
 #include "CesiumGeoreference.h"
 #include "Engine/DataTable.h"
 #include "ZoneGraphTypes.h"
+#include "Components/SplineComponent.h"
 #include "BPFLTools.generated.h"
 
 /**
@@ -31,4 +32,10 @@ public:
 
 	UFUNCTION(BlueprintCallable, BlueprintPure,Category = "ZoneShapeTag")
 	static void AddShapeTag(const FZoneGraphTagMask AddedTag, FZoneGraphTagMask OriginTag, FZoneGraphTagMask& NewTag);
+
+	UFUNCTION(BlueprintCallable, Category = "ActorUtility")
+	static void MarkActorModified(AActor* Actor);
+
+	UFUNCTION(BlueprintCallable, Category = "ActorUtility")
+	static void MarkSplineModified(USplineComponent* Spline);
 };

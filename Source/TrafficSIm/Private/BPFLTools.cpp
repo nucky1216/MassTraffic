@@ -178,3 +178,38 @@ void UBPFLTools::AddShapeTag(const FZoneGraphTagMask AddedTag, FZoneGraphTagMask
 	OriginTag.Add(AddedTag);
 	NewTag = OriginTag;
 }
+
+void UBPFLTools::MarkActorModified(AActor* Actor)
+{
+	if (!Actor) return;	
+
+	Actor->Modify();
+	Actor->MarkPackageDirty();
+	ULevel* Level =Actor->GetWorld()->GetCurrentLevel();
+
+	if (Level)
+	{
+		Level->Actors.AddUnique(Actor);
+		Level->Modify();
+	}
+
+	Level->MarkPackageDirty();
+
+	
+}
+
+void UBPFLTools::MarkSplineModified(USplineComponent* Spline)
+{
+	if (!Spline) return;
+
+//	Spline->Modify();
+//	Spline->MarkPackageDirty();
+	Spline->bSplineHasBeenEdited = true;
+//	Spline->bInputSplinePointsToConstructionScript = false;
+
+//#if WITH_EDITOR
+//	// 通知编辑器“属性已改变”，更新细节面板/保存数据
+//	Spline->PostEditChange();
+//	Spline->MarkRenderStateDirty();
+//#endif
+}
