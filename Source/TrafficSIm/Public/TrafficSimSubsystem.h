@@ -77,6 +77,7 @@ public:
 	int32 ChooseNextLane(int32 CurLaneIndex, TArray<int32>& NextLanes) const;
 	void FindEntityLaneByQuery(FBox QueryBox, FZoneGraphTagFilter& TagFilter, FZoneGraphLaneLocation& OutLaneLocation);
 	void InitOnPostLoadMap(const UWorld::FActorsInitializedParams& Params);
+	void InitOnPostEditorWorld(UWorld* InWorld, UWorld::InitializationValues IVS);
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 
 	UFUNCTION(BlueprintCallable, Category = "TrafficSim")
@@ -100,6 +101,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "TrafficSim| Congestion")
 	void BathSetCongestionByDT(UPARAM(ref)UDataTable*& LanesMap, float TagetValue, TMap<int32,float> CongestionIndex);
+
+	UFUNCTION(BlueprintCallable, Category = "TrafficSim| LaneMapping")
+	int32 GetZoneLaneIndexByPoints(TArray<FVector> Points, FZoneGraphTag AnyTag, float Height);
 
 
 	UFUNCTION(BlueprintCallable, Category = "TrafficSim| Clear")

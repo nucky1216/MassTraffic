@@ -34,4 +34,7 @@ struct TRAFFICSIM_API FTrafficLightFragment : public FMassFragment
 
 	float TimeInDuration = 0.f;
 	int32 ZoneIndex;
+
+	TMap<FName,TArray<int32>> CrossPhaseLanes;
+	TArray<TTuple<FName, FDateTime, FDateTime>> PhaseList;
 };

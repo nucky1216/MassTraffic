@@ -202,14 +202,22 @@ void UBPFLTools::MarkSplineModified(USplineComponent* Spline)
 {
 	if (!Spline) return;
 
-//	Spline->Modify();
-//	Spline->MarkPackageDirty();
 	Spline->bSplineHasBeenEdited = true;
-//	Spline->bInputSplinePointsToConstructionScript = false;
 
-//#if WITH_EDITOR
-//	// 通知编辑器“属性已改变”，更新细节面板/保存数据
-//	Spline->PostEditChange();
-//	Spline->MarkRenderStateDirty();
-//#endif
+}
+
+void UBPFLTools::AddRowToDT(UDataTable* DataTable, const FName& RowName, FCrossPhaseLaneData RowData)
+{
+	//FCrossPhaseLaneData Row = *(FCrossPhaseLaneData*)RowData;
+	if (!DataTable)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Invalid DataTable Input!"));
+		return;
+	}
+	DataTable->AddRow(RowName, RowData);
+}
+
+void UBPFLTools::ClearDT(UDataTable* DataTable)
+{
+	DataTable->EmptyTable();
 }

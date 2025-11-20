@@ -1,6 +1,7 @@
 #pragma once
 #include "CoreMinimal.h"
 #include "ZoneGraphTypes.h"
+#include "MassEntityTypes.h"
 #include "Engine/DataTable.h"
 #include "TrafficTypes.generated.h"
 
@@ -70,6 +71,7 @@ struct TRAFFICSIM_API FIntersectionData
 	FORCEINLINE void SideSortLanes(const FZoneGraphStorage* ZoneGraphStorage);
 	FORCEINLINE void FindAloneSide(const FZoneGraphStorage* ZoneGraphStorage);
 	FORCEINLINE void SetSideOpenLanes(int32 SideIndex,ETurnType TurnType,bool Reset=false);
+	FORCEINLINE void SetOpenLanes(TArray<int32> LaneIds);
 	FORCEINLINE TArray<int32> GetAllLaneIndex();
 	FORCEINLINE TArray<int32> GetOpenLaneIndex();
 };
@@ -152,6 +154,29 @@ struct FDTRoadGeoStatus : public FTableRowBase
 
 };
 
+USTRUCT(BlueprintType)
+struct FCrossPhaseLaneData :public FTableRowBase
+{
+	GENERATED_BODY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CrossPhase")
+	FName CrossID;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CrossPhase")
+	FName PhaseName;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CrossPhase")
+	int32 ZoneIndex;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CrossPhase")
+	TArray<int32> LaneIndices;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CrossPhase")
+	TArray<FName> TurnType;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CrossPhase")
+	TArray<FName> RoadNames;
+
+};
+
 USTRUCT()
 struct FMassGlobalDespawnTag : public FMassTag
 {
@@ -177,5 +202,18 @@ struct FTagLaneGap
 	float MaxGap;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TrafficSim")
 	float MinGap; // in meters
+
+};
+
+USTRUCT(BlueprintType)
+struct FPhaseLanes:public FTableRowBase
+{
+	GENERATED_BODY()
+
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TrafficSim")
+	int32 ZoneIndex;
+
+	TArray<int32> PhaseLanes;
 
 };

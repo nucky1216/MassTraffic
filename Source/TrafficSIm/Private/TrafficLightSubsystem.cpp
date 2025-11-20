@@ -4,6 +4,43 @@
 
 
 
+void UTrafficLightSubsystem::Initialize(FSubsystemCollectionBase& Collection)
+{
+	Super::Initialize(Collection);
+	UE_LOG(LogTrafficLight, Log, TEXT("TrafficLightSubsystem Initialized"));
+
+	if(GetWorld()->IsGameWorld())
+	{
+		//BeginPlayÊ±»ñÈ¡ZoneGraphData
+		FWorldDelegates::OnWorldInitializedActors.AddUObject(this, &UTrafficLightSubsystem::HandleRunWorldInitialized);
+	}
+
+	
+	if (GetWorld()->IsEditorWorld())
+	{
+		//Editor only
+		FWorldDelegates::OnPostWorldInitialization.AddUObject(this, &UTrafficLightSubsystem::HandleEditorWorldInitialized);
+	}
+}
+
+void UTrafficLightSubsystem::Deinitialize()
+{
+	FWorldDelegates::OnWorldInitializedActors.RemoveAll(this);
+	Super::Deinitialize();
+}
+
+void UTrafficLightSubsystem::HandleRunWorldInitialized(const UWorld::FActorsInitializedParams& Params)
+{
+	GetZoneGraphaData();
+	UE_LOG(LogTrafficLight, Log, TEXT("TrafficLightSubsystem World Initialized"));
+}
+
+void UTrafficLightSubsystem::HandleEditorWorldInitialized(UWorld* InWorld, const UWorld::InitializationValues IVS)
+{
+	GetZoneGraphaData();
+	UE_LOG(LogTrafficLight, Log, TEXT("TrafficLightSubsystem Editor World Initialized"));
+}
+
 void UTrafficLightSubsystem::GetZoneGraphaData()
 {
 	TrafficSimSubsystem = UWorld::GetSubsystem<UTrafficSimSubsystem>(GetWorld());
@@ -185,6 +222,62 @@ void UTrafficLightSubsystem::QueryLaneOpenState(int32 LaneIndex, bool& OpenState
 	return;
 }
 
+void UTrafficLightSubsystem::InitialCrossPhaseRow(UDataTable* DataTable, const FName& RowName, FCrossPhaseLaneData RowData)
+{
+	//CrossPhaseLaneInfor.Empty();
+
+	if (RowData.LaneIndices.Num() > 0 && RowData.LaneIndices[0] >= 0)
+	{
+		RowData.ZoneIndex = ZoneGraphStorage->Lanes[RowData.LaneIndices[0]].ZoneIndex;
+	}
+	else
+		RowData.ZoneIndex = -1;
+
+	if(RowData.LaneIndices.Contains(-1))
+	{
+		RowData.ZoneIndex = -1;
+	}
+
+	TArray<int32> LaneIndices;
+	for (auto index : RowData.LaneIndices)
+	{
+		TArray<int32> NextLaneIndices ;
+		GetNextLanesFromPhaseLane(index, NextLaneIndices);
+		LaneIndices.Append(NextLaneIndices);
+
+	}
+	RowData.LaneIndices = LaneIndices;
+
+	DataTable->AddRow(RowName,RowData);
+
+}
+
+void UTrafficLightSubsystem::DebugCrossPhase(FName CrossPhaseName)
+{
+	FPhaseLanes* PhaseToLanes = CrossPhaseLaneInfor.Find(CrossPhaseName);
+	if(!PhaseToLanes)
+	{
+		UE_LOG(LogTrafficLight, Warning, TEXT("No cross phase lane info found for CrossName: %s"), *CrossPhaseName.ToString());
+		return;
+	}
+	if (!ZoneGraphStorage)
+	{
+		UE_LOG(LogTrafficLight, Error, TEXT("ZoneGraphStorage is not initialized! Cannot debug cross phase."));
+		return;
+	}
+	
+	for(auto laneIndex: PhaseToLanes->PhaseLanes)
+	{
+
+		int32 PointBegin = ZoneGraphStorage->Lanes[laneIndex].PointsBegin;
+		int32 PointEnd = ZoneGraphStorage->Lanes[laneIndex].PointsEnd;
+		int32 PointMid = (PointBegin + PointEnd) / 2;
+		PointEnd--;
+		DrawDebugLine(GetWorld(), ZoneGraphStorage->LanePoints[PointBegin] + FVector(0, 0, 30), ZoneGraphStorage->LanePoints[PointMid] + FVector(0, 0, 30), FColor::Red, false, 10.0f);
+		DrawDebugLine(GetWorld(), ZoneGraphStorage->LanePoints[PointMid] + FVector(0, 0, 30), ZoneGraphStorage->LanePoints[PointEnd] + FVector(0, 0, 30), FColor::Red, false, 10.0f);
+	}
+}
+
 void UTrafficLightSubsystem::SetCrossBySignalState(int32 ZoneIndex, ETrafficSignalType SignalType, int32 SideIndex)
 {
 	FIntersectionData* IntersectionData = IntersectionDatas.Find(ZoneIndex);
@@ -259,3 +352,50 @@ void UTrafficLightSubsystem::SetCrossBySignalState(int32 ZoneIndex, ETrafficSign
 		}
 	}
 }
+
+void UTrafficLightSubsystem::InitializeCrossPhaseLaneInfor(UDataTable* DataTable)
+{
+	CrossPhaseLaneInfor.Empty();
+	UE_LOG(LogTrafficLight, Log, TEXT("Initializing CrossPhaseLaneInfor from DataTable: %s RowStructName:%s"), *DataTable->GetName(), *DataTable->GetRowStructName().ToString());
+	
+
+	for(auto& Row : DataTable->GetRowMap())
+	{
+		FCrossPhaseLaneData* RowData = (FCrossPhaseLaneData*)(Row.Value);
+		if(!RowData)
+		{
+			continue;
+		}
+		FPhaseLanes PhaseLanes;
+		PhaseLanes.ZoneIndex = RowData->ZoneIndex;
+		PhaseLanes.PhaseLanes = RowData->LaneIndices;
+		FName Key = Row.Key;
+		CrossPhaseLaneInfor.Add(Key,PhaseLanes);
+	}
+}
+
+void UTrafficLightSubsystem::GetNextLanesFromPhaseLane(int32 CurLaneIndex, TArray<int32>& NextLanes)
+{
+	if(ZoneGraphStorage==nullptr)
+	{
+		UE_LOG(LogTrafficLight, Error, TEXT("ZoneGraphStorage is not initialized! Cannot get next lanes from phase lane."));
+		return;
+	}
+	if(CurLaneIndex<0 || CurLaneIndex>=ZoneGraphStorage->Lanes.Num())
+	{
+		UE_LOG(LogTrafficLight, Warning, TEXT("Invalid CurLaneIndex %d! Cannot get next lanes from phase lane."), CurLaneIndex);
+		return;
+	}
+
+	FZoneLaneData LaneData = ZoneGraphStorage->Lanes[CurLaneIndex];
+	for (int32 i = LaneData.LinksBegin;i<LaneData.LinksEnd; ++i)
+	{
+		FZoneLaneLinkData LinkData = ZoneGraphStorage->LaneLinks[i];
+		if(LinkData.Type==EZoneLaneLinkType::Outgoing)
+		{
+			NextLanes.Add(LinkData.DestLaneIndex);
+
+		}
+	}
+}
+

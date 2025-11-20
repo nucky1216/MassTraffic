@@ -95,7 +95,12 @@ void UTrafficSimSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	UE_LOG(LogTrafficSim, Log,TEXT("Subsystem Initializing.."));
 
 	//FWorldDelegates::OnPostWorldInitialization.AddUObject(this, &UTrafficSimSubsystem::InitOnPostLoadMap);
-	GetWorld()->OnActorsInitialized.AddUObject(this, &UTrafficSimSubsystem::InitOnPostLoadMap);
+	FWorldDelegates::OnWorldInitializedActors.AddUObject(this, &UTrafficSimSubsystem::InitOnPostLoadMap);
+
+	if(GetWorld()->IsEditorWorld())
+	{
+		FWorldDelegates::OnPostWorldInitialization.AddUObject(this, &UTrafficSimSubsystem::InitOnPostEditorWorld);
+	}
 }
 
 void UTrafficSimSubsystem::GetZonesSeg(TArray<FVector> Points, FZoneGraphTag AnyTag,float Height, FDTRoadLanes& RoadLanes)
@@ -603,6 +608,27 @@ void UTrafficSimSubsystem::BathSetCongestionByDT(UPARAM(ref)UDataTable*& LanesMa
 	}
 }
 
+int32 UTrafficSimSubsystem::GetZoneLaneIndexByPoints(TArray<FVector> Points, FZoneGraphTag AnyTag, float Height)
+{
+	if (!ZoneGraphStorage)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Get Invalid ZoneGraphStorage!"));
+		return -1;
+	}
+	TArray<int32> LaneIndiceSingle;
+	TArray<TTuple<float, float>> StartEnd;
+	FZoneGraphTagFilter Filter;
+	Filter.AnyTags.Add(AnyTag);
+	UE::ZoneGraph::Query::FindNearestLanesBySeg(*ZoneGraphStorage, Points, Height, Filter, LaneIndiceSingle, StartEnd);
+
+	if(LaneIndiceSingle.Num()==0)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("No Lane Found by Given Points!"));
+		return -1;
+	}
+	return LaneIndiceSingle[0];
+}
+
 void UTrafficSimSubsystem::ClearAllEntities()
 {
 	UMassEntitySubsystem* EntitySubsystem = UWorld::GetSubsystem<UMassEntitySubsystem>(World);
@@ -935,6 +961,26 @@ void UTrafficSimSubsystem::InitOnPostLoadMap(const UWorld::FActorsInitializedPar
 	}
 
 	UE_LOG(LogTemp, Error, TEXT("No valid ZoneGraphData found in the world!"));
+}
+
+void UTrafficSimSubsystem::InitOnPostEditorWorld(UWorld* InWorld, UWorld::InitializationValues IVS)
+{
+	UE_LOG(LogTrafficSim, Log, TEXT("Editor Post Init.."));
+	World = InWorld;
+	ZoneGraphSubsystem = UWorld::GetSubsystem<UZoneGraphSubsystem>(World);
+
+	for (TActorIterator<AZoneGraphData> It(World); It; ++It)
+	{
+		const AZoneGraphData* ZoneGraphDataTemp = *It;
+		if (ZoneGraphDataTemp && ZoneGraphDataTemp->IsValidLowLevel())
+		{
+			ZoneGraphStorage = &ZoneGraphDataTemp->GetStorage();
+			InitializeLaneToEntitiesMap();
+			return;
+		}
+	}
+
+	UE_LOG(LogTemp, Error, TEXT("No valid ZoneGraphData found in the Editor world!"));
 }
 
 void UTrafficSimSubsystem::AdjustLaneCongestion(int32 LaneIndex, ELaneCongestionMetric MetricType, float TargetValue, UMassEntityConfigAsset* OptionalConfig, float StartDist, float EndDist, float MinSafetyGap)

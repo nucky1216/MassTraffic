@@ -17,7 +17,16 @@ class TRAFFICSIM_API UTrafficLightSubsystem : public UWorldSubsystem
 	GENERATED_BODY()
 
 public:
+
+
+	virtual void  Initialize(FSubsystemCollectionBase& Collection) override;
+	virtual void  Deinitialize() override;
+
+
+	void HandleRunWorldInitialized(const UWorld::FActorsInitializedParams& Params);
+	void HandleEditorWorldInitialized(UWorld* InWorld,const UWorld::InitializationValues IVS);
 	void GetZoneGraphaData();
+
 	TMap<int32,FIntersectionData> IntersectionDatas;
 
 
@@ -39,14 +48,31 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "TrafficLightSim", meta = (ToolTip = "Build Intersecion Data"))
 	void QueryLaneOpenState(int32 LaneIndex,bool& OpenState,bool & IntersectionLane);
 
+	UFUNCTION(BlueprintCallable,Category="TrafficLightSim| CrossPhase")
+	void InitialCrossPhaseRow(UDataTable* DataTable, const FName& RowName, FCrossPhaseLaneData RowData);
+
+	UFUNCTION(BlueprintCallable, Category = "TrafficLightSim| CrossPhase")
+	void DebugCrossPhase(FName CrossPhaseName);
+
+	UFUNCTION(BlueprintCallable, Category = "TrafficLightSim| CrossPhase")
+	void GetNextLanesFromPhaseLane(int32 CurLaneIndex, TArray<int32>& NextLanes);
+
+	UFUNCTION(BlueprintCallable, Category = "TrafficLightSim| CrossPhase")
+	void InitializeCrossPhaseLaneInfor(UDataTable* DataTable);
+
 	void SetCrossBySignalState(int32 ZoneIndex,ETrafficSignalType SignalType,int32 SideIndex);
 
+
+
+
 	FZoneGraphTagFilter IntersectionTagFilter;
+	TMap<FName, FPhaseLanes> CrossPhaseLaneInfor;
 
 
 private:
 	const FZoneGraphStorage* ZoneGraphStorage = nullptr;
 	const UTrafficSimSubsystem* TrafficSimSubsystem = nullptr;
+	
 
 
 };

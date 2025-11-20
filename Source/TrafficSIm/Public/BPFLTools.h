@@ -7,6 +7,7 @@
 #include "CesiumGeoreference.h"
 #include "Engine/DataTable.h"
 #include "ZoneGraphTypes.h"
+#include "TrafficTypes.h"
 #include "Components/SplineComponent.h"
 #include "BPFLTools.generated.h"
 
@@ -38,4 +39,10 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "ActorUtility")
 	static void MarkSplineModified(USplineComponent* Spline);
+
+	UFUNCTION(BlueprintCallAble,Category="MatchCrossLanes")
+	static void AddRowToDT(UDataTable* DataTable, const FName& RowName, FCrossPhaseLaneData RowData);
+
+	UFUNCTION(BlueprintCallAble, Category = "MatchCrossLanes")
+	static void ClearDT(UDataTable* DataTable);
 };

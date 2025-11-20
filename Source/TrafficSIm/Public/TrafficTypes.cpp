@@ -173,6 +173,20 @@ void FIntersectionData::SetSideOpenLanes(int32 SideIndex, ETurnType TurnType, bo
 
 }
 
+void FIntersectionData::SetOpenLanes(TArray<int32> LaneIds)
+{
+	for (auto& Elem : OpenLanes)
+		{
+			Elem.Value = false;
+		}
+	
+
+	for (int32 laneIndex : LaneIds)
+	{
+		OpenLanes.Add(laneIndex, true);
+	}
+}
+
 TArray<int32> FIntersectionData::GetAllLaneIndex()
 {
 	TArray<int32> AllLaneIndex;
