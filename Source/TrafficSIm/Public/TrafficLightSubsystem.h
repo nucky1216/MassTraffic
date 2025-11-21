@@ -27,9 +27,6 @@ public:
 	void HandleEditorWorldInitialized(UWorld* InWorld,const UWorld::InitializationValues IVS);
 	void GetZoneGraphaData();
 
-	TMap<int32,FIntersectionData> IntersectionDatas;
-
-
 	UFUNCTION(BlueprintCallable, Category = "TrafficLightSim",meta=(ToolTip="Build Intersecion Data"))
 	void BuildIntersectionsData(UTagFilter* DAFilter) { BuildIntersectionsData(DAFilter->TagFilter); };
 	
@@ -44,7 +41,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "TrafficLightSim", meta = (ToolTip = "Build Intersecion Data"))
 	void SetOpenLanes(int32 ZoneIndex,int32 SideIndex, ETurnType TurnType,bool Reset=false);
 
-
 	UFUNCTION(BlueprintCallable, Category = "TrafficLightSim", meta = (ToolTip = "Build Intersecion Data"))
 	void QueryLaneOpenState(int32 LaneIndex,bool& OpenState,bool & IntersectionLane);
 
@@ -52,21 +48,31 @@ public:
 	void InitialCrossPhaseRow(UDataTable* DataTable, const FName& RowName, FCrossPhaseLaneData RowData);
 
 	UFUNCTION(BlueprintCallable, Category = "TrafficLightSim| CrossPhase")
-	void DebugCrossPhase(FName CrossPhaseName);
+	void DebugCrossPhase(TArray<int32> Lanes);
 
 	UFUNCTION(BlueprintCallable, Category = "TrafficLightSim| CrossPhase")
 	void GetNextLanesFromPhaseLane(int32 CurLaneIndex, TArray<int32>& NextLanes);
 
 	UFUNCTION(BlueprintCallable, Category = "TrafficLightSim| CrossPhase")
+	void SetPhaseLanesOpened(int32 ZoneIndex, TArray<int32> PhaseLanes);
+
+	UFUNCTION(BlueprintCallable, Category = "TrafficLightSim| CrossPhase")
 	void InitializeCrossPhaseLaneInfor(UDataTable* DataTable);
+
+	UFUNCTION(BlueprintCallable, Category = "TrafficLightSim| CrossPhase")
+	void SetCrossPhaseQueue(FString JsonStr);
 
 	void SetCrossBySignalState(int32 ZoneIndex,ETrafficSignalType SignalType,int32 SideIndex);
 
+	void GetPhaseLanesByZoneIndex(int32 ZoneIndex, TMap<FName, TArray<int32>>& PhaseLanes, FName& CrossID);
 
+	void RegisterCrossEntity(FName CrossName,FMassEntityHandle EntityHandle);
 
 
 	FZoneGraphTagFilter IntersectionTagFilter;
 	TMap<FName, FPhaseLanes> CrossPhaseLaneInfor;
+	TMap<int32, FIntersectionData> IntersectionDatas;
+	TMap<FName, FMassEntityHandle> CrossEntityHandleMap;
 
 
 private:

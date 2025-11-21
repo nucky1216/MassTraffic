@@ -54,13 +54,20 @@ void UTrafficLightInitProcessor::Execute(FMassEntityManager& EntityManager, FMas
 
 			int32& SideIndex = TrafficLightFragment.CurrentSide;
 			int32& ZoneIndex = TrafficLightFragment.ZoneIndex;
-			float& TimeInDuration = TrafficLightFragment.TimeInDuration;
+			double& TimeInDuration = TrafficLightFragment.TimeInDuration;
+
+			TrafficLightFragment.CrossID = InitData.Arr_CrossID[EntityIndex];
+
+			TrafficLightSubsystem->RegisterCrossEntity(TrafficLightFragment.CrossID,Context.GetEntity(EntityIndex));
 
 			ZoneIndex = InitData.ZoneIndex[EntityIndex];
 			SideIndex= InitData.StartSideIndex[EntityIndex];
 
 			ETrafficSignalType TrafficSignalType = TrafficLightFragment.CurrentLightState;
 			TimeInDuration = TrafficLightFragment.LightDurations[TrafficSignalType];
+
+			//Init the PhaseLanes
+			TrafficLightFragment.CrossPhaseLanes = InitData.Arr_PhaseLanes[EntityIndex];
 
 			//Init Light State
 			ETrafficSignalType& CurrentSignal = TrafficLightFragment.CurrentLightState;

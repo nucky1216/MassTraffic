@@ -1,16 +1,17 @@
 #include "CrossPhaseSetProcessor.h"
+#include "TrafficLightFragment.h"
 
-UCrossPhaseSetProcessor::UCrossPhaseSetProcessor()
+UCrossPhaseSetProcessor::UCrossPhaseSetProcessor():EntityQuery(*this)
 {
-	ExecuationOrder.ExecuteInGroup = FName(TEXT("TrafficLight"));
-	ExecuationOrder.ExecuteBefore.Add(FName(TEXT("TrafficLightCountingProcessor")));
+	ExecutionOrder.ExecuteInGroup = FName(TEXT("TrafficLight"));
+	ExecutionOrder.ExecuteBefore.Add(FName(TEXT("TrafficLightCountingProcessor")));
 
-	bAutoRegisterWithProcessoringPhase = true;
+	bAutoRegisterWithProcessingPhases = true;
 }
 
 void UCrossPhaseSetProcessor::ConfigureQueries()
 {
-	EntityQuery.AddRequirement<FTrafficLightFragment>(EMassFragmentAccess::ReadWirte);
+	EntityQuery.AddRequirement<FTrafficLightFragment>(EMassFragmentAccess::ReadWrite);
 }
 
 void UCrossPhaseSetProcessor::Initialize(UObject& Owner)
@@ -25,5 +26,13 @@ void UCrossPhaseSetProcessor::Initialize(UObject& Owner)
 
 void UCrossPhaseSetProcessor::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context)
 {
-	EntityManager;
+	if (EntityManager.IsEntityValid(EntityHandle) && EntityManager.IsEntityActive(EntityHandle))
+	{
+		FTrafficLightFragment& TLFrag = EntityManager.GetFragmentDataChecked<FTrafficLightFragment>(EntityHandle);
+
+		TLFrag.PhaseControll = true;
+		TLFrag.TimeInDuration = 0.0;
+		TLFrag.PhaseList = PhaseArray;
+
+	}
 }

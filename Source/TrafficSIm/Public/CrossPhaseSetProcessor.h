@@ -7,14 +7,18 @@
 UCLASS()
 class TRAFFICSIM_API UCrossPhaseSetProcessor : public UMassProcessor
 {
-	GENERATED_BODY();
+	GENERATED_BODY()
 public:
 	UCrossPhaseSetProcessor();
 	virtual void ConfigureQueries() override;
 	virtual void Initialize(UObject& Owner) override;
 	virtual void Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context) override;
+
+	TArray<TTuple<FName, double, double>> PhaseArray;
+	FMassEntityHandle EntityHandle;
 private:
 	UTrafficSimSubsystem* TrafficSimSubsystem;
-	FMassEntityHandle EntityHandle;
+	FMassEntityQuery EntityQuery;
+
 };
 

@@ -85,6 +85,10 @@ struct FTrafficLightInitData
 	TMap<ETrafficSignalType, float> Periods;
 	TArray<int32> ZoneIndex;
 	TArray<int32> StartSideIndex;
+
+	TArray<TMap<FName,TArray<int32>>> Arr_PhaseLanes;
+	TArray<FName> Arr_CrossID;
+
 };
 
 USTRUCT()
@@ -213,7 +217,8 @@ struct FPhaseLanes:public FTableRowBase
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TrafficSim")
 	int32 ZoneIndex;
-
+	FName CrossID;
+	FName PhaseName;
 	TArray<int32> PhaseLanes;
 
 };

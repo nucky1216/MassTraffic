@@ -46,49 +46,85 @@ void UTrafficLightCountingProcessor::Execute(FMassEntityManager& EntityManager, 
 		for (int32 i = 0; i < Context.GetNumEntities(); i++)
 		{
 			FTrafficLightFragment& TrafficLightFragment = TrafficLightFragments[i];
-			int32& SideIndex=TrafficLightFragment.CurrentSide;
-			float& TimeInDuration = TrafficLightFragment.TimeInDuration;
-
+			double& TimeInDuration = TrafficLightFragment.TimeInDuration;
 			TimeInDuration -= DeltaTime;
-			/*UE_LOG(LogTemp, Log, TEXT("UTrafficLightCountingProcessor::Execute: LeftTime=%f in ZoneIndex:%d"), 
-				TimeInDuration, TrafficLightFragment.ZoneIndex);*/
-			if(TimeInDuration <=0.f)
+
+			//Default to Auto Set Pass Lanes 
+			if(!TrafficLightFragment.PhaseControll)
 			{
-				ETrafficSignalType& CurrentSignal = TrafficLightFragment.CurrentLightState;
-				TArray<ETrafficSignalType> SignalSequence;
-				TrafficLightFragment.LightDurations.GetKeys(SignalSequence);
-				const FIntersectionData* IntersectionData = TrafficLightSubsystem->IntersectionDatas.Find(TrafficLightFragment.ZoneIndex);
-				if(!IntersectionData)
+				int32& SideIndex = TrafficLightFragment.CurrentSide;			
+				/*UE_LOG(LogTemp, Log, TEXT("UTrafficLightCountingProcessor::Execute: LeftTime=%f in ZoneIndex:%d"),
+					TimeInDuration, TrafficLightFragment.ZoneIndex);*/
+				if (TimeInDuration <= 0.f)
 				{
-					UE_LOG(LogTemp, Error, TEXT("UTrafficLightCountingProcessor::Execute: IntersectionData is null of ZoneIndex:%d"), TrafficLightFragment.ZoneIndex);
-					continue;
+					ETrafficSignalType& CurrentSignal = TrafficLightFragment.CurrentLightState;
+					TArray<ETrafficSignalType> SignalSequence;
+					TrafficLightFragment.LightDurations.GetKeys(SignalSequence);
+					const FIntersectionData* IntersectionData = TrafficLightSubsystem->IntersectionDatas.Find(TrafficLightFragment.ZoneIndex);
+					if (!IntersectionData)
+					{
+						UE_LOG(LogTemp, Error, TEXT("UTrafficLightCountingProcessor::Execute: IntersectionData is null of ZoneIndex:%d"), TrafficLightFragment.ZoneIndex);
+						continue;
+					}
+
+					int32 SequenceIndex = SignalSequence.IndexOfByKey(CurrentSignal);
+					if (SequenceIndex == INDEX_NONE)
+					{
+						UE_LOG(LogTemp, Error, TEXT("UTrafficLightCountingProcessor::Execute: SignalSequence.IndexOfByKey(CurrentSignal) returned INDEX_NONE"));
+						return;
+					}
+					else if (SequenceIndex + 1 < SignalSequence.Num())
+					{
+						SequenceIndex++;
+						CurrentSignal = SignalSequence[SequenceIndex];
+					}
+					else
+					{
+
+						SideIndex = (SideIndex + 1) % (*IntersectionData).Sides.Num();
+						CurrentSignal = SignalSequence[0];
+					}
+					TimeInDuration = TrafficLightFragment.LightDurations[CurrentSignal];
+
+					TrafficLightSubsystem->SetCrossBySignalState(TrafficLightFragment.ZoneIndex, CurrentSignal, SideIndex);
+					//TrafficLightSubsystem->DebugDrawState(TrafficLightFragment.ZoneIndex, TimeInDuration);
+
+
 				}
 
-				int32 SequenceIndex=SignalSequence.IndexOfByKey(CurrentSignal);
-				if(SequenceIndex==INDEX_NONE)
-				{
-					UE_LOG(LogTemp, Error, TEXT("UTrafficLightCountingProcessor::Execute: SignalSequence.IndexOfByKey(CurrentSignal) returned INDEX_NONE"));
-					return;
-				}
-				else if(SequenceIndex+1<SignalSequence.Num())
-				{
-					SequenceIndex++;
-					CurrentSignal = SignalSequence[SequenceIndex];
-				}
-				else
-				{
-					
-					SideIndex = (SideIndex + 1) % (*IntersectionData).Sides.Num();
-					CurrentSignal = SignalSequence[0];
-				}
-				TimeInDuration = TrafficLightFragment.LightDurations[CurrentSignal];
-				
-				TrafficLightSubsystem->SetCrossBySignalState(TrafficLightFragment.ZoneIndex, CurrentSignal, SideIndex);
-				//TrafficLightSubsystem->DebugDrawState(TrafficLightFragment.ZoneIndex, TimeInDuration);
-
-				
 			}
-			
+			//Set Pass Lanes By PhaseList
+			else
+			{
+
+				if(TimeInDuration <= 0.f)
+				{
+					if (TrafficLightFragment.PhaseList.Num()==0)
+					{
+						TrafficLightFragment.PhaseControll = false;
+						continue;
+					}
+					//set the next phase
+					TTuple<FName, double, double> CurPhase= TrafficLightFragment.PhaseList[0];
+					TrafficLightFragment.PhaseList.RemoveAt(0);
+
+					TimeInDuration = CurPhase.Get<2>()-CurPhase.Get<1>();
+					FName PhaseName = CurPhase.Get<0>();
+					//Set Open Lanes
+					if(!TrafficLightFragment.CrossPhaseLanes.Contains(PhaseName))
+					{
+						UE_LOG(LogTemp, Error, TEXT("UTrafficLightCountingProcessor::Execute: CrossPhaseLanes not contains PhaseName:%s"), *PhaseName.ToString());
+						continue;
+					}
+
+					TrafficLightSubsystem->SetPhaseLanesOpened(TrafficLightFragment.ZoneIndex, TrafficLightFragment.CrossPhaseLanes[PhaseName]);
+
+					//Debug
+					TrafficLightSubsystem->DebugCrossPhase(TrafficLightFragment.CrossPhaseLanes[PhaseName]);
+				}
+				
+
+			}
 			
 		}
 		});

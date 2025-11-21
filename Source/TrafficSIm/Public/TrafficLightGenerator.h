@@ -21,7 +21,8 @@ class TRAFFICSIM_API UTrafficLightGenerator : public UMassEntitySpawnDataGenerat
 	UPROPERTY(EditAnywhere,meta=(ToolTip="Intersection Tag Filter"))
 	FZoneGraphTagFilter IntersectionTagFilter;
 
-
+	UPROPERTY(EditAnywhere, meta = (ToolTip = "Phase Controlled Lanes"))
+	UDataTable* DT_PhaseLanes;
 	virtual void Generate(UObject& QueryOwner, TConstArrayView<FMassSpawnedEntityType> EntityTypes, int32 Count, FFinishedGeneratingSpawnDataSignature& FinishedGeneratingSpawnPointsDelegate) const override;
 
 };

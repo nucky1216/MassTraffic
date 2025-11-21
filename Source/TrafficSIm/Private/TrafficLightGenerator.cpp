@@ -48,6 +48,8 @@ void UTrafficLightGenerator::Generate(UObject& QueryOwner, TConstArrayView<FMass
 		}
 	}
 
+
+
 	//根据路口类型生成位置集合
 	TArray<FMassEntitySpawnDataGeneratorResult> Results;
 	BuildResultsFromEntityTypes(IntersectionPoints.Num(), EntityTypes, Results);
@@ -64,6 +66,13 @@ void UTrafficLightGenerator::Generate(UObject& QueryOwner, TConstArrayView<FMass
 		InitSpawnData.TrafficLightTransforms.Reserve(IntersectionPoints.Num());
 		InitSpawnData.ZoneIndex.Reserve(IntersectionPoints.Num());
 		InitSpawnData.StartSideIndex.Reserve(IntersectionPoints.Num());
+		InitSpawnData.Arr_PhaseLanes.Reserve(IntersectionPoints.Num());
+		InitSpawnData.Arr_CrossID.Reserve(IntersectionPoints.Num());
+
+		if (DT_PhaseLanes)
+		{
+			TrafficLightSubsystem->InitializeCrossPhaseLaneInfor(DT_PhaseLanes);
+		}
 
 
 		//auto* AssortedFragmentsTrait = EntityTypes[Result.EntityConfigIndex].EntityConfig->FindTrait<UMassAssortedFragmentsTrait>();
@@ -76,6 +85,15 @@ void UTrafficLightGenerator::Generate(UObject& QueryOwner, TConstArrayView<FMass
 			InitSpawnData.ZoneIndex.Add(IntersectionZoneIndices[LocationIndex]);
 			InitSpawnData.StartSideIndex.Add(0); //默认从路口第0边开始
 			
+			TMap<FName, TArray<int32>> PhaseLanes;
+			FName CrossID;
+			if(DT_PhaseLanes)
+			{
+				TrafficLightSubsystem->GetPhaseLanesByZoneIndex(IntersectionZoneIndices[LocationIndex], PhaseLanes, CrossID);
+			}
+			InitSpawnData.Arr_PhaseLanes.Add(PhaseLanes);
+			InitSpawnData.Arr_CrossID.Add(CrossID);
+
 			SpawnCount++;
 		}
 

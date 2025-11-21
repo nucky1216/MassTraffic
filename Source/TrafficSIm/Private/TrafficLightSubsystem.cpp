@@ -1,8 +1,12 @@
 #include "TrafficLightSubsystem.h"
 #include "ZoneGraphQuery.h"
 #include "ZoneGraphRenderingUtilities.h"
-
-
+#include "Serialization/JsonReader.h"
+#include "Serialization/JsonSerializer.h"
+#include "Dom/JsonObject.h"
+#include "MassEntitySubsystem.h"
+#include "CrossPhaseSetProcessor.h"
+#include "MassExecutor.h"
 
 void UTrafficLightSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -60,6 +64,8 @@ void UTrafficLightSubsystem::GetZoneGraphaData()
 void UTrafficLightSubsystem::BuildIntersectionsData(FZoneGraphTagFilter IntersectionTag)
 {
 	IntersectionTagFilter = IntersectionTag;
+	CrossEntityHandleMap.Empty();
+
 
 	GetZoneGraphaData();
 	if (!ZoneGraphStorage)
@@ -226,17 +232,12 @@ void UTrafficLightSubsystem::InitialCrossPhaseRow(UDataTable* DataTable, const F
 {
 	//CrossPhaseLaneInfor.Empty();
 
-	if (RowData.LaneIndices.Num() > 0 && RowData.LaneIndices[0] >= 0)
+	if (!ZoneGraphStorage)
 	{
-		RowData.ZoneIndex = ZoneGraphStorage->Lanes[RowData.LaneIndices[0]].ZoneIndex;
+		UE_LOG(LogTrafficLight, Error, TEXT("ZoneGraphStorage is not initialized! Cannot initialize cross phase row."));
+		return;
 	}
-	else
-		RowData.ZoneIndex = -1;
 
-	if(RowData.LaneIndices.Contains(-1))
-	{
-		RowData.ZoneIndex = -1;
-	}
 
 	TArray<int32> LaneIndices;
 	for (auto index : RowData.LaneIndices)
@@ -248,25 +249,33 @@ void UTrafficLightSubsystem::InitialCrossPhaseRow(UDataTable* DataTable, const F
 	}
 	RowData.LaneIndices = LaneIndices;
 
+	if (RowData.LaneIndices.Num() > 0 && RowData.LaneIndices[0] >= 0)
+	{
+		RowData.ZoneIndex = ZoneGraphStorage->Lanes[RowData.LaneIndices[0]].ZoneIndex;
+		//UE_LOG(LogTrafficLight, Log, TEXT("CrossID:%s ZoneIndex: % d from Lane : % d"), *RowData.CrossID.ToString(), RowData.ZoneIndex, RowData.LaneIndices[0]);
+	}
+	else
+		RowData.ZoneIndex = -1;
+
+	if (RowData.LaneIndices.Contains(-1))
+	{
+		RowData.ZoneIndex = -1;
+	}
+
 	DataTable->AddRow(RowName,RowData);
 
 }
 
-void UTrafficLightSubsystem::DebugCrossPhase(FName CrossPhaseName)
+void UTrafficLightSubsystem::DebugCrossPhase(TArray<int32> Lanes)
 {
-	FPhaseLanes* PhaseToLanes = CrossPhaseLaneInfor.Find(CrossPhaseName);
-	if(!PhaseToLanes)
-	{
-		UE_LOG(LogTrafficLight, Warning, TEXT("No cross phase lane info found for CrossName: %s"), *CrossPhaseName.ToString());
-		return;
-	}
+	
 	if (!ZoneGraphStorage)
 	{
 		UE_LOG(LogTrafficLight, Error, TEXT("ZoneGraphStorage is not initialized! Cannot debug cross phase."));
 		return;
 	}
 	
-	for(auto laneIndex: PhaseToLanes->PhaseLanes)
+	for(auto laneIndex: Lanes)
 	{
 
 		int32 PointBegin = ZoneGraphStorage->Lanes[laneIndex].PointsBegin;
@@ -353,10 +362,33 @@ void UTrafficLightSubsystem::SetCrossBySignalState(int32 ZoneIndex, ETrafficSign
 	}
 }
 
+void UTrafficLightSubsystem::GetPhaseLanesByZoneIndex(int32 ZoneIndex, TMap<FName, TArray<int32>>& PhaseLanes,FName& CrossID)
+{
+	if (CrossPhaseLaneInfor.Num() == 0)
+	{
+		UE_LOG(LogTrafficLight, Warning, TEXT("GetPhaseLanesByZoneIndex: Empty CrossPhaseLaneInfor!"));
+		return;
+	}
+
+	for (auto Pair : CrossPhaseLaneInfor)
+	{
+		if (Pair.Value.ZoneIndex == ZoneIndex)
+		{
+			PhaseLanes.Add(Pair.Value.PhaseName, Pair.Value.PhaseLanes);
+			CrossID = Pair.Value.CrossID;
+		}
+	}
+}
+
+void UTrafficLightSubsystem::RegisterCrossEntity(FName CrossName, FMassEntityHandle EntityHandle)
+{
+	CrossEntityHandleMap.Add(CrossName, EntityHandle);
+}
+
 void UTrafficLightSubsystem::InitializeCrossPhaseLaneInfor(UDataTable* DataTable)
 {
 	CrossPhaseLaneInfor.Empty();
-	UE_LOG(LogTrafficLight, Log, TEXT("Initializing CrossPhaseLaneInfor from DataTable: %s RowStructName:%s"), *DataTable->GetName(), *DataTable->GetRowStructName().ToString());
+	//UE_LOG(LogTrafficLight, Log, TEXT("Initializing CrossPhaseLaneInfor from DataTable: %s RowStructName:%s"), *DataTable->GetName(), *DataTable->GetRowStructName().ToString());
 	
 
 	for(auto& Row : DataTable->GetRowMap())
@@ -367,11 +399,77 @@ void UTrafficLightSubsystem::InitializeCrossPhaseLaneInfor(UDataTable* DataTable
 			continue;
 		}
 		FPhaseLanes PhaseLanes;
+		PhaseLanes.PhaseName = RowData->PhaseName;
+		PhaseLanes.CrossID = RowData->CrossID;
 		PhaseLanes.ZoneIndex = RowData->ZoneIndex;
 		PhaseLanes.PhaseLanes = RowData->LaneIndices;
 		FName Key = Row.Key;
 		CrossPhaseLaneInfor.Add(Key,PhaseLanes);
 	}
+}
+
+void UTrafficLightSubsystem::SetCrossPhaseQueue(FString JsonStr)
+{
+	TSharedPtr<FJsonObject> JsonObject;
+	const TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonStr);
+	if(!FJsonSerializer::Deserialize(Reader,JsonObject) || !JsonObject.IsValid())
+	{
+		UE_LOG(LogTrafficLight, Error, TEXT("TraffiLightSubsystem::SetCrossPhaseQueue: Failed to deserialize JSON string"));
+		return;
+	}
+
+
+	TSharedPtr<FJsonValue> CrossIDValue=JsonObject->TryGetField(FString(TEXT("cross_id")));
+	if (!CrossIDValue)
+	{
+		UE_LOG(LogTrafficLight, Warning, TEXT("TraffiLightSubsystem::SetCrossPhaseQueue: Failed to Get Value by Key:cross_id"));
+		return;
+	}
+	FName CrossID = FName(*CrossIDValue->AsString());
+
+	const TArray<TSharedPtr<FJsonValue>>* PhaseArrayValue = nullptr;
+	if (!JsonObject->TryGetArrayField(TEXT("phase_queue"), PhaseArrayValue) || !PhaseArrayValue)
+	{
+		UE_LOG(LogTrafficLight, Warning, TEXT("TraffiLightSubsystem::SetCrossPhaseQueue: Failed to Get Value by Key:phase_queue"));
+		return;
+	}
+	
+	TArray<TTuple<FName, double, double>> PhaseArray;
+	for (auto& Elem : *PhaseArrayValue)
+	{
+		FString PhaseName = Elem->AsObject()->GetStringField("phase");
+		FString StartTimeStr = Elem->AsObject()->GetStringField("phase_start_time");
+		FString EndTimeStr = Elem->AsObject()->GetStringField("phase_end_time");
+
+		FDateTime StartTime;
+		FDateTime::Parse(StartTimeStr, StartTime);
+		double StartTimeUnix = StartTime.ToUnixTimestampDecimal();
+
+		FDateTime EndTime;
+		FDateTime::Parse(EndTimeStr, EndTime);
+		double EndTimeUnix = EndTime.ToUnixTimestampDecimal();	
+
+		PhaseArray.Add(MakeTuple(FName(PhaseName), StartTimeUnix, EndTimeUnix));
+	}
+
+	UMassEntitySubsystem* EntitySubysem = GetWorld()->GetSubsystem<UMassEntitySubsystem>();
+	if(!EntitySubysem)
+	{
+		UE_LOG(LogTrafficLight, Error, TEXT("TraffiLightSubsystem::SetCrossPhaseQueue: Failed to get MassEntitySubsystem"));
+		return;
+	}
+	UCrossPhaseSetProcessor* Processor = NewObject<UCrossPhaseSetProcessor>(this);
+	if(CrossEntityHandleMap.Find(CrossID)==nullptr)
+	{
+		UE_LOG(LogTrafficLight, Warning, TEXT("TraffiLightSubsystem::SetCrossPhaseQueue: No EntityHandle found for CrossID:%s"), *CrossID.ToString());
+		return;
+	}
+	Processor->EntityHandle=CrossEntityHandleMap[CrossID];
+	Processor->PhaseArray = PhaseArray;
+
+	FMassEntityManager& EntityManager = EntitySubysem->GetMutableEntityManager();
+	FMassProcessingContext ProcessingContext(EntityManager, 0.f);
+	UE::Mass::Executor::Run(*Processor, ProcessingContext);
 }
 
 void UTrafficLightSubsystem::GetNextLanesFromPhaseLane(int32 CurLaneIndex, TArray<int32>& NextLanes)
@@ -396,6 +494,20 @@ void UTrafficLightSubsystem::GetNextLanesFromPhaseLane(int32 CurLaneIndex, TArra
 			NextLanes.Add(LinkData.DestLaneIndex);
 
 		}
+	}
+}
+
+void UTrafficLightSubsystem::SetPhaseLanesOpened(int32 ZoneIndex, TArray<int32> PhaseLanes)
+{
+	FIntersectionData* IntersectData=IntersectionDatas.Find(ZoneIndex);
+
+	if (IntersectData)
+	{
+		IntersectData->SetOpenLanes(PhaseLanes);
+	}
+	else
+	{
+		UE_LOG(LogTrafficLight, Warning, TEXT("SetPhaseLaneOpened: No intersection data found for ZoneIndex: %d"), ZoneIndex);
 	}
 }
 

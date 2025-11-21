@@ -32,9 +32,11 @@ struct TRAFFICSIM_API FTrafficLightFragment : public FMassFragment
 	UPROPERTY(EditAnywhere, Category = "Traffic Light")
 	ETrafficSignalType CurrentLightState = ETrafficSignalType::StraightAndRight;
 
-	float TimeInDuration = 0.f;
+	double TimeInDuration = 0.f;
 	int32 ZoneIndex;
+	FName CrossID;
 
+	bool PhaseControll =false;
 	TMap<FName,TArray<int32>> CrossPhaseLanes;
-	TArray<TTuple<FName, FDateTime, FDateTime>> PhaseList;
+	TArray<TTuple<FName, double, double>> PhaseList;
 };
