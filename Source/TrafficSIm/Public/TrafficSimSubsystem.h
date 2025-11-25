@@ -109,6 +109,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "TrafficSim| Clear")
 	void ClearAllEntities();
 
+	UFUNCTION(BlueprintCallable, Category = "TrafficSim| SpawnPoint")
+	void AddSpawnPointAtLane(int32 LaneIndex, float DistanceAlongLane, UMassEntityConfigAsset* EntityConfigAsset,TArray<FName> VehIDs);
+
+	void LineTraceEntity(FVector Start, FVector End);
+
 	bool SwitchToNextLane(FZoneGraphLaneLocation& LaneLocation, float NewDist);
 	bool FindFrontVehicle(int32 LaneIndex, int32 NextLaneIndex, FMassEntityHandle CurVehicle, const FMassVehicleMovementFragment*& FrontVehicle);
 	bool WaitForMergeVehilce(FMassVehicleMovementFragment* CurVehicle, const FMassVehicleMovementFragment*& AheadVehicle);

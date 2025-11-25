@@ -16,7 +16,8 @@
 #include "LaneCongestionAdjustProcessor.h"
 #include "ClearTagedEntitiesProcessor.h"
 #include "Algo/MaxElement.h" 
-
+#include "MassRepresentationSubsystem.h"
+#include "TrafficCommonFragments.h"
 DEFINE_LOG_CATEGORY(LogTrafficSim);
 
 
@@ -321,7 +322,8 @@ void UTrafficSimSubsystem::SpawnMassEntities(int32 NumEntities, int32 TargetLane
 		UMassSpawnLocationProcessor::StaticClass(), // 和 MassSpawner 一致
 		OutEntities);
 
-
+	FMassEntityManager& EntityManager = EntitySubsystem->GetMutableEntityManager();
+	
 }
 
 void UTrafficSimSubsystem::DeleteMassEntities(int32 TargeLaneIndex)
@@ -642,6 +644,76 @@ void UTrafficSimSubsystem::ClearAllEntities()
 	FMassEntityManager& EntityManager = EntitySubsystem->GetMutableEntityManager();
 	FMassProcessingContext ProcessingContext(EntityManager,0.f);
 	UE::Mass::Executor::Run(*ClearProcessor,ProcessingContext);
+}
+
+
+
+void UTrafficSimSubsystem::AddSpawnPointAtLane(int32 LaneIndex, float DistanceAlongLane, UMassEntityConfigAsset * EntityConfigAsset, TArray<FName> VehIDs)
+{
+		if (!World || !ZoneGraphStorage)
+		{
+			UE_LOG(LogTrafficSim, Warning, TEXT("AddSpawnPointAtLane: World or ZoneGraphStorage invalid."));
+			return;
+		}
+
+		UMassEntitySubsystem* EntitySubsystem = UWorld::GetSubsystem<UMassEntitySubsystem>(World);
+		if (!EntitySubsystem)
+		{
+			UE_LOG(LogTrafficSim, Warning, TEXT("AddSpawnPointAtLane: Failed to get EntitySubsystem."));
+			return;
+		}
+
+		if (!EntityConfigAsset)
+		{
+			UE_LOG(LogTrafficSim, Warning, TEXT("AddSpawnPointAtLane: EntityConfigAsset is null."));
+			return;
+		}
+
+		// 计算车道上的位置
+		FZoneGraphLaneLocation LaneLocation;
+		UE::ZoneGraph::Query::CalculateLocationAlongLane(*ZoneGraphStorage, LaneIndex, DistanceAlongLane, LaneLocation);
+
+		const FMassEntityTemplate& Template = EntityConfigAsset->GetOrCreateEntityTemplate(*World);
+		if (!Template.IsValid())
+		{
+			UE_LOG(LogTrafficSim, Error, TEXT("AddSpawnPointAtLane: Invalid entity template."));
+			return;
+		}
+
+		FMassEntityManager& EntityManager = EntitySubsystem->GetMutableEntityManager();
+
+		// 创建实体
+		FMassEntityHandle SpawnPointEntity = EntityManager.CreateEntity(Template.GetArchetype());
+
+
+		FTransformFragment& TransformFrag = EntityManager.GetFragmentDataChecked<FTransformFragment>(SpawnPointEntity);
+		FMassSpawnPointFragment& SpawnPointFrag = EntityManager.GetFragmentDataChecked<FMassSpawnPointFragment>(SpawnPointEntity);
+
+		TransformFrag.SetTransform(FTransform(LaneLocation.Position));
+		
+
+		// 初始化 Fragment
+		SpawnPointFrag.LaneLocation = LaneLocation;
+		SpawnPointFrag.Duration = 5.f;
+		SpawnPointFrag.RandOffset = 2.f;
+		SpawnPointFrag.Clock = 0.0;
+		SpawnPointFrag.NextVehicleType = 0; // 示例：默认指向第一个
+		SpawnPointFrag.VehicleIDs = VehIDs;
+
+		// 调试可视化
+		DrawDebugPoint(World, LaneLocation.Position, 30.f, FColor::Green, false, 6.f);
+
+		UE_LOG(LogTrafficSim, Log, TEXT("SpawnPoint entity created at Lane %d Dist %.2f EntitySN:%d VehIDs:%d"),
+			LaneIndex, DistanceAlongLane, SpawnPointEntity.SerialNumber, VehIDs.Num());
+	
+}
+
+void UTrafficSimSubsystem::LineTraceEntity(FVector Start, FVector End)
+{
+	UMassRepresentationSubsystem* Rep = UWorld::GetSubsystem<UMassRepresentationSubsystem>(World);
+
+	//Rep->GetEnt
+	
 }
 
 bool UTrafficSimSubsystem::SwitchToNextLane(FZoneGraphLaneLocation& LaneLocation, float NewDist)
