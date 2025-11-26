@@ -64,4 +64,6 @@ struct TRAFFICSIM_API FMassVehicleMovementFragment : public FMassFragment
 	FMassEntityHandle VehicleHandle;
 	float LeftDistance = 0.f;
     FZoneGraphTag LaneSpeedTag;
+
+    FName VehID;
 };

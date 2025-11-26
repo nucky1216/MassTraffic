@@ -45,6 +45,7 @@ public class TrafficSIm : ModuleRules
 				"MassEntity",
 				"ZoneGraph",
                 "MassCommon",
+				"MassActors",
 				"MassRepresentation",
                 "CesiumRuntime",
 				"MassLOD",

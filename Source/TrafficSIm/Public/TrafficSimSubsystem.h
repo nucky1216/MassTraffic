@@ -79,12 +79,13 @@ public:
 	void InitOnPostLoadMap(const UWorld::FActorsInitializedParams& Params);
 	void InitOnPostEditorWorld(UWorld* InWorld, UWorld::InitializationValues IVS);
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	virtual void Deinitialize() override;
 
 	UFUNCTION(BlueprintCallable, Category = "TrafficSim")
 	void GetZonesSeg(TArray<FVector> Points, FZoneGraphTag AnyTag, float Height, FDTRoadLanes& ZoneSegLanes);
 
 	UFUNCTION(BlueprintCallable, Category="TrafficSim")
-	void SpawnMassEntities(int32 NumEntities, int32 TargetLane, UMassEntityConfigAsset* EntityConfigAsset);
+	void FillVehsOnLane(int32 TargetLane,UPARAM(ref)TArray<FName>&VehIDs, UPARAM(ref)TArray<int32>&VehTypeIndice);
 	UFUNCTION(BlueprintCallable, Category="TrafficSim")
 	void DeleteMassEntities(int32 TargeLaneIndex);
 	UFUNCTION(BlueprintCallable, Category="TrafficSim| Debug")
@@ -112,6 +113,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "TrafficSim| SpawnPoint")
 	void AddSpawnPointAtLane(int32 LaneIndex, float DistanceAlongLane, UMassEntityConfigAsset* EntityConfigAsset,TArray<FName> VehIDs);
 
+	UFUNCTION(BlueprintCallable, Category = "Traffic|Mass")
+	FName GetVehIDFromActor(AActor* ClickedActor);
+
 	void LineTraceEntity(FVector Start, FVector End);
 
 	bool SwitchToNextLane(FZoneGraphLaneLocation& LaneLocation, float NewDist);
@@ -128,6 +132,8 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category="TrafficSim|Control")
 	void AdjustLaneCongestion(int32 LaneIndex, ELaneCongestionMetric MetricType, float TargetValue, UMassEntityConfigAsset* OptionalConfig, float StartDist,float EndDist,float MinSafetyGap = 200.f);
+
+
 
 
 	void TagLaneSpeedGapSetup(const TMap<FZoneGraphTag, FTagLaneSpeed>& InTagLaneSpeed,
@@ -149,4 +155,6 @@ public:
 
 	TMap<FZoneGraphTag, FTagLaneSpeed> TagLaneSpeed;
 	TMap<FZoneGraphTag, FTagLaneGap> TagLaneGap;
+
+
 };

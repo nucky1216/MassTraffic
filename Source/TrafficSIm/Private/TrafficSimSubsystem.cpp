@@ -18,6 +18,8 @@
 #include "Algo/MaxElement.h" 
 #include "MassRepresentationSubsystem.h"
 #include "TrafficCommonFragments.h"
+#include "Engine/InstancedStaticMesh.h"
+#include "MassActorSubsystem.h"
 DEFINE_LOG_CATEGORY(LogTrafficSim);
 
 
@@ -104,6 +106,17 @@ void UTrafficSimSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	}
 }
 
+void UTrafficSimSubsystem::Deinitialize()
+{
+	LaneToEntitiesMap.Empty();
+	AdjMergeLanes.Empty();
+	ZoneGraphStorage = nullptr;
+	mutableZoneGraphSotrage = nullptr;
+	ZoneGraphData = nullptr;
+
+	Super::Deinitialize();
+}
+
 void UTrafficSimSubsystem::GetZonesSeg(TArray<FVector> Points, FZoneGraphTag AnyTag,float Height, FDTRoadLanes& RoadLanes)
 {
 	if (!ZoneGraphStorage)
@@ -183,147 +196,143 @@ void UTrafficSimSubsystem::GetZonesSeg(TArray<FVector> Points, FZoneGraphTag Any
 	
 }
 
-void UTrafficSimSubsystem::SpawnMassEntities(int32 NumEntities, int32 TargetLane, UMassEntityConfigAsset* EntityConfigAsset)
+void UTrafficSimSubsystem::FillVehsOnLane(int32 TargetLane, UPARAM(ref)TArray<FName>& VehIDs, UPARAM(ref)TArray<int32>& VehTypeIndice)
 {
 	if (!ZoneGraphStorage)
 	{
-		UE_LOG(LogTrafficSim, Error, TEXT("ZoneGraphStorage is not initialized! Cannot spawn entities."));
+		UE_LOG(LogTrafficSim, Error, TEXT("ZoneGraphData is not initialized! Cannot fill vehicles on lane."));
 		return;
+	}
+	if (VehicleConfigTypes.Num() == 0)
+	{
+		UE_LOG(LogTrafficSim, Error, TEXT("VehicleConfigTypes is empty! Cannot fill vehicles on lane."));
+		return;
+	}
+	if (VehTypeIndice.Num() == 0)
+	{
+		UE_LOG(LogTrafficSim, Error, TEXT("VehTypeIndice is empty! Cannot fill vehicles on lane."));
+		return;
+	}
+
+	float LaneLength = 0.f;
+	UE::ZoneGraph::Query::GetLaneLength(*ZoneGraphStorage, TargetLane, LaneLength);
+
+	TArray<float> VehLengths, PrefixSum;
+	GetVehicleConfigs(VehLengths, PrefixSum);
+
+	struct FVehInfo
+	{
+		FName VehID;
+		FZoneGraphLaneLocation LaneLocation;
+		float DistAlongLane = 0.f;
+	};
+	TMultiMap<int32, FVehInfo> TypeToVehInfoMap;
+
+	float DerivedDist = LaneLength;
+	float MinGap = 100.f, MaxGap = 150; // TODO: 从配置中获取最小间距
+
+	for (int32 i = 0; i < VehTypeIndice.Num(); ++i)
+	{
+		const int32 TypeIndex = VehTypeIndice[i];
+		if (!VehLengths.IsValidIndex(TypeIndex))
+		{
+			UE_LOG(LogTrafficSim, Warning, TEXT("Invalid vehicle type index %d."), TypeIndex);
+			continue;
+		}
+
+		const float CurLength = VehLengths[TypeIndex];
+
+		float RandomGap = FMath::FRandRange(MinGap, MaxGap);
+		if (i == 0)
+		{
+			DerivedDist -= CurLength * 0.5f;
+		}
+		else
+		{
+			const float PrevLength = VehLengths[VehTypeIndice[i-1]];
+			DerivedDist -= (PrevLength * 0.5f + CurLength * 0.5f);
+		}
+		DerivedDist -= RandomGap;
+
+		if (DerivedDist <= 0)
+		{
+			break;
+		}
+
+		FZoneGraphLaneLocation LaneLocation;
+		UE::ZoneGraph::Query::CalculateLocationAlongLane(*ZoneGraphStorage, TargetLane, DerivedDist, LaneLocation);
+
+		FVehInfo Info;
+		Info.VehID = VehIDs.IsValidIndex(i) ? VehIDs[i] : FName(TEXT("Veh"));
+		Info.LaneLocation = LaneLocation;
+		Info.DistAlongLane = DerivedDist;
+
+		TypeToVehInfoMap.Add(TypeIndex, Info);
 	}
 
 	UMassEntitySubsystem* EntitySubsystem = UWorld::GetSubsystem<UMassEntitySubsystem>(World);
-
-
-	FZoneGraphTagFilter TagFilter;
-	//获取配置文件信息
-	const FMassEntityTemplate& Template = EntityConfigAsset->GetOrCreateEntityTemplate(*World);
-
-	float MaxGap = 0.0f, MinGap = 0.f;
-
-	for (auto fragment : Template.GetInitialFragmentValues())
+	if (!EntitySubsystem)
 	{
-		if (fragment.GetScriptStruct() == FMassVehicleMovementFragment::StaticStruct())
-		{
-			const FMassVehicleMovementFragment& VehicleMovementFragment = fragment.Get<FMassVehicleMovementFragment>();
-			MaxGap = VehicleMovementFragment.MaxGap;
-			MinGap = VehicleMovementFragment.MinGap;
-			TagFilter = VehicleMovementFragment.LaneFilter;
-			break;
-		}
-	}
-
-	const FZoneLaneData& LaneData= ZoneGraphStorage->Lanes[TargetLane];
-	const FZoneData& ZoneData=ZoneGraphStorage->Zones[LaneData.ZoneIndex];
-
-	if (!TagFilter.Pass(LaneData.Tags))
-	{
-		UE_LOG(LogTrafficSim, Error, TEXT("Target lane %d does not match the tag filter! Cannot spawn entities."), TargetLane);
+		UE_LOG(LogTrafficSim, Warning, TEXT("FillVehsOnLane: Failed to get EntitySubsystem."));
 		return;
 	}
-
-	int32 BeginLane = ZoneData.LanesBegin;
-	int32 EndLane = ZoneData.LanesEnd-1;
-
-
-	int32 LaneMid = (BeginLane + EndLane) / 2;
-	
-	if (TargetLane > LaneMid)
-	{
-		BeginLane = LaneMid+1;
-	}
-	else {
-		EndLane = LaneMid;
-	}
-	UE_LOG(LogTrafficSim, Log, TEXT("TargetLane:%d, BeginLane:%d, EndLane:%d, LaneMid:%d"),
-		TargetLane, BeginLane, EndLane, LaneMid);
-	//在道路一侧生成车辆实体
-
-	TArray<float> LaneLenths;
-	TArray<float> LaneOffsets;
-	//计算每条车道的长度和偏移量
-	for(int32 index=BeginLane; index<=EndLane; ++index)
-	{
-		FZoneGraphLaneLocation Location;
-		const FZoneLaneData& CandLaneData = ZoneGraphStorage->Lanes[index];
-		float laneLenth = 0.0f;
-		UE::ZoneGraph::Query::GetLaneLength(*ZoneGraphStorage, index, laneLenth);
-		LaneLenths.Add(laneLenth);
-		LaneOffsets.Add(FMath::RandRange(MinGap,MaxGap));
-	}
-	//采样生成位置
-	TArray<FVector> SpawnLocations;
-	for (int32 i = 0,SpawnCount=0; SpawnCount < NumEntities; )
-	{
-		float offset = LaneOffsets[i];
-		
-		if(offset>0 && offset<LaneLenths[i])
-		{
-			FZoneGraphLaneLocation LaneLocation;
-			UE::ZoneGraph::Query::CalculateLocationAlongLane(*ZoneGraphStorage, BeginLane+i, offset, LaneLocation);
-
-			LaneOffsets[i] = offset + FMath::RandRange(MinGap, MaxGap);
-
-			if(LaneOffsets[i]>=LaneLenths[i])
-			{
-				LaneOffsets[i] =-1.f;
-			}
-			SpawnLocations.Add(LaneLocation.Position);
-			DrawDebugPoint(World, LaneLocation.Position, 10.0f, FColor::Red, false, 5.0f);
-			SpawnCount++;
-		}
-
-		bool NoSpace = true;
-		for(int32 j=0;j<LaneOffsets.Num();++j)
-		{
-			if(LaneOffsets[j]>0.f)
-			{
-				NoSpace = false;
-				break;
-			}
-		}
-		if(NoSpace)
-		{
-			UE_LOG(LogTrafficSim, Warning, TEXT("No space left to spawn entities in the selected lanes."));
-			break;
-		}
-
-		i = (i + 1) % (LaneOffsets.Num());
-	}
-
-	//准备生成数据
-
-	// 1. 获取模板 ID
-	const FMassEntityTemplate& EntityTemplate = EntityConfigAsset->GetOrCreateEntityTemplate(*World);
-	if (!EntityTemplate.IsValid())
-	{
-		UE_LOG(LogTrafficSim, Error, TEXT("Invalid EntityTemplate"));
-		return;
-	}
-
-	// 2. 构建批量 SpawnData
-	FInstancedStruct SpawnData;
-	SpawnData.InitializeAs<FMassTransformsSpawnData>();
-	FMassTransformsSpawnData& Transforms = SpawnData.GetMutable<FMassTransformsSpawnData>();
-
-	Transforms.Transforms.Reserve(SpawnLocations.Num());
-	for (const FVector& Loc : SpawnLocations)
-	{
-		FTransform& Transform = Transforms.Transforms.AddDefaulted_GetRef();
-		Transform.SetLocation(Loc);
-	}
-
-	// 3. 调用批量 Spawn
-	UMassSpawnerSubsystem* SpawnerSubsystem = UWorld::GetSubsystem<UMassSpawnerSubsystem>(World);
-	TArray<FMassEntityHandle> OutEntities;
-	SpawnerSubsystem->SpawnEntities(
-		EntityTemplate.GetTemplateID(),
-		SpawnLocations.Num(),
-		SpawnData,
-		UMassSpawnLocationProcessor::StaticClass(), // 和 MassSpawner 一致
-		OutEntities);
-
 	FMassEntityManager& EntityManager = EntitySubsystem->GetMutableEntityManager();
-	
+
+	TSet<int32> UniqueTypeIndices;
+	for (auto& Pair : TypeToVehInfoMap)
+	{
+		UniqueTypeIndices.Add(Pair.Key);
+	}
+
+
+
+	// 在一个自定义 Processor 或合适初始化阶段调用
+	EntityManager.Defer().PushCommand<FMassDeferredCreateCommand>(
+		[this,UniqueTypeIndices, TypeToVehInfoMap, TargetLane,LaneLength](FMassEntityManager& System) mutable
+		{
+			for (int32 TypeIndex : UniqueTypeIndices)
+			{
+				if (!EntityTemplates.IsValidIndex(TypeIndex))
+				{
+					UE_LOG(LogTrafficSim, Warning, TEXT("Invalid type index %d."), TypeIndex);
+					continue;
+				}
+				TArray<FVehInfo> VehInfos;
+				TypeToVehInfoMap.MultiFind(TypeIndex, VehInfos);
+				if (VehInfos.Num() == 0)
+				{
+					continue;
+				}
+				const FMassEntityTemplate& Template = *EntityTemplates[TypeIndex];
+				const FMassArchetypeSharedFragmentValues& SharedValues = Template.GetSharedFragmentValues();
+
+				TArray<FMassEntityHandle> SpawnedEntities;
+				TSharedRef<FMassEntityManager::FEntityCreationContext> CreationContext = System.BatchCreateEntities(Template.GetArchetype(), SharedValues, VehInfos.Num(), SpawnedEntities);
+				System.BatchSetEntityFragmentsValues(CreationContext->GetEntityCollection(), Template.GetInitialFragmentValues());
+
+				for (int32 i = 0; i < SpawnedEntities.Num(); ++i)
+				{
+					const FMassEntityHandle Entity = SpawnedEntities[i];
+					FTransformFragment& TransformFrag = System.GetFragmentDataChecked<FTransformFragment>(Entity);
+					FMassVehicleMovementFragment& MovementFrag = System.GetFragmentDataChecked<FMassVehicleMovementFragment>(Entity);
+
+					FTransform T(VehInfos[i].LaneLocation.Position);
+					TransformFrag.SetTransform(T);
+
+
+					MovementFrag.LaneLocation = VehInfos[i].LaneLocation;
+					MovementFrag.DistanceAlongLane = VehInfos[i].DistAlongLane;
+					MovementFrag.LeftDistance = LaneLength - VehInfos[i].DistAlongLane;
+					MovementFrag.VehID = VehInfos[i].VehID;
+					MovementFrag.Speed = 0.f;
+					MovementFrag.TargetSpeed = MovementFrag.MaxSpeed;
+					TArray<int32> NextLanes;
+					MovementFrag.NextLane = ChooseNextLane(TargetLane, NextLanes);
+
+				}
+			}
+		}
+	);
 }
 
 void UTrafficSimSubsystem::DeleteMassEntities(int32 TargeLaneIndex)
@@ -646,8 +655,6 @@ void UTrafficSimSubsystem::ClearAllEntities()
 	UE::Mass::Executor::Run(*ClearProcessor,ProcessingContext);
 }
 
-
-
 void UTrafficSimSubsystem::AddSpawnPointAtLane(int32 LaneIndex, float DistanceAlongLane, UMassEntityConfigAsset * EntityConfigAsset, TArray<FName> VehIDs)
 {
 		if (!World || !ZoneGraphStorage)
@@ -682,7 +689,7 @@ void UTrafficSimSubsystem::AddSpawnPointAtLane(int32 LaneIndex, float DistanceAl
 
 		FMassEntityManager& EntityManager = EntitySubsystem->GetMutableEntityManager();
 
-		// 创建实体
+		// 创建生成点实体
 		FMassEntityHandle SpawnPointEntity = EntityManager.CreateEntity(Template.GetArchetype());
 
 
@@ -708,11 +715,68 @@ void UTrafficSimSubsystem::AddSpawnPointAtLane(int32 LaneIndex, float DistanceAl
 	
 }
 
+FName UTrafficSimSubsystem::GetVehIDFromActor(AActor* ClickedActor)
+{
+
+		if (!ClickedActor)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("GetVehIDFromActor: ClickedActor is null"));
+			return NAME_None;
+		}
+
+		//UWorld* World = ClickedActor->GetWorld();
+		if (!World)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("GetVehIDFromActor: World is null"));
+			return NAME_None;
+		}
+
+		// 获取MassActorSubsystem
+		UMassActorSubsystem* MassActorSubsystem = World->GetSubsystem<UMassActorSubsystem>();
+		if (!MassActorSubsystem)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("GetVehIDFromActor: MassActorSubsystem not found"));
+			return NAME_None;
+		}
+
+		// 获取MassEntitySubsystem
+		UMassEntitySubsystem* MassEntitySubsystem = World->GetSubsystem<UMassEntitySubsystem>();
+		if (!MassEntitySubsystem)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("GetVehIDFromActor: MassEntitySubsystem not found"));
+			return NAME_None;
+		}
+
+		// 从Actor获取实体句柄
+		FMassEntityHandle EntityHandle = MassActorSubsystem->GetEntityHandleFromActor(ClickedActor);
+		if (!EntityHandle.IsValid())
+		{
+			UE_LOG(LogTemp, Warning, TEXT("GetVehIDFromActor: No valid entity handle found for actor %s"),
+				*ClickedActor->GetName());
+			return NAME_None;
+		}
+		UE_LOG(LogTrafficSim, Log, TEXT("Get Valid Handle:%d"), EntityHandle.SerialNumber);
+		// 获取实体的VehicleMovementFragment来获取VehID
+		const FMassVehicleMovementFragment* VehicleMovementFragment =
+			MassEntitySubsystem->GetEntityManager().GetFragmentDataPtr<FMassVehicleMovementFragment>(EntityHandle);
+
+		if (VehicleMovementFragment)
+		{
+			UE_LOG(LogTemp, Log, TEXT("GetVehIDFromActor: Found VehID %s for actor %s"),
+				*VehicleMovementFragment->VehID.ToString(), *ClickedActor->GetName());
+			return VehicleMovementFragment->VehID;
+		}
+
+		UE_LOG(LogTemp, Warning, TEXT("GetVehIDFromActor: No VehicleMovementFragment found for entity"));
+		return NAME_None;
+	
+}
+
 void UTrafficSimSubsystem::LineTraceEntity(FVector Start, FVector End)
 {
-	UMassRepresentationSubsystem* Rep = UWorld::GetSubsystem<UMassRepresentationSubsystem>(World);
 
-	//Rep->GetEnt
+	UMassRepresentationSubsystem* RepSub = UWorld::GetSubsystem<UMassRepresentationSubsystem>(World);
+
 	
 }
 
@@ -902,8 +966,10 @@ void UTrafficSimSubsystem::CollectAdjMergeLanes()
 	if (!ZoneGraphStorage)
 	{
 		UE_LOG(LogTrafficSim, Warning, TEXT("Failed to Get ZoneGraphStorage when CollectAdjMergeLanes!"));
+		return;
 	}
-	for (int32 i = 0; i < ZoneGraphStorage->Lanes.Num(); i++)
+	int32 LaneCount = ZoneGraphStorage->Lanes.Num();
+	for (int32 i = 0; i < LaneCount; i++)
 	{
 		const FZoneLaneData& Lane = ZoneGraphStorage->Lanes[i];
 		TArray<int32> AdjMergeLaneArr;
@@ -1043,10 +1109,13 @@ void UTrafficSimSubsystem::InitOnPostEditorWorld(UWorld* InWorld, UWorld::Initia
 
 	for (TActorIterator<AZoneGraphData> It(World); It; ++It)
 	{
-		const AZoneGraphData* ZoneGraphDataTemp = *It;
-		if (ZoneGraphDataTemp && ZoneGraphDataTemp->IsValidLowLevel())
+		AZoneGraphData* ZoneGraphDataTemp = *It;
+		if (IsValid(ZoneGraphDataTemp))
 		{
 			ZoneGraphStorage = &ZoneGraphDataTemp->GetStorage();
+			mutableZoneGraphSotrage = &ZoneGraphDataTemp->GetStorageMutable();
+			ZoneGraphData = ZoneGraphDataTemp;
+
 			InitializeLaneToEntitiesMap();
 			return;
 		}
@@ -1108,3 +1177,5 @@ float UTrafficSimSubsystem::GetLaneSpeedByTag(FZoneGraphTagMask LaneTagMask, flo
 	ZoneLaneTag = FZoneGraphTag::None;
 	return  FMath::RandRange(40.f, 60.f);;
 }
+
+
