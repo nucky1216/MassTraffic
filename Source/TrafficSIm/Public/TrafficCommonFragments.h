@@ -25,5 +25,7 @@ struct TRAFFICSIM_API FMassSpawnPointFragment : public FMassFragment
 
 
 	TArray<FName> VehicleIDs;
-	int32 CurrentVehicleIndex = -1;
+	int32 SpawnVehicleIDIndex = -1;
+	TArray<int32> VehicleTypes;
+	bool Controlled = false;
 };

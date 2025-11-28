@@ -49,7 +49,8 @@ public class TrafficSIm : ModuleRules
 				"MassRepresentation",
                 "CesiumRuntime",
 				"MassLOD",
-                "HTTP"
+                "HTTP",
+				"JsonLibrary"
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);

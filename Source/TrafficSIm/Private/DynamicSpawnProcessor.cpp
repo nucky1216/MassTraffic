@@ -17,7 +17,8 @@ UDynamicSpawnProcessor::UDynamicSpawnProcessor() :EntityQuery(*this)
 {
 	ExecutionOrder.ExecuteInGroup = FName(TEXT("TrafficSim"));
 	//ExecutionOrder.ExecuteAfter.Add(FName(TEXT("VehicleMovementProcessor")));
-	ExecutionOrder.ExecuteBefore.Add(FName(TEXT("VehicleParamsInitProcessor")));
+	ExecutionOrder.ExecuteAfter.Add(FName(TEXT("CollectLaneVehiclesProcessor")));
+	//ExecutionOrder.ExecuteBefore.Add(FName(TEXT("VehicleParamsInitProcessor")));
 	ProcessingPhase = EMassProcessingPhase::EndPhysics; // 修改为 PostPhysics 阶段
 	bAutoRegisterWithProcessingPhases = true;
 }
@@ -56,7 +57,12 @@ void UDynamicSpawnProcessor::Execute(FMassEntityManager& EntityManager, FMassExe
 		UE_LOG(LogTrafficSim, Warning, TEXT("No Vehicle Config"));
 		return;
 	}
-	TMultiMap<int32,FZoneGraphLaneLocation> ReadySpawnLocs;
+
+	TArray<FName> NewSpawnVehIDs;
+	TArray<int32> NewSpawnVehTypeIndex;
+	TArray<FVector> NewSpawnLocations;
+
+	TMultiMap<int32,TTuple<FZoneGraphLaneLocation,FName>> ReadySpawnLocs;
 	auto SelectRandomItem = [&]()
 		{
 			float R = FMath::FRand(); // 生成 0~1 的随机数
@@ -70,6 +76,8 @@ void UDynamicSpawnProcessor::Execute(FMassEntityManager& EntityManager, FMassExe
 			return PrefixSum.Num() - 1; // 理论上不会走到这里
 		};
 
+	TArray<FMassEntityHandle> ToDeleteEntities;
+
 	EntityQuery.ForEachEntityChunk(EntityManager, Context, [&](FMassExecutionContext& Context)
 		{
 			auto LaneLocations = Context.GetMutableFragmentView<FMassSpawnPointFragment>();
@@ -80,6 +88,7 @@ void UDynamicSpawnProcessor::Execute(FMassEntityManager& EntityManager, FMassExe
 			{
 				auto& Frag = LaneLocations[i];
 				float& Clock = Configs[i].Clock;
+				auto& Config = Configs[i];
 
 				Clock -= DeltaTime;
 				if (Clock <= 0)
@@ -102,30 +111,58 @@ void UDynamicSpawnProcessor::Execute(FMassEntityManager& EntityManager, FMassExe
 						LeftSpace = LastVehicle.VehicleMovementFragment.LaneLocation.DistanceAlongLane - LastVehicle.VehicleMovementFragment.VehicleLength;
 					}
 
-					if (Frag.NextVehicleType < 0)
+					FName VehID = TEXT("None");
+					if (Configs[i].Controlled)
 					{
-						Frag.NextVehicleType = SelectRandomItem();
+						if (Config.SpawnVehicleIDIndex >= Config.VehicleIDs.Num())
+						{
+							ToDeleteEntities.Add(Context.GetEntity(i));
+							Configs[i].Controlled = false;
+							break;
+						}
+						VehID = Config.VehicleIDs[Config.SpawnVehicleIDIndex];
+
+						Frag.NextVehicleType = Config.VehicleTypes[Config.SpawnVehicleIDIndex];
+
+
+					}
+					else {
+						if (Frag.NextVehicleType < 0)
+						{
+							Frag.NextVehicleType = SelectRandomItem();
+						}
 					}
 
+					LeftSpace -= LaneLocation.DistanceAlongLane;
 					if (LeftSpace > VehicleLenth[Frag.NextVehicleType])
 					{
-						ReadySpawnLocs.Add(Frag.NextVehicleType, LaneLocation);
+
+						ReadySpawnLocs.Add(Frag.NextVehicleType, MakeTuple(LaneLocation, VehID));
 						Frag.NextVehicleType = -1;
 
-						//TArray<FColor> Colors = {FColor::Red,FColor::Blue,FColor::Green};
-						//DrawDebugBox(Context.GetWorld(), LaneLocation.Position, FVector(VehicleLenth[SpawnConfigIndex], 20, 20), Colors[SpawnConfigIndex]
-						//	, false, 20.f, 0, 10.f);
+						if (Configs[i].Controlled)
+						{
+							NewSpawnVehIDs.Add(VehID);
+							NewSpawnVehTypeIndex.Add(Config.VehicleTypes[Config.SpawnVehicleIDIndex]);
+							NewSpawnLocations.Add(LaneLocation.Position);
+							Config.SpawnVehicleIDIndex++;
+						}
 					}
 
-					Clock = Configs[i].Duration+FMath::RandRange(0.f,Configs[i].RandOffset);
+					Clock = Config.Duration+FMath::RandRange(0.f,Config.RandOffset);
 				}
-
 
 			}
 		}
 
 	);
 
+	if(ToDeleteEntities.Num()>0)
+	{
+
+		EntityManager.Defer().DestroyEntities(ToDeleteEntities);
+		
+	}
 
 	if (ReadySpawnLocs.Num() > 0)
 	{
@@ -133,7 +170,7 @@ void UDynamicSpawnProcessor::Execute(FMassEntityManager& EntityManager, FMassExe
 		ReadySpawnLocs.GetKeys(Keys);
 		for (auto Key : Keys)
 		{
-			TArray<FZoneGraphLaneLocation> LaneLocations;
+			TArray<TTuple<FZoneGraphLaneLocation,FName>> LaneLocations;
 			ReadySpawnLocs.MultiFind(Key, LaneLocations);
 
 			if (LaneLocations.Num() <= 0)
@@ -154,12 +191,13 @@ void UDynamicSpawnProcessor::Execute(FMassEntityManager& EntityManager, FMassExe
 			{
 				UE_LOG(LogTemp, Warning, TEXT("No RepresentationSubsystem found"));
 				return;
-			}
+			}			
 			
+			TrafficSimSubsystem->OnEntitySpawned.Broadcast(NewSpawnVehIDs, NewSpawnVehTypeIndex,NewSpawnLocations);
 
 			// Capture by value to ensure safety until deferred execution
 			int32 ConfigIndexCopy = Key;
-			TArray<FZoneGraphLaneLocation> LaneLocationsCopy = LaneLocations;
+			TArray<TTuple<FZoneGraphLaneLocation,FName>> LaneLocationsCopy = LaneLocations;
 			TWeakObjectPtr<UTrafficSimSubsystem> WeakTrafficSim = TrafficSimSubsystem;
 			TWeakObjectPtr<UMassRepresentationSubsystem> WeakRepSubsystem = RepSubsystem;
 
@@ -181,9 +219,11 @@ void UDynamicSpawnProcessor::Execute(FMassEntityManager& EntityManager, FMassExe
 				UWorld* World = System.GetWorld();
 				UTrafficSimSubsystem* TrafficSimSubsystemLocal = World ? World->GetSubsystem<UTrafficSimSubsystem>() : nullptr;
 
+			
+
 				for (int32 i = 0; i < NewEntities.Num(); ++i)
 				{
-					const FZoneGraphLaneLocation& LaneLoc = LaneLocationsCopy[i];
+					const FZoneGraphLaneLocation& LaneLoc = LaneLocationsCopy[i].Get<0>();
 					FMassVehicleMovementFragment& MoveFrag = System.GetFragmentDataChecked<FMassVehicleMovementFragment>(NewEntities[i]);
 					FTransformFragment& TransformFrag = System.GetFragmentDataChecked<FTransformFragment>(NewEntities[i]);
 					const FMassRepresentationFragment& Representation = System.GetFragmentDataChecked<FMassRepresentationFragment>(NewEntities[i]);
@@ -201,7 +241,8 @@ void UDynamicSpawnProcessor::Execute(FMassEntityManager& EntityManager, FMassExe
 						MoveFrag.LaneSpeedTag);
 					MoveFrag.TargetSpeed = FMath::RandRange(MoveFrag.MinSpeed, MoveFrag.MaxSpeed);
 					MoveFrag.Speed = FMath::RandRange(MoveFrag.MinSpeed, MoveFrag.TargetSpeed);
-
+					MoveFrag.VehID = LaneLocationsCopy[i].Get<1>();
+					
 					if(MoveFrag.Speed==0.0 || MoveFrag.TargetSpeed==0.0)
 					{
 						UE_LOG(LogTrafficSim, Warning, TEXT("Spawned Vehicle with Zero Speed on Lane %d"), LaneLoc.LaneHandle.Index);

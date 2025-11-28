@@ -21,39 +21,11 @@ enum class ELaneCongestionMetric : uint8;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogTrafficSim, Log, All);
 
-USTRUCT()
-struct FLaneVehicle
-{
-	GENERATED_BODY()
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnEntitySpawned, 
+	const TArray<FName>&,VehIDs,
+	const TArray<int32>&,VehTypes,
+	const TArray<FVector>&,VehPositions);
 
-	FMassEntityHandle EntityHandle;
-	FMassVehicleMovementFragment VehicleMovementFragment;
-
-	FLaneVehicle() = default;
-
-	FLaneVehicle(FMassEntityHandle InEntity, const FMassVehicleMovementFragment& InFrag)
-		: EntityHandle(InEntity)
-	{
-
-			VehicleMovementFragment.Accelaration =		InFrag.Accelaration;
-			VehicleMovementFragment.CrossStopDistance = InFrag.CrossStopDistance;
-			VehicleMovementFragment.Decelaration =		InFrag.Decelaration;
-			VehicleMovementFragment.DistanceAlongLane = InFrag.DistanceAlongLane;
-			VehicleMovementFragment.LaneFilter =		InFrag.LaneFilter;
-			VehicleMovementFragment.LaneLocation =		InFrag.LaneLocation;
-			VehicleMovementFragment.LeftDistance =		InFrag.LeftDistance;
-			VehicleMovementFragment.MaxGap =			InFrag.MaxGap;
-			VehicleMovementFragment.MaxSpeed =			InFrag.MaxSpeed;
-			VehicleMovementFragment.MinGap =			InFrag.MinGap;
-			VehicleMovementFragment.MinSpeed =			InFrag.MinSpeed;
-			VehicleMovementFragment.NextLane =			InFrag.NextLane;
-			VehicleMovementFragment.QueryExtent =		InFrag.QueryExtent;
-			VehicleMovementFragment.Speed =				InFrag.Speed;
-			VehicleMovementFragment.TargetSpeed =		InFrag.TargetSpeed;
-			VehicleMovementFragment.VehicleHandle =		InFrag.VehicleHandle;
-			VehicleMovementFragment.VehicleLength =		InFrag.VehicleLength;
-		}
-};
 
 namespace TrafficSim::MoveFrag::Debug {
 
@@ -68,7 +40,39 @@ namespace TrafficSim::MoveFrag::Debug {
 	};
 
 } // UE::ZoneGraph::Debug
+USTRUCT()
+struct FLaneVehicle
+{
+	GENERATED_BODY()
 
+	FMassEntityHandle EntityHandle;
+	FMassVehicleMovementFragment VehicleMovementFragment;
+
+	FLaneVehicle() = default;
+
+	FLaneVehicle(FMassEntityHandle InEntity, const FMassVehicleMovementFragment& InFrag)
+		: EntityHandle(InEntity)
+	{
+
+		VehicleMovementFragment.Accelaration = InFrag.Accelaration;
+		VehicleMovementFragment.CrossStopDistance = InFrag.CrossStopDistance;
+		VehicleMovementFragment.Decelaration = InFrag.Decelaration;
+		VehicleMovementFragment.DistanceAlongLane = InFrag.DistanceAlongLane;
+		VehicleMovementFragment.LaneFilter = InFrag.LaneFilter;
+		VehicleMovementFragment.LaneLocation = InFrag.LaneLocation;
+		VehicleMovementFragment.LeftDistance = InFrag.LeftDistance;
+		VehicleMovementFragment.MaxGap = InFrag.MaxGap;
+		VehicleMovementFragment.MaxSpeed = InFrag.MaxSpeed;
+		VehicleMovementFragment.MinGap = InFrag.MinGap;
+		VehicleMovementFragment.MinSpeed = InFrag.MinSpeed;
+		VehicleMovementFragment.NextLane = InFrag.NextLane;
+		VehicleMovementFragment.QueryExtent = InFrag.QueryExtent;
+		VehicleMovementFragment.Speed = InFrag.Speed;
+		VehicleMovementFragment.TargetSpeed = InFrag.TargetSpeed;
+		VehicleMovementFragment.VehicleHandle = InFrag.VehicleHandle;
+		VehicleMovementFragment.VehicleLength = InFrag.VehicleLength;
+	}
+};
 UCLASS()
 class TRAFFICSIM_API UTrafficSimSubsystem : public UWorldSubsystem
 {
@@ -81,11 +85,21 @@ public:
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
 
+	UPROPERTY(BlueprintAssignable, Category = "TrafficSim|Event")
+	FOnEntitySpawned OnEntitySpawned;
+
+
+	UFUNCTION(BlueprintCallable, Category = "TrafficSim| RoadToLane| Utilities")
+	void RoadToLaneIndice(UPARAM(ref)UDataTable* RoadToLaneIndiceMap,FName RoadID,TArray<FVector> RoadPoints ,FZoneGraphTag AnyTag, float Height);
+
+
 	UFUNCTION(BlueprintCallable, Category = "TrafficSim")
 	void GetZonesSeg(TArray<FVector> Points, FZoneGraphTag AnyTag, float Height, FDTRoadLanes& ZoneSegLanes);
 
 	UFUNCTION(BlueprintCallable, Category="TrafficSim")
-	void FillVehsOnLane(int32 TargetLane,UPARAM(ref)TArray<FName>&VehIDs, UPARAM(ref)TArray<int32>&VehTypeIndice);
+	void FillVehsOnLane(TArray<int32> LaneIndice, TArray<float> StartDist, TArray<float> EndDist,
+		UPARAM(ref)TArray<FName>& VehIDs, UPARAM(ref)TArray<int32>& VehTypeIndice, TArray<FName>& UsedVehIDs, TArray<int32>& UsedVehTypes);
+
 	UFUNCTION(BlueprintCallable, Category="TrafficSim")
 	void DeleteMassEntities(int32 TargeLaneIndex);
 	UFUNCTION(BlueprintCallable, Category="TrafficSim| Debug")
@@ -94,6 +108,7 @@ public:
 	void PrintLaneLinks(int32 TargetLaneIndex);
 	UFUNCTION(BlueprintCallable, Category="TrafficSim| Debug")
 	void InitializeManual();
+
 	UFUNCTION(BlueprintCallable, Category="TrafficSim| Test")
 	void DebugEntity(int32 TargetLane, int32 EntitySN);
 
@@ -111,7 +126,7 @@ public:
 	void ClearAllEntities();
 
 	UFUNCTION(BlueprintCallable, Category = "TrafficSim| SpawnPoint")
-	void AddSpawnPointAtLane(int32 LaneIndex, float DistanceAlongLane, UMassEntityConfigAsset* EntityConfigAsset,TArray<FName> VehIDs);
+	void AddSpawnPointAtLane(int32 LaneIndex, float DistanceAlongLane, UMassEntityConfigAsset* EntityConfigAsset,TArray<FName> VehIDs,TArray<int32> VehTypes);
 
 	UFUNCTION(BlueprintCallable, Category = "Traffic|Mass")
 	FName GetVehIDFromActor(AActor* ClickedActor);

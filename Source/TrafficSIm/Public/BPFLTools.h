@@ -7,6 +7,7 @@
 #include "CesiumGeoreference.h"
 #include "Engine/DataTable.h"
 #include "ZoneGraphTypes.h"
+#include "JsonLibraryHelpers.h"
 #include "TrafficTypes.h"
 #include "Components/SplineComponent.h"
 #include "BPFLTools.generated.h"
@@ -23,6 +24,7 @@ public:
 	// Blueprint dynamic delegate for HTTP responses
 	DECLARE_DYNAMIC_DELEGATE_ThreeParams(FOnHttpResponseBP, int32, StatusCode, const FString&, Content, bool, bWasSuccessful);
 	DECLARE_DYNAMIC_DELEGATE_OneParam(FOnDataTableFinished, UDataTable*, RoadDT);
+	DECLARE_DYNAMIC_DELEGATE_OneParam(FOnJsonDeserializeFinished, const TArray<FOutterLaneVehicle>&, VehicleInitDatas);
 
 	UFUNCTION(BlueprintCallable, Category = "DataTable")
 	static void JsonToDT(const TArray<uint8>& RawData , UPARAM(ref)UDataTable*& LaneMap,FOnDataTableFinished OnFinished);
@@ -45,4 +47,7 @@ public:
 
 	UFUNCTION(BlueprintCallAble, Category = "MatchCrossLanes")
 	static void ClearDT(UDataTable* DataTable);
+
+	UFUNCTION(BlueprintCallAble, Category = "Json/Deserialize")
+	static void DeserializeOutterLaneVehicles(FJsonLibraryObject JsonObject, FOnJsonDeserializeFinished OnFinished);
 };

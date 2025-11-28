@@ -221,3 +221,54 @@ void UBPFLTools::ClearDT(UDataTable* DataTable)
 {
 	DataTable->EmptyTable();
 }
+
+void UBPFLTools::DeserializeOutterLaneVehicles(FJsonLibraryObject JsonObject, FOnJsonDeserializeFinished OnFinished)
+{
+	// 整个解析放到后台，按值捕获 JsonObject 确保其生命周期覆盖
+	Async(EAsyncExecution::ThreadPool, [JsonObject, OnFinished]() mutable
+		{
+			// 在后台线程重新取列表，避免使用已失效的 List
+			FJsonLibraryList List = JsonObject.GetList(TEXT("lane_flows"));
+			const int32 Count = List.Count();
+
+			// 结果数组在后台线程内创建与填充
+			TArray<FOutterLaneVehicle> VehicleInitDatas;
+			VehicleInitDatas.SetNum(Count);
+
+			// 先抽出轻量对象副本，避免 ParallelFor 里再访问 Json 库
+			TArray<FJsonLibraryObject> Items;
+			Items.SetNum(Count);
+			for (int32 i = 0; i < Count; ++i)
+			{
+				Items[i] = List.GetObject(i);
+			}
+
+			ParallelFor(Count, [&](int32 Index)
+				{
+					const FJsonLibraryObject& LaneObj = Items[Index];
+					FOutterLaneVehicle& VehicleData = VehicleInitDatas[Index];
+
+					VehicleData.LaneSectID = FName(*LaneObj.GetString(TEXT("lane_sect_id")));
+					VehicleData.FlowSpeed = LaneObj.GetFloat(TEXT("flow_speed"));
+
+					const TArray<FString> StrVehIDs = LaneObj.GetList(TEXT("vehicle_ids")).ToStringArray();
+					VehicleData.VehicleIDs.Reset();
+					VehicleData.VehicleIDs.Reserve(StrVehIDs.Num());
+					for (const FString& S : StrVehIDs)
+					{
+						VehicleData.VehicleIDs.Emplace(*S);
+					}
+
+					VehicleData.VehicleTypeIndices = LaneObj.GetList(TEXT("lane_types")).ToIntegerArray();
+				}, EParallelForFlags::Unbalanced);
+
+			// 回到 GameThread 触发蓝图委托
+			AsyncTask(ENamedThreads::GameThread, [VehicleInitDatas = MoveTemp(VehicleInitDatas), OnFinished]() mutable
+				{
+					if (OnFinished.IsBound() && IsValid(OnFinished.GetUObject()))
+					{
+						OnFinished.Execute(VehicleInitDatas);
+					}
+				});
+		});
+}

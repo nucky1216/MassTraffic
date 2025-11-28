@@ -222,3 +222,35 @@ struct FPhaseLanes:public FTableRowBase
 	TArray<int32> PhaseLanes;
 
 };
+
+
+USTRUCT(BlueprintType)
+struct FRoadToLaneIndexRow :public FTableRowBase
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere,BlueprintReadWrite,Category="LaneID to Index")
+	TArray<int32> LaneIndices;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LaneID to Index")
+	TArray<float> StartDist;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LaneID to Index")
+	TArray<float> EndDist;
+ };
+
+
+USTRUCT(BlueprintType)
+struct FOutterLaneVehicle
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LaneVehicle")
+	FName LaneSectID;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LaneVehicle")
+	TArray<FName> VehicleIDs;
+	UPROPERTY(EditAnywhere,BlueprintReadWrite,Category="LaneVehicle")
+	float FlowSpeed;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LaneVehicle")
+	TArray<int32> VehicleTypeIndices;
+};

@@ -127,7 +127,7 @@ void UVehicleMovementProcessor::Execute(FMassEntityManager& EntityManager, FMass
 					QueryLaneIndex = VehicleMovementFragment.NextLane;
 					FZoneLaneData NewLane = TrafficSimSubsystem->ZoneGraphStorage->Lanes[VehicleMovementFragment.NextLane];
 					TrafficSimSubsystem->GetLaneSpeedByTag(NewLane.Tags, VehicleMovementFragment.MaxSpeed, VehicleMovementFragment.MinSpeed, VehicleMovementFragment.LaneSpeedTag);
-					VehicleMovementFragment.TargetSpeed = FMath::RandRange(VehicleMovementFragment.MinSpeed, VehicleMovementFragment.MaxSpeed);
+					VehicleMovementFragment.CruiseSpeed = FMath::RandRange(VehicleMovementFragment.MinSpeed, VehicleMovementFragment.MaxSpeed);
 
 					TArray<int32> NextLanes;
 					VehicleMovementFragment.NextLane = TrafficSimSubsystem->ChooseNextLane(QueryLaneIndex, NextLanes);

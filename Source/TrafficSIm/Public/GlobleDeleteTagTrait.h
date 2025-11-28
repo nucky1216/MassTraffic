@@ -4,13 +4,13 @@
 
 #include "CoreMinimal.h"
 #include "MassEntityTraitBase.h"
-#include "GlableDeleteTagTrait.generated.h"
+#include "GlobleDeleteTagTrait.generated.h"
 
 /**
  * 
  */
 UCLASS(EditInlineNew, DisplayName = "Global Despawn Tag Trait")
-class TRAFFICSIM_API UGlableDeleteTagTrait : public UMassEntityTraitBase
+class TRAFFICSIM_API UGlobleDeleteTagTrait : public UMassEntityTraitBase
 {
 	GENERATED_BODY()
 public:

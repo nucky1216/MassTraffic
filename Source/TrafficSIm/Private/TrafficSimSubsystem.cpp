@@ -196,8 +196,8 @@ void UTrafficSimSubsystem::GetZonesSeg(TArray<FVector> Points, FZoneGraphTag Any
 	
 }
 
-void UTrafficSimSubsystem::FillVehsOnLane(int32 TargetLane, UPARAM(ref)TArray<FName>& VehIDs, UPARAM(ref)TArray<int32>& VehTypeIndice)
-{
+void UTrafficSimSubsystem::FillVehsOnLane(TArray<int32> LaneIndice,TArray<float> StartDist, TArray<float> EndDist,
+	UPARAM(ref)TArray<FName>& VehIDs, UPARAM(ref)TArray<int32>& VehTypeIndice, TArray<FName>& UsedVehIDs,TArray<int32>& UsedVehTypes){
 	if (!ZoneGraphStorage)
 	{
 		UE_LOG(LogTrafficSim, Error, TEXT("ZoneGraphData is not initialized! Cannot fill vehicles on lane."));
@@ -208,14 +208,22 @@ void UTrafficSimSubsystem::FillVehsOnLane(int32 TargetLane, UPARAM(ref)TArray<FN
 		UE_LOG(LogTrafficSim, Error, TEXT("VehicleConfigTypes is empty! Cannot fill vehicles on lane."));
 		return;
 	}
-	if (VehTypeIndice.Num() == 0)
+	if (VehTypeIndice.Num() == 0 || VehIDs.Num()==0)
 	{
 		UE_LOG(LogTrafficSim, Error, TEXT("VehTypeIndice is empty! Cannot fill vehicles on lane."));
 		return;
 	}
+	if (LaneIndice.Num() == 0)
+	{
+		UE_LOG(LogTrafficSim, Error, TEXT("LaneIndice is empty! Cannot fill vehicles on lane."));
+		return;
+	}
+	if (VehTypeIndice.Num() != VehIDs.Num())
+	{
+		UE_LOG(LogTrafficSim, Error, TEXT("Type Num is not equal with IDs Num"));
+		return;
+	}
 
-	float LaneLength = 0.f;
-	UE::ZoneGraph::Query::GetLaneLength(*ZoneGraphStorage, TargetLane, LaneLength);
 
 	TArray<float> VehLengths, PrefixSum;
 	GetVehicleConfigs(VehLengths, PrefixSum);
@@ -224,20 +232,23 @@ void UTrafficSimSubsystem::FillVehsOnLane(int32 TargetLane, UPARAM(ref)TArray<FN
 	{
 		FName VehID;
 		FZoneGraphLaneLocation LaneLocation;
+		int32 LaneIndex;
 		float DistAlongLane = 0.f;
 	};
 	TMultiMap<int32, FVehInfo> TypeToVehInfoMap;
 
-	float DerivedDist = LaneLength;
+	
 	float MinGap = 100.f, MaxGap = 150; // TODO: 从配置中获取最小间距
+	int32 LaneSearchIndex = LaneIndice.Num()-1;
+	float DerivedDist = EndDist[LaneSearchIndex];
 
-	for (int32 i = 0; i < VehTypeIndice.Num(); ++i)
+	for (int32 i=0; VehTypeIndice.Num()>0 && LaneSearchIndex>=0;i++)
 	{
-		const int32 TypeIndex = VehTypeIndice[i];
+		int32 TypeIndex = VehTypeIndice[0];
 		if (!VehLengths.IsValidIndex(TypeIndex))
 		{
-			UE_LOG(LogTrafficSim, Warning, TEXT("Invalid vehicle type index %d."), TypeIndex);
-			continue;
+			UE_LOG(LogTrafficSim, Warning, TEXT("Invalid vehicle type index %d.using as default index:0"), TypeIndex);
+			TypeIndex = 0;
 		}
 
 		const float CurLength = VehLengths[TypeIndex];
@@ -249,26 +260,44 @@ void UTrafficSimSubsystem::FillVehsOnLane(int32 TargetLane, UPARAM(ref)TArray<FN
 		}
 		else
 		{
-			const float PrevLength = VehLengths[VehTypeIndice[i-1]];
+			const float PrevLength = VehLengths[UsedVehTypes.Last()];
 			DerivedDist -= (PrevLength * 0.5f + CurLength * 0.5f);
 		}
 		DerivedDist -= RandomGap;
 
-		if (DerivedDist <= 0)
+		if (DerivedDist <= StartDist[LaneSearchIndex])
 		{
-			break;
+			float offset = StartDist[LaneSearchIndex]- DerivedDist;
+			if (LaneSearchIndex - 1 >= 0)
+			{
+				LaneSearchIndex--;
+				DerivedDist = EndDist[LaneSearchIndex]- offset;
+
+			}
+			else
+				break;
+
 		}
 
+
 		FZoneGraphLaneLocation LaneLocation;
-		UE::ZoneGraph::Query::CalculateLocationAlongLane(*ZoneGraphStorage, TargetLane, DerivedDist, LaneLocation);
+		UE::ZoneGraph::Query::CalculateLocationAlongLane(*ZoneGraphStorage, LaneIndice[LaneSearchIndex], DerivedDist, LaneLocation);
 
 		FVehInfo Info;
-		Info.VehID = VehIDs.IsValidIndex(i) ? VehIDs[i] : FName(TEXT("Veh"));
+		Info.VehID = VehIDs[0] ;
 		Info.LaneLocation = LaneLocation;
+		Info.LaneIndex = LaneLocation.LaneHandle.Index;
 		Info.DistAlongLane = DerivedDist;
+
+		UsedVehIDs.Add(Info.VehID);
+		UsedVehTypes.Add(VehTypeIndice[0]);
+		VehIDs.RemoveAt(0);
+		VehTypeIndice.RemoveAt(0);
 
 		TypeToVehInfoMap.Add(TypeIndex, Info);
 	}
+
+	
 
 	UMassEntitySubsystem* EntitySubsystem = UWorld::GetSubsystem<UMassEntitySubsystem>(World);
 	if (!EntitySubsystem)
@@ -288,7 +317,7 @@ void UTrafficSimSubsystem::FillVehsOnLane(int32 TargetLane, UPARAM(ref)TArray<FN
 
 	// 在一个自定义 Processor 或合适初始化阶段调用
 	EntityManager.Defer().PushCommand<FMassDeferredCreateCommand>(
-		[this,UniqueTypeIndices, TypeToVehInfoMap, TargetLane,LaneLength](FMassEntityManager& System) mutable
+		[this,UniqueTypeIndices, TypeToVehInfoMap](FMassEntityManager& System) mutable
 		{
 			for (int32 TypeIndex : UniqueTypeIndices)
 			{
@@ -322,13 +351,13 @@ void UTrafficSimSubsystem::FillVehsOnLane(int32 TargetLane, UPARAM(ref)TArray<FN
 
 					MovementFrag.LaneLocation = VehInfos[i].LaneLocation;
 					MovementFrag.DistanceAlongLane = VehInfos[i].DistAlongLane;
-					MovementFrag.LeftDistance = LaneLength - VehInfos[i].DistAlongLane;
+					//MovementFrag.LeftDistance = LaneLength - VehInfos[i].DistAlongLane;
 					MovementFrag.VehID = VehInfos[i].VehID;
 					MovementFrag.Speed = 0.f;
-					MovementFrag.TargetSpeed = MovementFrag.MaxSpeed;
+					MovementFrag.CruiseSpeed =FMath::RandRange(MovementFrag.MinSpeed,MovementFrag.MaxSpeed);
 					TArray<int32> NextLanes;
-					MovementFrag.NextLane = ChooseNextLane(TargetLane, NextLanes);
-
+					MovementFrag.NextLane = ChooseNextLane(VehInfos[i].LaneIndex, NextLanes);
+					UE_LOG(LogTrafficSim, Log, TEXT("VehID:%s,CurIndex:%d,Next Lane Index:%d"),*(VehInfos[i].VehID.ToString()), VehInfos[i].LaneIndex, MovementFrag.NextLane);
 				}
 			}
 		}
@@ -504,6 +533,87 @@ void UTrafficSimSubsystem::InitializeManual()
 	UE_LOG(LogTemp, Error, TEXT("No valid ZoneGraphData found in the world!"));
 }
 
+void UTrafficSimSubsystem::RoadToLaneIndice(UPARAM(ref)UDataTable* RoadToLaneIndiceMap, FName RoadID, TArray<FVector> RoadPoints, FZoneGraphTag AnyTag, float Height)
+{
+	if (!ZoneGraphStorage)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Failed to get ZoneGraphStorage! Init the TrafficSubsystem Firstly!"));
+		return;
+	}
+	TArray<TTuple<float, float>> StartEnd;
+	TArray<int32> LaneIndice;
+
+	FZoneGraphTagFilter Filter;
+	Filter.AnyTags.Add(AnyTag);
+
+	UE::ZoneGraph::Query::FindNearestLanesBySeg(*ZoneGraphStorage, RoadPoints, Height, Filter, LaneIndice, StartEnd);
+
+	FRoadToLaneIndexRow RowData;
+	RowData.LaneIndices = LaneIndice;
+
+	for (auto tuple : StartEnd)
+	{
+		RowData.StartDist.Add(tuple.Get<0>());
+		RowData.EndDist.Add(tuple.Get<1>());
+	}
+	if (!RoadToLaneIndiceMap || (RoadToLaneIndiceMap->GetRowStruct() != FRoadToLaneIndexRow::StaticStruct()))
+	{
+		UE_LOG(LogTrafficSim, Warning, TEXT("RoadToLaneIndiceMap is invalid or has wrong RowStruct!"));
+		return;
+	}
+
+	////Debug Draw
+	//for(int32 i=0;i< LaneIndice.Num();i++)
+	//{
+	//	FZoneGraphLaneLocation Start, End;
+	//	UE::ZoneGraph::Query::CalculateLocationAlongLane(*ZoneGraphStorage, LaneIndice[i],StartEnd[i].Get<0>(), Start);
+	//	UE::ZoneGraph::Query::CalculateLocationAlongLane(*ZoneGraphStorage, LaneIndice[i], StartEnd[i].Get<1>(), End);
+	//	UE_LOG(LogTemp, Log, TEXT("LaneIndex:%d,Start:%f,End:%f"), LaneIndice[i], StartEnd[i].Get<0>(), StartEnd[i].Get<1>());
+	//	DrawDebugDirectionalArrow(GetWorld(), Start.Position+FVector(0,0,300), End.Position + FVector(0, 0, 300), 3000, FColor::Blue, false, 30.f, 0, 35);
+	//}
+
+	//Merge LaneSegs
+	TArray<int32> MergedLaneIndices;
+	FRoadToLaneIndexRow MergedRowData;
+
+	for (int i = 0; i < RowData.LaneIndices.Num(); i++)
+	{
+		if(MergedLaneIndices.Contains(i))
+		{
+			continue;
+		}
+		float StartDist = RowData.StartDist[i];
+		float EndDist = RowData.EndDist[i];
+		for(int j=i+1;j< RowData.LaneIndices.Num();j++)
+		{
+			if (MergedLaneIndices.Contains(j))
+			{
+				continue;
+			}
+			float ConnectedStartDist = RowData.StartDist[j];
+			if(RowData.LaneIndices[i]== RowData.LaneIndices[j] && ConnectedStartDist == EndDist)
+			{
+				EndDist = RowData.EndDist[j];
+				MergedLaneIndices.Add(j);
+			}
+		}
+		MergedRowData.LaneIndices.Add(RowData.LaneIndices[i]);
+		MergedRowData.StartDist.Add(StartDist);
+		MergedRowData.EndDist.Add(EndDist);
+	}
+	//Debug
+	//for(int32 i=0;i< MergedRowData.LaneIndices.Num();i++)
+	//{
+	//	FZoneGraphLaneLocation Start, End;
+	//	UE::ZoneGraph::Query::CalculateLocationAlongLane(*ZoneGraphStorage, MergedRowData.LaneIndices[i],MergedRowData.StartDist[i], Start);
+	//	UE::ZoneGraph::Query::CalculateLocationAlongLane(*ZoneGraphStorage, MergedRowData.LaneIndices[i], MergedRowData.EndDist[i], End);
+	//	UE_LOG(LogTemp, Log, TEXT("Merged LaneIndex:%d,Start:%f,End:%f"), MergedRowData.LaneIndices[i], MergedRowData.StartDist[i], MergedRowData.EndDist[i]);
+	//	DrawDebugDirectionalArrow(GetWorld(), Start.Position+FVector(0,0,600), End.Position + FVector(0, 0, 600), 3000, FColor::Red, false, 60.f, 0, 35);
+	//}
+
+	RoadToLaneIndiceMap->AddRow(RoadID, MergedRowData);
+}
+
 void UTrafficSimSubsystem::DebugEntity(int32 TargetLane, int32 EntitySN)
 {
 	TArray<FLaneVehicle>* VehicleArray=LaneToEntitiesMap.Find(TargetLane);
@@ -655,7 +765,7 @@ void UTrafficSimSubsystem::ClearAllEntities()
 	UE::Mass::Executor::Run(*ClearProcessor,ProcessingContext);
 }
 
-void UTrafficSimSubsystem::AddSpawnPointAtLane(int32 LaneIndex, float DistanceAlongLane, UMassEntityConfigAsset * EntityConfigAsset, TArray<FName> VehIDs)
+void UTrafficSimSubsystem::AddSpawnPointAtLane(int32 LaneIndex, float DistanceAlongLane, UMassEntityConfigAsset * EntityConfigAsset, TArray<FName> VehIDs, TArray<int32> VehTypes)
 {
 		if (!World || !ZoneGraphStorage)
 		{
@@ -675,10 +785,17 @@ void UTrafficSimSubsystem::AddSpawnPointAtLane(int32 LaneIndex, float DistanceAl
 			UE_LOG(LogTrafficSim, Warning, TEXT("AddSpawnPointAtLane: EntityConfigAsset is null."));
 			return;
 		}
+		if (VehIDs.Num() != VehTypes.Num() || VehIDs.Num() == 0 || VehTypes.Num() == 0)
+		{
+			UE_LOG(LogTrafficSim, Warning, TEXT("AddSpawnPointAtLane: VehIDs and VehTypes count mismatch. or VehIDs/VehTypes Num is 0"));
+			return;
+		}
 
 		// 计算车道上的位置
 		FZoneGraphLaneLocation LaneLocation;
 		UE::ZoneGraph::Query::CalculateLocationAlongLane(*ZoneGraphStorage, LaneIndex, DistanceAlongLane, LaneLocation);
+
+		//GetVehicleConfigs();
 
 		const FMassEntityTemplate& Template = EntityConfigAsset->GetOrCreateEntityTemplate(*World);
 		if (!Template.IsValid())
@@ -701,11 +818,13 @@ void UTrafficSimSubsystem::AddSpawnPointAtLane(int32 LaneIndex, float DistanceAl
 
 		// 初始化 Fragment
 		SpawnPointFrag.LaneLocation = LaneLocation;
-		SpawnPointFrag.Duration = 5.f;
-		SpawnPointFrag.RandOffset = 2.f;
-		SpawnPointFrag.Clock = 0.0;
-		SpawnPointFrag.NextVehicleType = 0; // 示例：默认指向第一个
+		SpawnPointFrag.Controlled = true;
+		SpawnPointFrag.Duration = 1.f;
+		SpawnPointFrag.RandOffset = 1.f;
+		SpawnPointFrag.Clock = 1.0;//初始延迟时间
+		SpawnPointFrag.SpawnVehicleIDIndex = 0; // 示例：默认指向第一个
 		SpawnPointFrag.VehicleIDs = VehIDs;
+		SpawnPointFrag.VehicleTypes = VehTypes;
 
 		// 调试可视化
 		DrawDebugPoint(World, LaneLocation.Position, 30.f, FColor::Green, false, 6.f);
@@ -764,6 +883,10 @@ FName UTrafficSimSubsystem::GetVehIDFromActor(AActor* ClickedActor)
 		{
 			UE_LOG(LogTemp, Log, TEXT("GetVehIDFromActor: Found VehID %s for actor %s"),
 				*VehicleMovementFragment->VehID.ToString(), *ClickedActor->GetName());
+			UE_LOG(LogTrafficSim, Log, TEXT("VehicleMovementFragment SN:%d,TargetSpeed:%f,CurIndex:%d,NextLane:%d"), 
+				VehicleMovementFragment->VehicleHandle.SerialNumber, VehicleMovementFragment->TargetSpeed, VehicleMovementFragment->LaneLocation.LaneHandle.Index,
+				VehicleMovementFragment->NextLane);
+
 			return VehicleMovementFragment->VehID;
 		}
 
