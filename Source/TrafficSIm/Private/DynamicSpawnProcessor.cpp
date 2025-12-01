@@ -62,7 +62,7 @@ void UDynamicSpawnProcessor::Execute(FMassEntityManager& EntityManager, FMassExe
 	TArray<int32> NewSpawnVehTypeIndex;
 	TArray<FVector> NewSpawnLocations;
 
-	TMultiMap<int32,TTuple<FZoneGraphLaneLocation,FName>> ReadySpawnLocs;
+	TMultiMap<int32,TTuple<FZoneGraphLaneLocation,FName,float>> ReadySpawnLocs;
 	auto SelectRandomItem = [&]()
 		{
 			float R = FMath::FRand(); // 生成 0~1 的随机数
@@ -137,7 +137,7 @@ void UDynamicSpawnProcessor::Execute(FMassEntityManager& EntityManager, FMassExe
 					if (LeftSpace > VehicleLenth[Frag.NextVehicleType])
 					{
 
-						ReadySpawnLocs.Add(Frag.NextVehicleType, MakeTuple(LaneLocation, VehID));
+						ReadySpawnLocs.Add(Frag.NextVehicleType, MakeTuple(LaneLocation, VehID, Frag.CruiseSpeed));
 						Frag.NextVehicleType = -1;
 
 						if (Configs[i].Controlled)
@@ -170,7 +170,7 @@ void UDynamicSpawnProcessor::Execute(FMassEntityManager& EntityManager, FMassExe
 		ReadySpawnLocs.GetKeys(Keys);
 		for (auto Key : Keys)
 		{
-			TArray<TTuple<FZoneGraphLaneLocation,FName>> LaneLocations;
+			TArray<TTuple<FZoneGraphLaneLocation,FName,float>> LaneLocations;
 			ReadySpawnLocs.MultiFind(Key, LaneLocations);
 
 			if (LaneLocations.Num() <= 0)
@@ -197,7 +197,7 @@ void UDynamicSpawnProcessor::Execute(FMassEntityManager& EntityManager, FMassExe
 
 			// Capture by value to ensure safety until deferred execution
 			int32 ConfigIndexCopy = Key;
-			TArray<TTuple<FZoneGraphLaneLocation,FName>> LaneLocationsCopy = LaneLocations;
+			TArray<TTuple<FZoneGraphLaneLocation,FName,float>> LaneLocationsCopy = LaneLocations;
 			TWeakObjectPtr<UTrafficSimSubsystem> WeakTrafficSim = TrafficSimSubsystem;
 			TWeakObjectPtr<UMassRepresentationSubsystem> WeakRepSubsystem = RepSubsystem;
 
@@ -224,6 +224,7 @@ void UDynamicSpawnProcessor::Execute(FMassEntityManager& EntityManager, FMassExe
 				for (int32 i = 0; i < NewEntities.Num(); ++i)
 				{
 					const FZoneGraphLaneLocation& LaneLoc = LaneLocationsCopy[i].Get<0>();
+					float CruiseSpeed = LaneLocationsCopy[i].Get<2>();
 					FMassVehicleMovementFragment& MoveFrag = System.GetFragmentDataChecked<FMassVehicleMovementFragment>(NewEntities[i]);
 					FTransformFragment& TransformFrag = System.GetFragmentDataChecked<FTransformFragment>(NewEntities[i]);
 					const FMassRepresentationFragment& Representation = System.GetFragmentDataChecked<FMassRepresentationFragment>(NewEntities[i]);
@@ -239,6 +240,13 @@ void UDynamicSpawnProcessor::Execute(FMassEntityManager& EntityManager, FMassExe
 						MoveFrag.MaxSpeed,
 						MoveFrag.MinSpeed,
 						MoveFrag.LaneSpeedTag);
+
+					if(CruiseSpeed==0.f)
+					{
+						MoveFrag.CruiseSpeed =  FMath::RandRange(MoveFrag.MinSpeed, MoveFrag.MaxSpeed);
+					}
+
+					MoveFrag.CruiseSpeed = CruiseSpeed;
 					MoveFrag.TargetSpeed = FMath::RandRange(MoveFrag.MinSpeed, MoveFrag.MaxSpeed);
 					MoveFrag.Speed = FMath::RandRange(MoveFrag.MinSpeed, MoveFrag.TargetSpeed);
 					MoveFrag.VehID = LaneLocationsCopy[i].Get<1>();

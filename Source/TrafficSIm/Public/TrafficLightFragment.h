@@ -39,4 +39,5 @@ struct TRAFFICSIM_API FTrafficLightFragment : public FMassFragment
 	bool PhaseControll =false;
 	TMap<FName,TArray<int32>> CrossPhaseLanes;
 	TArray<TTuple<FName, double, double>> PhaseList;
+	FName CurrentPhase=TEXT("None");
 };

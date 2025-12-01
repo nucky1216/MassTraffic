@@ -97,7 +97,7 @@ public:
 	void GetZonesSeg(TArray<FVector> Points, FZoneGraphTag AnyTag, float Height, FDTRoadLanes& ZoneSegLanes);
 
 	UFUNCTION(BlueprintCallable, Category="TrafficSim")
-	void FillVehsOnLane(TArray<int32> LaneIndice, TArray<float> StartDist, TArray<float> EndDist,
+	void FillVehsOnLane(TArray<int32> LaneIndice, TArray<float> StartDist, TArray<float> EndDist,float CruiseSpeed,
 		UPARAM(ref)TArray<FName>& VehIDs, UPARAM(ref)TArray<int32>& VehTypeIndice, TArray<FName>& UsedVehIDs, TArray<int32>& UsedVehTypes);
 
 	UFUNCTION(BlueprintCallable, Category="TrafficSim")
@@ -126,7 +126,7 @@ public:
 	void ClearAllEntities();
 
 	UFUNCTION(BlueprintCallable, Category = "TrafficSim| SpawnPoint")
-	void AddSpawnPointAtLane(int32 LaneIndex, float DistanceAlongLane, UMassEntityConfigAsset* EntityConfigAsset,TArray<FName> VehIDs,TArray<int32> VehTypes);
+	void AddSpawnPointAtLane(int32 LaneIndex, float DistanceAlongLane, float CruiseSpeed,UMassEntityConfigAsset* EntityConfigAsset,TArray<FName> VehIDs,TArray<int32> VehTypes);
 
 	UFUNCTION(BlueprintCallable, Category = "Traffic|Mass")
 	FName GetVehIDFromActor(AActor* ClickedActor);

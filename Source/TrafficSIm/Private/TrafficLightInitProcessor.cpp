@@ -50,7 +50,7 @@ void UTrafficLightInitProcessor::Execute(FMassEntityManager& EntityManager, FMas
 			FTrafficLightFragment& TrafficLightFragment = TrafficLightFragments[EntityIndex];
 			LocationList[EntityIndex].GetMutableTransform() = InitData.TrafficLightTransforms[EntityIndex];
 
-
+			//DrawDebugPoint(GetWorld(), LocationList[EntityIndex].GetTransform().GetLocation(), 20.0f, FColor::Green, true, 60.0f);
 
 			int32& SideIndex = TrafficLightFragment.CurrentSide;
 			int32& ZoneIndex = TrafficLightFragment.ZoneIndex;

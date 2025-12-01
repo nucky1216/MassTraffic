@@ -196,7 +196,7 @@ void UTrafficSimSubsystem::GetZonesSeg(TArray<FVector> Points, FZoneGraphTag Any
 	
 }
 
-void UTrafficSimSubsystem::FillVehsOnLane(TArray<int32> LaneIndice,TArray<float> StartDist, TArray<float> EndDist,
+void UTrafficSimSubsystem::FillVehsOnLane(TArray<int32> LaneIndice,TArray<float> StartDist, TArray<float> EndDist,  float CruiseSpeed,
 	UPARAM(ref)TArray<FName>& VehIDs, UPARAM(ref)TArray<int32>& VehTypeIndice, TArray<FName>& UsedVehIDs,TArray<int32>& UsedVehTypes){
 	if (!ZoneGraphStorage)
 	{
@@ -317,7 +317,7 @@ void UTrafficSimSubsystem::FillVehsOnLane(TArray<int32> LaneIndice,TArray<float>
 
 	// 在一个自定义 Processor 或合适初始化阶段调用
 	EntityManager.Defer().PushCommand<FMassDeferredCreateCommand>(
-		[this,UniqueTypeIndices, TypeToVehInfoMap](FMassEntityManager& System) mutable
+		[this,UniqueTypeIndices, CruiseSpeed, TypeToVehInfoMap](FMassEntityManager& System) mutable
 		{
 			for (int32 TypeIndex : UniqueTypeIndices)
 			{
@@ -354,7 +354,7 @@ void UTrafficSimSubsystem::FillVehsOnLane(TArray<int32> LaneIndice,TArray<float>
 					//MovementFrag.LeftDistance = LaneLength - VehInfos[i].DistAlongLane;
 					MovementFrag.VehID = VehInfos[i].VehID;
 					MovementFrag.Speed = 0.f;
-					MovementFrag.CruiseSpeed =FMath::RandRange(MovementFrag.MinSpeed,MovementFrag.MaxSpeed);
+					MovementFrag.CruiseSpeed = CruiseSpeed;
 					TArray<int32> NextLanes;
 					MovementFrag.NextLane = ChooseNextLane(VehInfos[i].LaneIndex, NextLanes);
 					UE_LOG(LogTrafficSim, Log, TEXT("VehID:%s,CurIndex:%d,Next Lane Index:%d"),*(VehInfos[i].VehID.ToString()), VehInfos[i].LaneIndex, MovementFrag.NextLane);
@@ -765,7 +765,7 @@ void UTrafficSimSubsystem::ClearAllEntities()
 	UE::Mass::Executor::Run(*ClearProcessor,ProcessingContext);
 }
 
-void UTrafficSimSubsystem::AddSpawnPointAtLane(int32 LaneIndex, float DistanceAlongLane, UMassEntityConfigAsset * EntityConfigAsset, TArray<FName> VehIDs, TArray<int32> VehTypes)
+void UTrafficSimSubsystem::AddSpawnPointAtLane(int32 LaneIndex, float DistanceAlongLane, float CruiseSpeed, UMassEntityConfigAsset * EntityConfigAsset, TArray<FName> VehIDs, TArray<int32> VehTypes)
 {
 		if (!World || !ZoneGraphStorage)
 		{
@@ -825,6 +825,7 @@ void UTrafficSimSubsystem::AddSpawnPointAtLane(int32 LaneIndex, float DistanceAl
 		SpawnPointFrag.SpawnVehicleIDIndex = 0; // 示例：默认指向第一个
 		SpawnPointFrag.VehicleIDs = VehIDs;
 		SpawnPointFrag.VehicleTypes = VehTypes;
+		SpawnPointFrag.CruiseSpeed = CruiseSpeed;
 
 		// 调试可视化
 		DrawDebugPoint(World, LaneLocation.Position, 30.f, FColor::Green, false, 6.f);

@@ -249,7 +249,7 @@ void UBPFLTools::DeserializeOutterLaneVehicles(FJsonLibraryObject JsonObject, FO
 					FOutterLaneVehicle& VehicleData = VehicleInitDatas[Index];
 
 					VehicleData.LaneSectID = FName(*LaneObj.GetString(TEXT("lane_sect_id")));
-					VehicleData.FlowSpeed = LaneObj.GetFloat(TEXT("flow_speed"));
+					VehicleData.FlowSpeed = LaneObj.GetFloat(TEXT("lane_speed"));
 
 					const TArray<FString> StrVehIDs = LaneObj.GetList(TEXT("vehicle_ids")).ToStringArray();
 					VehicleData.VehicleIDs.Reset();

@@ -22,6 +22,7 @@ struct TRAFFICSIM_API FMassSpawnPointFragment : public FMassFragment
 	float Clock = 5.f;
 	UPROPERTY()
 	int32 NextVehicleType = -1;
+	float CruiseSpeed = 0.f;
 
 
 	TArray<FName> VehicleIDs;

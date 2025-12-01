@@ -93,6 +93,7 @@ void UTrafficLightGenerator::Generate(UObject& QueryOwner, TConstArrayView<FMass
 			}
 			InitSpawnData.Arr_PhaseLanes.Add(PhaseLanes);
 			InitSpawnData.Arr_CrossID.Add(CrossID);
+			UE_LOG(LogTrafficLight, Log, TEXT("CrossID: %s"), *CrossID.ToString());
 
 			SpawnCount++;
 		}

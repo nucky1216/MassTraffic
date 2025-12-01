@@ -5,18 +5,24 @@
 #include "TrafficLightFragment.h"
 #include "MassExecutionContext.h"
 #include "TrafficSimSubsystem.h"
+#include "MassCommonFragments.h"
 #include "TrafficTypes.h"
+#include "MassRepresentationFragments.h"
+#include "MassRepresentationSubsystem.h"
 
 UTrafficLightCountingProcessor::UTrafficLightCountingProcessor():EntityQuery(*this)
 {
-	ExecutionOrder.ExecuteInGroup = FName(TEXT("TrafficLight"));
+	ExecutionOrder.ExecuteInGroup = FName(TEXT("TrafficSim"));
 
 	bAutoRegisterWithProcessingPhases = true;
 }
 
 void UTrafficLightCountingProcessor::ConfigureQueries()
 {
-	EntityQuery.AddRequirement<FTrafficLightFragment>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.AddRequirement<FTrafficLightFragment>(EMassFragmentAccess::ReadWrite);
+//	EntityQuery.AddRequirement<FTransformFragment>(EMassFragmentAccess::ReadOnly);
+//	EntityQuery.AddRequirement<FMassRepresentationFragment>(EMassFragmentAccess::ReadWrite);
+//	EntityQuery.AddRequirement<FMassRepresentationLODFragment >(EMassFragmentAccess::ReadOnly);
 }
 
 void UTrafficLightCountingProcessor::Initialize(UObject& Owner)
@@ -42,12 +48,19 @@ void UTrafficLightCountingProcessor::Execute(FMassEntityManager& EntityManager, 
 	EntityQuery.ForEachEntityChunk(EntityManager, Context, [this, DeltaTime](FMassExecutionContext& Context)
 	{
 		const TArrayView<FTrafficLightFragment>& TrafficLightFragments = Context.GetMutableFragmentView<FTrafficLightFragment>();
-
+		//const TArrayView<FMassRepresentationFragment> RepresentationList = Context.GetMutableFragmentView<FMassRepresentationFragment>();
+		//const TArrayView<FMassRepresentationLODFragment> RepresentationLODList = Context.GetMutableFragmentView<FMassRepresentationLODFragment>();
+	//	TArrayView<FTransformFragment> TransformFragments = Context.GetMutableFragmentView<FTransformFragment>();
 		for (int32 i = 0; i < Context.GetNumEntities(); i++)
 		{
 			FTrafficLightFragment& TrafficLightFragment = TrafficLightFragments[i];
+			
+			
 			double& TimeInDuration = TrafficLightFragment.TimeInDuration;
 			TimeInDuration -= DeltaTime;
+
+			//RepresentationLODList[i].
+			//UE_LOG(LogTrafficLight, Log, TEXT("LODSignifcance:%f ZoneIndex:%d"), RepresentationLODList[i].LODSignificance, TrafficLightFragment.ZoneIndex);
 
 			//Default to Auto Set Pass Lanes 
 			if(!TrafficLightFragment.PhaseControll)
@@ -106,6 +119,7 @@ void UTrafficLightCountingProcessor::Execute(FMassEntityManager& EntityManager, 
 					}
 					//set the next phase
 					TTuple<FName, double, double> CurPhase= TrafficLightFragment.PhaseList[0];
+					TrafficLightFragment.CurrentPhase = CurPhase.Get<0>();
 					TrafficLightFragment.PhaseList.RemoveAt(0);
 
 					TimeInDuration = CurPhase.Get<2>()-CurPhase.Get<1>();

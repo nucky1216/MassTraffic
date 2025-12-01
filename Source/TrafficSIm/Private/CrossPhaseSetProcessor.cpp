@@ -31,7 +31,7 @@ void UCrossPhaseSetProcessor::Execute(FMassEntityManager& EntityManager, FMassEx
 		FTrafficLightFragment& TLFrag = EntityManager.GetFragmentDataChecked<FTrafficLightFragment>(EntityHandle);
 
 		TLFrag.PhaseControll = true;
-		TLFrag.TimeInDuration = 0.0;
+		TLFrag.TimeInDuration = 0.1;
 		TLFrag.PhaseList = PhaseArray;
 
 	}
