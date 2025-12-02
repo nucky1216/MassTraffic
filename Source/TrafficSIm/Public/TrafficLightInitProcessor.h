@@ -24,5 +24,6 @@ protected:
 private:
 	FMassEntityQuery EntityQuery;
 	UTrafficLightSubsystem* TrafficLightSubsystem;
+	UTrafficSimSubsystem* TrafficSimSubsystem;
 	
 };

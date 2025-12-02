@@ -6,6 +6,7 @@
 #include "MassEntityManager.h"
 #include "MassExecutionContext.h"
 #include "TrafficLightFragment.h"
+#include "ZoneGraphQuery.h"
 
 UTrafficLightInitProcessor::UTrafficLightInitProcessor():EntityQuery(*this)
 {
@@ -27,6 +28,12 @@ void UTrafficLightInitProcessor::Initialize(UObject& Owner)
 		UE_LOG(LogTrafficLight, Error, TEXT("TrafficLightInitProcessor could not find UTrafficLightSubsystem."));
 		return;
 	}
+	TrafficSimSubsystem = GetWorld()->GetSubsystem<UTrafficSimSubsystem>();
+	if (!TrafficSimSubsystem)
+	{
+		UE_LOG(LogTrafficLight, Error, TEXT("TrafficLightInitProcessor could not findUTrafficSimSubsystem."));
+		return;
+	}
 }
 
 void UTrafficLightInitProcessor::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context)
@@ -44,7 +51,7 @@ void UTrafficLightInitProcessor::Execute(FMassEntityManager& EntityManager, FMas
 		TArrayView<FTransformFragment> LocationList = Context.GetMutableFragmentView<FTransformFragment>();
 		TArrayView<FTrafficLightFragment> TrafficLightFragments = Context.GetMutableFragmentView<FTrafficLightFragment>();
 
-
+		
 		for (int32 EntityIndex = 0; EntityIndex < NumEntities; ++EntityIndex)
 		{	
 			FTrafficLightFragment& TrafficLightFragment = TrafficLightFragments[EntityIndex];
@@ -57,6 +64,27 @@ void UTrafficLightInitProcessor::Execute(FMassEntityManager& EntityManager, FMas
 			double& TimeInDuration = TrafficLightFragment.TimeInDuration;
 
 			TrafficLightFragment.CrossID = InitData.Arr_CrossID[EntityIndex];
+
+			TrafficLightFragment.PhaseControlledLanes = InitData.Arr_PhaseControlledLanes[EntityIndex];
+
+			for(auto & Pair: TrafficLightFragment.PhaseControlledLanes)
+			{
+				for(auto & LaneID : Pair.Value)
+				{
+					if(LaneID<0)
+					{
+						continue;
+					}
+					const FZoneLaneData& LaneData = TrafficSimSubsystem->ZoneGraphStorage->Lanes[LaneID];
+					FZoneGraphLaneLocation LaneLocation;
+					float LaneLenth;
+					UE::ZoneGraph::Query::GetLaneLength(*TrafficSimSubsystem->ZoneGraphStorage, LaneID, LaneLenth);
+					UE::ZoneGraph::Query::CalculateLocationAlongLane(*TrafficSimSubsystem->ZoneGraphStorage, LaneID, LaneLenth , LaneLocation);
+
+					TrafficLightFragment.CtlLaneTransforms.Add(LaneID, FTransform(LaneLocation.Direction.Rotation(),LaneLocation.Position));
+				}
+			}
+
 
 			TrafficLightSubsystem->RegisterCrossEntity(TrafficLightFragment.CrossID,Context.GetEntity(EntityIndex));
 

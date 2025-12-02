@@ -20,6 +20,7 @@ UTrafficLightCountingProcessor::UTrafficLightCountingProcessor():EntityQuery(*th
 void UTrafficLightCountingProcessor::ConfigureQueries()
 {
 	EntityQuery.AddRequirement<FTrafficLightFragment>(EMassFragmentAccess::ReadWrite);
+//	EntityQuery.AddRequirement<FMassActorFragment>(EMassFragmentAccess::ReadOnly);
 //	EntityQuery.AddRequirement<FTransformFragment>(EMassFragmentAccess::ReadOnly);
 //	EntityQuery.AddRequirement<FMassRepresentationFragment>(EMassFragmentAccess::ReadWrite);
 //	EntityQuery.AddRequirement<FMassRepresentationLODFragment >(EMassFragmentAccess::ReadOnly);
@@ -48,13 +49,14 @@ void UTrafficLightCountingProcessor::Execute(FMassEntityManager& EntityManager, 
 	EntityQuery.ForEachEntityChunk(EntityManager, Context, [this, DeltaTime](FMassExecutionContext& Context)
 	{
 		const TArrayView<FTrafficLightFragment>& TrafficLightFragments = Context.GetMutableFragmentView<FTrafficLightFragment>();
+		//const TArrayView<FMassActorFragment>& ActorFragments = Context.GetMutableFragmentView<FMassActorFragment>();
 		//const TArrayView<FMassRepresentationFragment> RepresentationList = Context.GetMutableFragmentView<FMassRepresentationFragment>();
 		//const TArrayView<FMassRepresentationLODFragment> RepresentationLODList = Context.GetMutableFragmentView<FMassRepresentationLODFragment>();
 	//	TArrayView<FTransformFragment> TransformFragments = Context.GetMutableFragmentView<FTransformFragment>();
 		for (int32 i = 0; i < Context.GetNumEntities(); i++)
 		{
 			FTrafficLightFragment& TrafficLightFragment = TrafficLightFragments[i];
-			
+			//FMassActorFragment& ActorFragment = ActorFragments[i];
 			
 			double& TimeInDuration = TrafficLightFragment.TimeInDuration;
 			TimeInDuration -= DeltaTime;
@@ -117,6 +119,7 @@ void UTrafficLightCountingProcessor::Execute(FMassEntityManager& EntityManager, 
 						TrafficLightFragment.PhaseControll = false;
 						continue;
 					}
+					//ActorFragment.Get();
 					//set the next phase
 					TTuple<FName, double, double> CurPhase= TrafficLightFragment.PhaseList[0];
 					TrafficLightFragment.CurrentPhase = CurPhase.Get<0>();

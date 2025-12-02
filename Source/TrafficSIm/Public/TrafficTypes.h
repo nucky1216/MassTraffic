@@ -86,7 +86,7 @@ struct FTrafficLightInitData
 	TArray<int32> ZoneIndex;
 	TArray<int32> StartSideIndex;
 
-	TArray<TMap<FName,TArray<int32>>> Arr_PhaseLanes;
+	TArray<TMap<FName,TArray<int32>>> Arr_PhaseLanes,Arr_PhaseControlledLanes;
 	TArray<FName> Arr_CrossID;
 
 };
@@ -172,6 +172,9 @@ struct FCrossPhaseLaneData :public FTableRowBase
 	int32 ZoneIndex;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CrossPhase")
+	TArray<int32> ControlledLaneIndice;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CrossPhase")
 	TArray<int32> LaneIndices;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CrossPhase")
 	TArray<FName> TurnType;
@@ -253,4 +256,16 @@ struct FOutterLaneVehicle
 	float FlowSpeed;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LaneVehicle")
 	TArray<int32> VehicleTypeIndices;
+};
+
+USTRUCT(BlueprintType)
+struct FArrayInt
+{
+	GENERATED_BODY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ArrayInt")
+	TArray<int32> IntArray;
+
+	FArrayInt() {}
+
+	FArrayInt(const TArray<int32> InArray) :IntArray(InArray){ }
 };

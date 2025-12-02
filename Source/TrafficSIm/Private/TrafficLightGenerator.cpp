@@ -68,6 +68,7 @@ void UTrafficLightGenerator::Generate(UObject& QueryOwner, TConstArrayView<FMass
 		InitSpawnData.StartSideIndex.Reserve(IntersectionPoints.Num());
 		InitSpawnData.Arr_PhaseLanes.Reserve(IntersectionPoints.Num());
 		InitSpawnData.Arr_CrossID.Reserve(IntersectionPoints.Num());
+		InitSpawnData.Arr_PhaseControlledLanes.Reserve(IntersectionPoints.Num());
 
 		if (DT_PhaseLanes)
 		{
@@ -86,13 +87,15 @@ void UTrafficLightGenerator::Generate(UObject& QueryOwner, TConstArrayView<FMass
 			InitSpawnData.StartSideIndex.Add(0); //默认从路口第0边开始
 			
 			TMap<FName, TArray<int32>> PhaseLanes;
+			TMap<FName, TArray<int32>> PhaseControlledLanes;
 			FName CrossID;
 			if(DT_PhaseLanes)
 			{
-				TrafficLightSubsystem->GetPhaseLanesByZoneIndex(IntersectionZoneIndices[LocationIndex], PhaseLanes, CrossID);
+				TrafficLightSubsystem->GetPhaseLanesByZoneIndex(IntersectionZoneIndices[LocationIndex], PhaseLanes, PhaseControlledLanes, CrossID);
 			}
 			InitSpawnData.Arr_PhaseLanes.Add(PhaseLanes);
 			InitSpawnData.Arr_CrossID.Add(CrossID);
+			InitSpawnData.Arr_PhaseControlledLanes.Add(PhaseControlledLanes);
 			UE_LOG(LogTrafficLight, Log, TEXT("CrossID: %s"), *CrossID.ToString());
 
 			SpawnCount++;

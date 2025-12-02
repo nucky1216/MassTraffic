@@ -240,9 +240,9 @@ void UTrafficLightSubsystem::InitialCrossPhaseRow(UDataTable* DataTable, const F
 		return;
 	}
 
-
+	
 	TArray<int32> LaneIndices;
-	for (auto index : RowData.LaneIndices)
+	for (auto index : RowData.ControlledLaneIndice)
 	{
 		TArray<int32> NextLaneIndices ;
 		GetNextLanesFromPhaseLane(index, NextLaneIndices);
@@ -364,7 +364,7 @@ void UTrafficLightSubsystem::SetCrossBySignalState(int32 ZoneIndex, ETrafficSign
 	}
 }
 
-void UTrafficLightSubsystem::GetPhaseLanesByZoneIndex(int32 ZoneIndex, TMap<FName, TArray<int32>>& PhaseLanes,FName& CrossID)
+void UTrafficLightSubsystem::GetPhaseLanesByZoneIndex(int32 ZoneIndex, TMap<FName, TArray<int32>>& PhaseLanes, TMap<FName, TArray<int32>>& ControlledLanes, FName& CrossID)
 {
 	if (CrossPhaseLaneInfor.Num() == 0)
 	{
@@ -374,12 +374,13 @@ void UTrafficLightSubsystem::GetPhaseLanesByZoneIndex(int32 ZoneIndex, TMap<FNam
 	UE_LOG(LogTrafficLight, Log, TEXT("GetPhaseLanesByZoneIndex: Searching for ZoneIndex:%d in CrossPhaseLaneInfor"), ZoneIndex);
 	for (auto Pair : CrossPhaseLaneInfor)
 	{
-		if (Pair.Value.ZoneIndex == ZoneIndex)
+		if (Pair.Value.Get<0>().ZoneIndex == ZoneIndex)
 		{
-			PhaseLanes.Add(Pair.Value.PhaseName, Pair.Value.PhaseLanes);
-			CrossID = Pair.Value.CrossID;
+			PhaseLanes.Add(Pair.Value.Get<0>().PhaseName, Pair.Value.Get<0>().PhaseLanes);
+			ControlledLanes.Add(Pair.Value.Get<0>().PhaseName, Pair.Value.Get<1>());
+			CrossID = Pair.Value.Get<0>().CrossID;
 			UE_LOG(LogTrafficLight, Log, TEXT("GetPhaseLanesByZoneIndex: Found PhaseName:%s with %d lanes for ZoneIndex:%d as CrossID:%s"), 
-				*Pair.Value.PhaseName.ToString(), Pair.Value.PhaseLanes.Num(), ZoneIndex, *CrossID.ToString());
+				*Pair.Value.Get<0>().PhaseName.ToString(), Pair.Value.Get<0>().PhaseLanes.Num(), ZoneIndex, *CrossID.ToString());
 		}
 	}
 }
@@ -392,7 +393,7 @@ void UTrafficLightSubsystem::RegisterCrossEntity(FName CrossName, FMassEntityHan
 void UTrafficLightSubsystem::InitializeCrossPhaseLaneInfor(UDataTable* DataTable)
 {
 	CrossPhaseLaneInfor.Empty();
-	UE_LOG(LogTrafficLight, Log, TEXT("Initializing CrossPhaseLaneInfor from DataTable: %s RowStructName:%s"), *DataTable->GetName(), *DataTable->GetRowStructName().ToString());
+	UE_LOG(LogTrafficLight, Log, TEXT("Initializing CrossPhaseLaneInfor from DataTable: %s RowStructName:%s"), *DataTable->GetName(), *DataTable->GetRowStructPathName().ToString());
 	
 
 	for(auto& Row : DataTable->GetRowMap())
@@ -408,7 +409,7 @@ void UTrafficLightSubsystem::InitializeCrossPhaseLaneInfor(UDataTable* DataTable
 		PhaseLanes.ZoneIndex = RowData->ZoneIndex;
 		PhaseLanes.PhaseLanes = RowData->LaneIndices;
 		FName Key = Row.Key;
-		CrossPhaseLaneInfor.Add(Key,PhaseLanes);
+		CrossPhaseLaneInfor.Add(Key,MakeTuple(PhaseLanes,RowData->ControlledLaneIndice));
 		UE_LOG(LogTrafficLight, Log, TEXT("  Added CrossPhaseLaneInfor Key:%s CrossID:%s ZoneIndex:%d PhaseName:%s with %d lanes"), *Key.ToString(), *PhaseLanes.CrossID.ToString(), PhaseLanes.ZoneIndex, *PhaseLanes.PhaseName.ToString(), PhaseLanes.PhaseLanes.Num());
 	}
 }
@@ -524,6 +525,51 @@ void UTrafficLightSubsystem::GetCrossPhaseState(AActor* CrossActor, FName& Phase
 	}
 	Phase = PhaseFragment->CurrentPhase;
 	
+}
+
+void UTrafficLightSubsystem::GetCrossPhaseCtlLanes(AActor* CrossActor, TMap<int32, FTransform>& CtlLanes, TMap<FName, FArrayInt>& PhaseToCtlLanes)
+{
+ 
+	if (IsValid(CrossActor) == false)
+	{
+		UE_LOG(LogTrafficLight, Warning, TEXT("GetCrossPhaseCtlLanes::GetCrossPhaseState: Invalid CrossActor!"));
+		return;
+	}
+	// 获取MassActorSubsystem
+	UMassActorSubsystem* MassActorSubsystem = CrossActor->GetWorld()->GetSubsystem<UMassActorSubsystem>();
+	if (!MassActorSubsystem)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("GetCrossPhaseCtlLanes: MassActorSubsystem not found"));
+		return;
+	}
+	// 获取MassEntitySubsystem
+	UMassEntitySubsystem* MassEntitySubsystem = CrossActor->GetWorld()->GetSubsystem<UMassEntitySubsystem>();
+	if (!MassEntitySubsystem)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("GetCrossPhaseCtlLanes: MassEntitySubsystem not found"));
+		return;
+	}
+
+	FMassEntityHandle EntityHandle = MassActorSubsystem->GetEntityHandleFromActor(CrossActor);
+	if (!EntityHandle.IsValid())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("GetCrossPhaseCtlLanes: No valid entity handle found for actor %s"),
+			*CrossActor->GetName());
+		return;
+	}
+	const FTrafficLightFragment* PhaseFragment = MassEntitySubsystem->GetEntityManager().GetFragmentDataPtr<FTrafficLightFragment>(EntityHandle);
+	if (!PhaseFragment)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("GetCrossPhaseCtlLanes: No FTrafficLightFragment found for actor %s"),
+			*CrossActor->GetName());
+		return;
+	}
+	CtlLanes = PhaseFragment->CtlLaneTransforms;
+	for (auto Pair : PhaseFragment->PhaseControlledLanes)
+	{
+		PhaseToCtlLanes.Add(Pair.Key, FArrayInt(Pair.Value));
+	}
+
 }
 
 void UTrafficLightSubsystem::GetNextLanesFromPhaseLane(int32 CurLaneIndex, TArray<int32>& NextLanes)

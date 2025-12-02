@@ -51,7 +51,7 @@ void USyncTransformToActorProcessor::Execute(FMassEntityManager& EntityManager, 
 				const FTransform& EntityTransform = TransformFragments[i].GetTransform();
 				AActor*  Actor = ActorFragments[i].GetMutable(FMassActorFragment::EActorAccess::OnlyWhenAlive);
 
-				if (Actor && !Actor->IsPendingKill())
+				if (IsValid(Actor))
 				{
 					Actor->SetActorTransform(EntityTransform, /*bSweep*/ false, /*OutHit*/ nullptr, ETeleportType::TeleportPhysics);
 				}
