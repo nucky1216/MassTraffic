@@ -49,5 +49,5 @@ public:
 	static void ClearDT(UDataTable* DataTable);
 
 	UFUNCTION(BlueprintCallAble, Category = "Json/Deserialize")
-	static void DeserializeOutterLaneVehicles(FJsonLibraryObject JsonObject, FOnJsonDeserializeFinished OnFinished);
+	static void DeserializeOutterLaneVehicles(FJsonLibraryObject JsonObject,UDataTable* VehTypesDT, FOnJsonDeserializeFinished OnFinished);
 };

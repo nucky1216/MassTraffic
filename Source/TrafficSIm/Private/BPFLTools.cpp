@@ -222,10 +222,10 @@ void UBPFLTools::ClearDT(UDataTable* DataTable)
 	DataTable->EmptyTable();
 }
 
-void UBPFLTools::DeserializeOutterLaneVehicles(FJsonLibraryObject JsonObject, FOnJsonDeserializeFinished OnFinished)
+void UBPFLTools::DeserializeOutterLaneVehicles(FJsonLibraryObject JsonObject, UDataTable* VehTypesDT,  FOnJsonDeserializeFinished OnFinished)
 {
 	// 整个解析放到后台，按值捕获 JsonObject 确保其生命周期覆盖
-	Async(EAsyncExecution::ThreadPool, [JsonObject, OnFinished]() mutable
+	Async(EAsyncExecution::ThreadPool, [JsonObject, VehTypesDT, OnFinished]() mutable
 		{
 			// 在后台线程重新取列表，避免使用已失效的 List
 			FJsonLibraryList List = JsonObject.GetList(TEXT("lane_flows"));
@@ -242,7 +242,7 @@ void UBPFLTools::DeserializeOutterLaneVehicles(FJsonLibraryObject JsonObject, FO
 			{
 				Items[i] = List.GetObject(i);
 			}
-
+			UE_LOG(LogTemp, Log, TEXT("DeserializeOutterLaneVehicles: Processing %d items."), Count);
 			ParallelFor(Count, [&](int32 Index)
 				{
 					const FJsonLibraryObject& LaneObj = Items[Index];
@@ -259,7 +259,28 @@ void UBPFLTools::DeserializeOutterLaneVehicles(FJsonLibraryObject JsonObject, FO
 						VehicleData.VehicleIDs.Emplace(*S);
 					}
 
-					VehicleData.VehicleTypeIndices = LaneObj.GetList(TEXT("lane_types")).ToIntegerArray();
+					TArray<FString> VehTypes= LaneObj.GetList(TEXT("lane_types")).ToStringArray();
+					
+					VehicleData.VehicleTypeIndices.Reset();
+					VehicleData.VehicleTypeIndices.Reserve(VehTypes.Num());
+					UE_LOG(LogTemp, Log, TEXT("DeserializeOutterLaneVehicles: Lane %s has %d vehicle types."), *VehicleData.LaneSectID.ToString(), VehTypes.Num());
+					for(auto TypeStr: VehTypes)
+					{
+							if(TypeStr.Equals(TEXT("X99"),ESearchCase::IgnoreCase))
+							{
+								VehicleData.VehicleTypeIndices.Add(FMath::RandRange(0, 9)); // 临时处理 X99 类型为随机数
+								continue;
+							}
+
+							FVehTypeRow* Row=VehTypesDT->FindRow<FVehTypeRow>(FName(TypeStr),TEXT("Find VehType Indice"));
+							if (Row)
+							{
+								VehicleData.VehicleTypeIndices.Add(Row->TypeIndex);
+								continue;
+							}
+							VehicleData.VehicleTypeIndices.Add(0); // 找不到类型则默认为 0
+					}
+
 				}, EParallelForFlags::Unbalanced);
 
 			// 回到 GameThread 触发蓝图委托

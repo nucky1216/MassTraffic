@@ -10,6 +10,13 @@
 /**
  * 
  */
+struct FSpawnPointData
+{
+	FZoneGraphLaneLocation LaneLocation;
+	FName VehID;
+	float CruiseSpeed;
+	bool Controlled;
+};
 UCLASS()
 class TRAFFICSIM_API UDynamicSpawnProcessor : public UMassProcessor
 {
@@ -24,5 +31,6 @@ private:
 	FMassEntityQuery EntityQuery;
 	TArray<float> VehicleLenth;
 	TArray<float> PrefixSum;
+
 	
 };

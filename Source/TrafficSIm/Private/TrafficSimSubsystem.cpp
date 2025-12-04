@@ -220,7 +220,7 @@ void UTrafficSimSubsystem::FillVehsOnLane(TArray<int32> LaneIndice,TArray<float>
 	}
 	if (VehTypeIndice.Num() != VehIDs.Num())
 	{
-		UE_LOG(LogTrafficSim, Error, TEXT("Type Num is not equal with IDs Num"));
+		UE_LOG(LogTrafficSim, Error, TEXT("Type Num is not equal with IDs Num at LaneIndex:%d"));
 		return;
 	}
 
@@ -896,6 +896,11 @@ FName UTrafficSimSubsystem::GetVehIDFromActor(AActor* ClickedActor)
 	
 }
 
+void UTrafficSimSubsystem::SetManualSimMode(bool bInManualSim)
+{
+	bManualSim = bInManualSim;
+}
+
 void UTrafficSimSubsystem::LineTraceEntity(FVector Start, FVector End)
 {
 
@@ -1155,8 +1160,18 @@ void UTrafficSimSubsystem::InitializeTrafficTypes(TConstArrayView<FMassSpawnedEn
 	for (const FMassSpawnedEntityType& Type : VehicleConfigTypes)
 	{
 		// 获取实体模板
-		const UMassEntityConfigAsset* EntityConfig = Type.EntityConfig.LoadSynchronous();;
-		EntityTemplates.Add( &EntityConfig->GetOrCreateEntityTemplate(*World));
+		const UMassEntityConfigAsset* EntityConfig = Type.EntityConfig.LoadSynchronous();
+		if (!IsValid(EntityConfig))
+		{
+			UE_LOG(LogTrafficSim, Error, TEXT("TrafficSimSubsystem::InitializeTrafficTypes: Failed to load EntityConfigAsset for vehicle type."));
+			continue;
+		}
+		if (!World)
+		{
+			UE_LOG(LogTrafficSim, Error, TEXT("TrafficSimSubsystem::InitializeTrafficTypes: World is not initialized."));
+		}
+		EntityTemplates.Add( &EntityConfig->GetOrCreateEntityTemplate(*GetWorld()));
+		UE_LOG(LogTrafficSim, Log, TEXT("Add a EntityConfig.."));
 	}
 }
 
@@ -1201,6 +1216,14 @@ void UTrafficSimSubsystem::GetVehicleConfigs(TArray<float>& VehicleLenth, TArray
 	{
 		Accumulate += VehicleConfigTypes[i].Proportion / TotalProportion;
 		PrefixSum.Add(Accumulate);
+	}
+}
+
+void UTrafficSimSubsystem::BroadcastEntitySpawnedEvent(const TArray<FName>& VehIDs, const TArray<int32>& VehTypes, const TArray<FVector>& VehPositions)
+{
+	if(bManualSim)
+	{
+		OnEntitySpawned.Broadcast(VehIDs, VehTypes, VehPositions);
 	}
 }
 

@@ -137,7 +137,7 @@ void UTrafficLightCountingProcessor::Execute(FMassEntityManager& EntityManager, 
 					TrafficLightSubsystem->SetPhaseLanesOpened(TrafficLightFragment.ZoneIndex, TrafficLightFragment.CrossPhaseLanes[PhaseName]);
 
 					//Debug
-					TrafficLightSubsystem->DebugCrossPhase(TrafficLightFragment.CrossPhaseLanes[PhaseName]);
+					//TrafficLightSubsystem->DebugCrossPhase(TrafficLightFragment.CrossPhaseLanes[PhaseName]);
 				}
 				
 

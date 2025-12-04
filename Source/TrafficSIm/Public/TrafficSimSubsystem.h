@@ -131,6 +131,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Traffic|Mass")
 	FName GetVehIDFromActor(AActor* ClickedActor);
 
+
+	UFUNCTION(BlueprintCallable, Category = "TrafficSim| ManualSim")
+	void SetManualSimMode(bool bInManualSim);
+
 	void LineTraceEntity(FVector Start, FVector End);
 
 	bool SwitchToNextLane(FZoneGraphLaneLocation& LaneLocation, float NewDist);
@@ -144,6 +148,9 @@ public:
 
 	void InitializeTrafficTypes(TConstArrayView<FMassSpawnedEntityType> InTrafficTypes, FZoneGraphTag IntersectionTagIn);
 	void GetVehicleConfigs(TArray<float>& VehicleLenth, TArray<float>& PrefixSum);
+	void BroadcastEntitySpawnedEvent(const TArray<FName>& VehIDs,
+		const TArray<int32>& VehTypes,
+		const TArray<FVector>& VehPositions);
 
 	UFUNCTION(BlueprintCallable, Category="TrafficSim|Control")
 	void AdjustLaneCongestion(int32 LaneIndex, ELaneCongestionMetric MetricType, float TargetValue, UMassEntityConfigAsset* OptionalConfig, float StartDist,float EndDist,float MinSafetyGap = 200.f);
@@ -170,6 +177,8 @@ public:
 
 	TMap<FZoneGraphTag, FTagLaneSpeed> TagLaneSpeed;
 	TMap<FZoneGraphTag, FTagLaneGap> TagLaneGap;
+private:
+	bool bManualSim = false;
 
 
 };

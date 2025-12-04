@@ -242,6 +242,18 @@ struct FRoadToLaneIndexRow :public FTableRowBase
 	TArray<float> EndDist;
  };
 
+USTRUCT(BlueprintType)
+struct FVehTypeRow :public FTableRowBase
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LaneID to Index")
+	FString TypeDescription;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LaneID to Index")
+	int32 TypeIndex;
+
+};
 
 USTRUCT(BlueprintType)
 struct FOutterLaneVehicle
