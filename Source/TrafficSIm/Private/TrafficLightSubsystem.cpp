@@ -22,11 +22,11 @@ void UTrafficLightSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	}
 
 	
-	if (GetWorld()->IsEditorWorld())
-	{
-		//Editor only
-		FWorldDelegates::OnPostWorldInitialization.AddUObject(this, &UTrafficLightSubsystem::HandleEditorWorldInitialized);
-	}
+	//if (GetWorld()->IsEditorWorld())
+	//{
+	//	//Editor only
+	//	FWorldDelegates::OnPostWorldInitialization.AddUObject(this, &UTrafficLightSubsystem::HandleEditorWorldInitialized);
+	//}
 }
 
 void UTrafficLightSubsystem::Deinitialize()

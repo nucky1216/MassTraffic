@@ -100,10 +100,10 @@ void UTrafficSimSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	//FWorldDelegates::OnPostWorldInitialization.AddUObject(this, &UTrafficSimSubsystem::InitOnPostLoadMap);
 	FWorldDelegates::OnWorldInitializedActors.AddUObject(this, &UTrafficSimSubsystem::InitOnPostLoadMap);
 
-	if(GetWorld()->IsEditorWorld())
-	{
-		FWorldDelegates::OnPostWorldInitialization.AddUObject(this, &UTrafficSimSubsystem::InitOnPostEditorWorld);
-	}
+	//if(GetWorld()->IsEditorWorld())
+	//{
+	//	FWorldDelegates::OnPostWorldInitialization.AddUObject(this, &UTrafficSimSubsystem::InitOnPostEditorWorld);
+	//}
 }
 
 void UTrafficSimSubsystem::Deinitialize()
@@ -1268,7 +1268,7 @@ void UTrafficSimSubsystem::InitOnPostEditorWorld(UWorld* InWorld, UWorld::Initia
 		}
 	}
 
-	UE_LOG(LogTemp, Error, TEXT("No valid ZoneGraphData found in the Editor world!"));
+	UE_LOG(LogTrafficSim, Error, TEXT("TrafficSimSubsystem::InitOnPostEditorWorld: No valid ZoneGraphData found in the Editor world!"));
 }
 
 void UTrafficSimSubsystem::AdjustLaneCongestion(int32 LaneIndex, ELaneCongestionMetric MetricType, float TargetValue, UMassEntityConfigAsset* OptionalConfig, float StartDist, float EndDist, float MinSafetyGap)
