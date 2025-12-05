@@ -393,7 +393,7 @@ void UTrafficLightSubsystem::RegisterCrossEntity(FName CrossName, FMassEntityHan
 void UTrafficLightSubsystem::InitializeCrossPhaseLaneInfor(UDataTable* DataTable)
 {
 	CrossPhaseLaneInfor.Empty();
-	UE_LOG(LogTrafficLight, Log, TEXT("Initializing CrossPhaseLaneInfor from DataTable: %s RowStructName:%s"), *DataTable->GetName(), *DataTable->GetRowStructPathName().ToString());
+	//UE_LOG(LogTrafficLight, Log, TEXT("Initializing CrossPhaseLaneInfor from DataTable: %s RowStructName:%s"), *DataTable->GetName(), *DataTable->GetRowStructPathName().ToString());
 	
 
 	for(auto& Row : DataTable->GetRowMap())
