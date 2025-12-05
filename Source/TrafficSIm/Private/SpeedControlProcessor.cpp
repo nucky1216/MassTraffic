@@ -63,7 +63,7 @@ void USpeedControlProcessor::Execute(FMassEntityManager& EntityManager, FMassExe
 					const float dist = FVector::Distance(VM.LaneLocation.Position, FrontVM->LaneLocation.Position);
 					// 两车半长和安全缓冲
 					const float halfLenSum = 0.5f * (VM.VehicleLength + FrontVM->VehicleLength);
-					const float SafetyBuffer = 5.f; // 安全缓冲（单位与距离一致，可按需要调优）
+					const float SafetyBuffer = 50.f; // 安全缓冲（单位与距离一致，可按需要调优）
 					// 有效可用间距（前车尾到我车头之间）
 					float gapEff = dist - halfLenSum - SafetyBuffer;
 
@@ -73,7 +73,8 @@ void USpeedControlProcessor::Execute(FMassEntityManager& EntityManager, FMassExe
 						VM.TargetSpeed = 0.f;
 						VM.Decelaration = FMath::Max(VM.Decelaration, 3000.f); // 强制高减速度以快速停车
 					}
-					else
+					// 若 gapEff 过近时，才开始进行速度调整
+					else if (gapEff <= halfLenSum * 1.5f)
 					{
 						// 当前速度
 						const float v = FMath::Max(0.f, VM.Speed);
@@ -86,8 +87,8 @@ void USpeedControlProcessor::Execute(FMassEntityManager& EntityManager, FMassExe
 						float a_req = (v > 1e-3f) ? (v * v) / (2.f * gapEff) : 0.f;
 
 						// 限幅减速度
-						const float aMin = 50.f;   // 最小可用减速度（防止过小，单位与项目一致）
-						const float aMax = 8000.f;  // 最大允许减速度
+						const float aMin = 10.f;   // 最小可用减速度（防止过小，单位与项目一致）
+						const float aMax = 5000.f;  // 最大允许减速度
 						a_req = FMath::Clamp(a_req, aMin, aMax);
 
 						// 距离是否过近：额外触发“目标速度=0”的策略
