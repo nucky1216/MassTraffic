@@ -59,73 +59,69 @@ void USpeedControlProcessor::Execute(FMassEntityManager& EntityManager, FMassExe
 
 				if (FrontVM)
 				{
-					// 当前两车中心距离
+					// 前车距离
 					const float dist = FVector::Distance(VM.LaneLocation.Position, FrontVM->LaneLocation.Position);
-					// 两车半长和安全缓冲
+					// 两车半长之和
 					const float halfLenSum = 0.5f * (VM.VehicleLength + FrontVM->VehicleLength);
-					const float SafetyBuffer = 50.f; // 安全缓冲（单位与距离一致，可按需要调优）
-					// 有效可用间距（前车尾到我车头之间）
-					float gapEff = dist - halfLenSum - SafetyBuffer;
 
-					// 若 gapEff 小于 0，立即设为强制停车场景
-					if (gapEff <= 0.f)
+					// 有效车间距 (车尾到车头)
+					float s = dist - halfLenSum;
+					s = FMath::Max(s, 1.f);  // 避免除零
+
+					// 当前速度 v，前车速度 vf
+					const float v = FMath::Max(0.f, VM.Speed);
+					const float vf = FMath::Max(0.f, FrontVM->Speed);
+					const float dv = v - vf; // 相对速度
+
+					// ==== IDM 参数 ====
+					const float v0 = VM.CruiseSpeed; // 期望速度
+					const float aMax = 300.f;        // 最大加速度
+					const float bComfort = 400.f;    // 舒适减速度
+					const float s0 = 300.f;          // 静态距离
+					const float T = 1.6f;            // 时间头距
+					const float delta = 4.0f;
+
+					// ==== 动态安全距离 s* ====
+					float sStar = s0 + v * T + (v * dv) / (2.f * FMath::Sqrt(aMax * bComfort));
+					sStar = FMath::Max(sStar, s0);
+
+					// ==== IDM 加速度公式 ====
+					float accelFree = 1.f - FMath::Pow(v / v0, delta);
+					float accelInt = FMath::Pow(sStar / s, 2.f);
+
+					float aIDM = aMax * (accelFree - accelInt);
+
+					// ==== 将 IDM 加速度转换为目标速度 ====
+					float newSpeed = v + aIDM * DeltaTime;
+					newSpeed = FMath::Clamp(newSpeed, 0.f, VM.MaxSpeed);
+
+					VM.TargetSpeed = newSpeed;
+
+					// ==== 设置 VM.Deceleration / VM.Acceleration 用于你的积分部分 ====
+					if (aIDM < 0.f)
 					{
-						VM.TargetSpeed = 0.f;
-						VM.Decelaration = FMath::Max(VM.Decelaration, 3000.f); // 强制高减速度以快速停车
+						VM.Decelaration = -aIDM;
 					}
-					// 若 gapEff 过近时，才开始进行速度调整
-					else if (gapEff <= halfLenSum * 1.5f)
+					else
 					{
-						// 当前速度
-						const float v = FMath::Max(0.f, VM.Speed);
-
-						// 期望跟驰速度（对齐前车速度）
-						const float FollowTarget = FrontVM->Speed;
-
-						// 计算为避免碰撞所需的最小减速度：a_req = v^2 / (2 * gapEff)
-						// 如果 v 很小，则无需强减速
-						float a_req = (v > 1e-3f) ? (v * v) / (2.f * gapEff) : 0.f;
-
-						// 限幅减速度
-						const float aMin = 10.f;   // 最小可用减速度（防止过小，单位与项目一致）
-						const float aMax = 5000.f;  // 最大允许减速度
-						a_req = FMath::Clamp(a_req, aMin, aMax);
-
-						// 距离是否过近：额外触发“目标速度=0”的策略
-						const bool bTooClose = (dist < halfLenSum * 1.5f);
-
-						// 如果距离不足以安全跟驰（或过近），收敛到停车（或至少不快于前车）
-						if (bTooClose)
-						{
-							VM.TargetSpeed = 0.f;
-						}
-						else
-						{
-							// 不允许比前车快（避免追尾）
-							VM.TargetSpeed = FMath::Min(FollowTarget, VM.TargetSpeed);
-							// 若目前比前车快，也收敛至前车速度
-							if (VM.Speed > FollowTarget)
-							{
-								VM.TargetSpeed = FollowTarget;
-							}
-						}
-
-						// 更新使用的减速度：至少满足 a_req
-						VM.Decelaration = FMath::Max(VM.Decelaration, a_req);
-
-						// 若距离很充裕（远大于安全距离），允许恢复到巡航目标
-						const bool bFarEnough = (gapEff > halfLenSum * 2.0f);
-						if (bFarEnough && VM.TargetSpeed <= FollowTarget)
-						{
-							VM.TargetSpeed = CruiseTarget;
-						}
+						VM.Accelaration = aIDM;
 					}
 				}
 				else
 				{
-					// 无前车：自由巡航（可加速至随机目标）
-					VM.TargetSpeed = CruiseTarget;
+					// 无前车：自由巡航（IDM 自由流方程）
+					const float v = VM.Speed;
+					const float v0 = VM.CruiseSpeed;
+					const float aMax = 300.f;
+					const float delta = 4.f;
+
+					float aFree = aMax * (1 - FMath::Pow(v / v0, delta));
+					float newSpeed = v + aFree * DeltaTime;
+					newSpeed = FMath::Clamp(newSpeed, 0.f, VM.MaxSpeed);
+
+					VM.TargetSpeed = newSpeed;
 				}
+
 
 				// 红绿灯一车之条件处理（保留你的逻辑）
 				if (bIsFirst && (VM.LeftDistance < VM.VehicleLength || VM.Speed == 0.f))

@@ -880,6 +880,44 @@ FName UTrafficSimSubsystem::GetVehIDFromActor(AActor* ClickedActor)
 		const FMassVehicleMovementFragment* VehicleMovementFragment =
 			MassEntitySubsystem->GetEntityManager().GetFragmentDataPtr<FMassVehicleMovementFragment>(EntityHandle);
 
+		//Debug Info
+#if WITH_EDITOR
+
+		//FMassVehicleMovementFragment Frag = TargetVehicle.VehicleMovementFragment;
+		UTrafficLightSubsystem* TrafficLightSubsystem = UWorld::GetSubsystem<UTrafficLightSubsystem>(World);
+
+		bool OpenLane = false, IntersectionLane = false;
+		const FMassVehicleMovementFragment* FrontVehicleMovement = nullptr;
+
+		bool First = FindFrontVehicle(VehicleMovementFragment->LaneLocation.LaneHandle.Index,
+			VehicleMovementFragment->NextLane, VehicleMovementFragment->VehicleHandle, FrontVehicleMovement);
+
+		TrafficLightSubsystem->QueryLaneOpenState(VehicleMovementFragment->NextLane, OpenLane, IntersectionLane);
+		bool hasFrontVehicle = (FrontVehicleMovement != nullptr);
+		UE_LOG(LogTemp, Log, TEXT("CurVehSN:%d,CruiseSpeed:%f"), EntityHandle.SerialNumber, VehicleMovementFragment->CruiseSpeed);
+		UE_LOG(LogTemp, Log, TEXT("VehicleSN:%d,CurLane:%d, NextLane:%d,TargetSpeed:%f, Speed:%f,NextLaneInInsec:%d,IsOpen:%d,LeftDistance:%f,VehicleLength:%f,FirstAtCurLane:%d HasFrontVehilce:%d"),
+			VehicleMovementFragment->VehicleHandle.SerialNumber,
+			VehicleMovementFragment->LaneLocation.LaneHandle.Index, VehicleMovementFragment->NextLane,
+			VehicleMovementFragment->TargetSpeed, VehicleMovementFragment->Speed,
+			IntersectionLane, OpenLane,
+			VehicleMovementFragment->LeftDistance, VehicleMovementFragment->VehicleLength, First, hasFrontVehicle
+		);
+		if (hasFrontVehicle)
+		{
+			UE_LOG(LogTemp, Log, TEXT("FrontVehicleSN:%d Speed:%f TargetSpeed:%f at lane:%d HalfLenght:%f,Dist:%f"),
+				FrontVehicleMovement->VehicleHandle.SerialNumber,
+				FrontVehicleMovement->Speed,
+				FrontVehicleMovement->TargetSpeed,
+				FrontVehicleMovement->LaneLocation.LaneHandle.Index,
+				(FrontVehicleMovement->VehicleLength + VehicleMovementFragment->VehicleLength) / 2,
+				FVector::Distance(FrontVehicleMovement->LaneLocation.Position, VehicleMovementFragment->LaneLocation.Position)
+			);
+			DrawDebugPoint(GetWorld(), FrontVehicleMovement->LaneLocation.Position + FVector(0, 0, 500.f), 50.0, FColor::Red, false, 10.0);
+		}
+
+#endif
+
+
 		if (VehicleMovementFragment)
 		{
 			UE_LOG(LogTemp, Log, TEXT("GetVehIDFromActor: Found VehID %s for actor %s"),
