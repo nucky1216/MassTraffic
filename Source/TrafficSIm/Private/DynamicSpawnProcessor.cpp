@@ -251,8 +251,11 @@ void UDynamicSpawnProcessor::Execute(FMassEntityManager& EntityManager, FMassExe
 					{
 						MoveFrag.CruiseSpeed =  FMath::RandRange(MoveFrag.MinSpeed, MoveFrag.MaxSpeed);
 					}
+					else
+					{
+						MoveFrag.CruiseSpeed = CruiseSpeed;
+					}
 
-					MoveFrag.CruiseSpeed = CruiseSpeed;
 					MoveFrag.TargetSpeed = FMath::RandRange(MoveFrag.MinSpeed, MoveFrag.MaxSpeed);
 					MoveFrag.Speed = FMath::RandRange(MoveFrag.MinSpeed, MoveFrag.TargetSpeed);
 					MoveFrag.VehID = LaneLocationsCopy[i].VehID;

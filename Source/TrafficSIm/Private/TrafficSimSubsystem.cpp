@@ -544,7 +544,7 @@ void UTrafficSimSubsystem::RoadToLaneIndice(UPARAM(ref)UDataTable* RoadToLaneInd
 	TArray<int32> LaneIndice;
 
 	FZoneGraphTagFilter Filter;
-	Filter.AnyTags.Add(AnyTag);
+	Filter.NotTags.Add(AnyTag);
 
 	UE::ZoneGraph::Query::FindNearestLanesBySeg(*ZoneGraphStorage, RoadPoints, Height, Filter, LaneIndice, StartEnd);
 
@@ -563,14 +563,14 @@ void UTrafficSimSubsystem::RoadToLaneIndice(UPARAM(ref)UDataTable* RoadToLaneInd
 	}
 
 	////Debug Draw
-	//for(int32 i=0;i< LaneIndice.Num();i++)
-	//{
-	//	FZoneGraphLaneLocation Start, End;
-	//	UE::ZoneGraph::Query::CalculateLocationAlongLane(*ZoneGraphStorage, LaneIndice[i],StartEnd[i].Get<0>(), Start);
-	//	UE::ZoneGraph::Query::CalculateLocationAlongLane(*ZoneGraphStorage, LaneIndice[i], StartEnd[i].Get<1>(), End);
-	//	UE_LOG(LogTemp, Log, TEXT("LaneIndex:%d,Start:%f,End:%f"), LaneIndice[i], StartEnd[i].Get<0>(), StartEnd[i].Get<1>());
-	//	DrawDebugDirectionalArrow(GetWorld(), Start.Position+FVector(0,0,300), End.Position + FVector(0, 0, 300), 3000, FColor::Blue, false, 30.f, 0, 35);
-	//}
+	for(int32 i=0;i< LaneIndice.Num();i++)
+	{
+		FZoneGraphLaneLocation Start, End;
+		UE::ZoneGraph::Query::CalculateLocationAlongLane(*ZoneGraphStorage, LaneIndice[i],StartEnd[i].Get<0>(), Start);
+		UE::ZoneGraph::Query::CalculateLocationAlongLane(*ZoneGraphStorage, LaneIndice[i], StartEnd[i].Get<1>(), End);
+		UE_LOG(LogTemp, Log, TEXT("LaneIndex:%d,Start:%f,End:%f"), LaneIndice[i], StartEnd[i].Get<0>(), StartEnd[i].Get<1>());
+		DrawDebugDirectionalArrow(GetWorld(), Start.Position+FVector(0,0,300), End.Position + FVector(0, 0, 300), 3000, FColor::Blue, false, 30.f, 0, 35);
+	}
 
 	//Merge LaneSegs
 	TArray<int32> MergedLaneIndices;
@@ -602,14 +602,14 @@ void UTrafficSimSubsystem::RoadToLaneIndice(UPARAM(ref)UDataTable* RoadToLaneInd
 		MergedRowData.EndDist.Add(EndDist);
 	}
 	//Debug
-	//for(int32 i=0;i< MergedRowData.LaneIndices.Num();i++)
-	//{
-	//	FZoneGraphLaneLocation Start, End;
-	//	UE::ZoneGraph::Query::CalculateLocationAlongLane(*ZoneGraphStorage, MergedRowData.LaneIndices[i],MergedRowData.StartDist[i], Start);
-	//	UE::ZoneGraph::Query::CalculateLocationAlongLane(*ZoneGraphStorage, MergedRowData.LaneIndices[i], MergedRowData.EndDist[i], End);
-	//	UE_LOG(LogTemp, Log, TEXT("Merged LaneIndex:%d,Start:%f,End:%f"), MergedRowData.LaneIndices[i], MergedRowData.StartDist[i], MergedRowData.EndDist[i]);
-	//	DrawDebugDirectionalArrow(GetWorld(), Start.Position+FVector(0,0,600), End.Position + FVector(0, 0, 600), 3000, FColor::Red, false, 60.f, 0, 35);
-	//}
+	for(int32 i=0;i< MergedRowData.LaneIndices.Num();i++)
+	{
+		FZoneGraphLaneLocation Start, End;
+		UE::ZoneGraph::Query::CalculateLocationAlongLane(*ZoneGraphStorage, MergedRowData.LaneIndices[i],MergedRowData.StartDist[i], Start);
+		UE::ZoneGraph::Query::CalculateLocationAlongLane(*ZoneGraphStorage, MergedRowData.LaneIndices[i], MergedRowData.EndDist[i], End);
+		UE_LOG(LogTemp, Log, TEXT("Merged LaneIndex:%d,Start:%f,End:%f"), MergedRowData.LaneIndices[i], MergedRowData.StartDist[i], MergedRowData.EndDist[i]);
+		DrawDebugDirectionalArrow(GetWorld(), Start.Position+FVector(0,0,600), End.Position + FVector(0, 0, 600), 3000, FColor::Red, false, 60.f, 0, 35);
+	}
 
 	RoadToLaneIndiceMap->AddRow(RoadID, MergedRowData);
 }
