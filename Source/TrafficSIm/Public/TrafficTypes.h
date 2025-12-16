@@ -147,6 +147,9 @@ struct FDTRoadGeoStatus : public FTableRowBase
 	UPROPERTY(EditAnywhere,BlueprintReadWrite,Category="Nav")
 	TArray<FVector> coords;
 
+	UPROPERTY(EditAnywhere,BlueprintReadWrite,Category="Nav")
+	int32 roadclass;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Nav")
 	int32 state;
 
@@ -176,6 +179,10 @@ struct FCrossPhaseLaneData :public FTableRowBase
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CrossPhase")
 	TArray<int32> LaneIndices;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CrossPhase")
+	TArray<FName> CtrLaneSectIDs;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CrossPhase")
 	TArray<FName> TurnType;
 
@@ -223,7 +230,9 @@ struct FPhaseLanes:public FTableRowBase
 	FName CrossID;
 	FName PhaseName;
 	TArray<int32> PhaseLanes;
-
+	TArray<FName> LaneSectIDs;
+	TArray<FName> LaneTurnTypes;
+	TArray<int32> ControlledLaneIndice;
 };
 
 
