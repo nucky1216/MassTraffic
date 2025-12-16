@@ -63,7 +63,7 @@ public:
 	void SetCrossPhaseQueue(FString JsonStr);
 
 	UFUNCTION(BlueprintCallable, Category = "TrafficLightSim| CrossPhase")
-	void GetCrossPhaseState(AActor* CrossActor, FName& Phase, float& LeftTime,TArray<FName>& LaneSectIDs,TArray<FName>&TurnType,TArray<FName>& RoadIDs);
+	void GetCrossPhaseState(AActor* CrossActor, FName& Phase, float& LeftTime, TArray<FPhaseCtlInfo>& CtlLaneInfor);
 
 	UFUNCTION(BlueprintCallable, Category = "TrafficLightSim| CrossPhase")
 	void GetCrossPhaseCtlLanes(AActor* CrossActor, TMap<int32,FTransform>& CtlLanes,TMap<FName, FArrayInt>& PhaseToCtlLanes);

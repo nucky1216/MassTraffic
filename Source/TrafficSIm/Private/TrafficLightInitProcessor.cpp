@@ -83,6 +83,8 @@ void UTrafficLightInitProcessor::Execute(FMassEntityManager& EntityManager, FMas
 
 					TrafficLightFragment.CtlLaneTransforms.Add(LaneID, FTransform(LaneLocation.Direction.Rotation(),LaneLocation.Position));
 				}
+				Pair.Value.LaneGroups.Empty();
+				Pair.Value.RoadIDs.Empty();
 				for (const auto& LaneSectID : Pair.Value.LaneSectIDs)
 				{
 					TArray<FString> Parts;
@@ -90,12 +92,19 @@ void UTrafficLightInitProcessor::Execute(FMassEntityManager& EntityManager, FMas
 					if(Parts.Num()>0)
 					{
 						TrafficLightFragment.CtlRoadIDs.AddUnique(FName(Parts[0]));
+						Pair.Value.RoadIDs.Add(FName(Parts[0]));
+
+						int32 GroupIndex=TrafficLightFragment.CtlRoadIDs.IndexOfByKey(FName(Parts[0]));
+						Pair.Value.LaneGroups.Add(GroupIndex);
 					}
 					else
 					{
 						UE_LOG(LogTrafficLight, Warning, TEXT("Failed to Parse LaneSectID:%s to RoadID"),*LaneSectID.ToString());
 					}
+					
 				}
+
+
 			}
 
 

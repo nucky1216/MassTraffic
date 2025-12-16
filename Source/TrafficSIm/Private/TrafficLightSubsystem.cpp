@@ -481,7 +481,7 @@ void UTrafficLightSubsystem::SetCrossPhaseQueue(FString JsonStr)
 	UE::Mass::Executor::Run(*Processor, ProcessingContext);
 }
 
-void UTrafficLightSubsystem::GetCrossPhaseState(AActor* CrossActor, FName& Phase, float& LeftTime, TArray<FName>& LaneSectIDs, TArray<FName>& TurnType, TArray<FName>& RoadIDs)
+void UTrafficLightSubsystem::GetCrossPhaseState(AActor* CrossActor, FName& Phase, float& LeftTime, TArray<FPhaseCtlInfo>& CtlLaneInfor)
 {
 	Phase = TEXT("None");
 	LeftTime = 0.f;
@@ -527,14 +527,41 @@ void UTrafficLightSubsystem::GetCrossPhaseState(AActor* CrossActor, FName& Phase
 		return;
 	}
 	Phase = PhaseFragment->CurrentPhase;
-	RoadIDs = PhaseFragment->CtlRoadIDs;
 
 	const FPhaseLanes* CtlLanesInfor=PhaseFragment->PhaseControlledLanes.Find(Phase);
 	if(CtlLanesInfor)
 	{
-		TurnType = CtlLanesInfor->LaneTurnTypes;
-		LaneSectIDs = CtlLanesInfor->LaneSectIDs;
+		for(int32 i=0;i<CtlLanesInfor->LaneSectIDs.Num();i++)
+		{
+			FPhaseCtlInfo Info;
+			Info.LaneSectID = CtlLanesInfor->LaneSectIDs[i];
+			if(i < CtlLanesInfor->LaneTurnTypes.Num())
+			{
+				Info.TurnType = CtlLanesInfor->LaneTurnTypes[i];
+			}
+			else
+			{
+				Info.TurnType = FName(TEXT("Unknown"));
+			}
+			if(i<CtlLanesInfor->RoadIDs.Num())
+			{
+				Info.RoadID = CtlLanesInfor->RoadIDs[i];
+			}
+			else
+			{
+				Info.RoadID = FName(TEXT("Unknown"));
+			}
+			if(i<CtlLanesInfor->LaneGroups.Num())
+			{
+				Info.LaneGroup = CtlLanesInfor->LaneGroups[i];
+			}
+			else
+			{
+				Info.LaneGroup = -1;
+			}
 
+			CtlLaneInfor.Add(Info);
+		}
 	}
 	
 }

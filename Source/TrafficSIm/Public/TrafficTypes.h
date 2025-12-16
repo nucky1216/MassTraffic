@@ -232,6 +232,8 @@ struct FPhaseLanes:public FTableRowBase
 	FName PhaseName;
 	TArray<int32> PhaseLanes;
 	TArray<FName> LaneSectIDs;
+	TArray<FName> RoadIDs;
+	TArray<int32> LaneGroups;
 	TArray<FName> LaneTurnTypes;
 	TArray<int32> ControlledLaneIndice;
 };
@@ -290,4 +292,20 @@ struct FArrayInt
 	FArrayInt() {}
 
 	FArrayInt(const TArray<int32> InArray) :IntArray(InArray){ }
+};
+
+
+USTRUCT(BlueprintType)
+struct FPhaseCtlInfo
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PhaseControl")
+	FName LaneSectID;
+	UPROPERTY(EditAnywhere,BlueprintReadWrite,Category="PhaseLaneControl")
+	FName TurnType;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PhaseControl")
+	FName RoadID;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PhaseControl")
+	int32 LaneGroup;
 };
