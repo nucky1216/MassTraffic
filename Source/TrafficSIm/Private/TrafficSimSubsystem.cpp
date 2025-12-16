@@ -515,8 +515,9 @@ void UTrafficSimSubsystem::PrintLaneLinks(int32 TargetLaneIndex)
 
 void UTrafficSimSubsystem::InitializeManual()
 {
-	ZoneGraphSubsystem = UWorld::GetSubsystem<UZoneGraphSubsystem>(World);
 	World = GetWorld();
+	ZoneGraphSubsystem = UWorld::GetSubsystem<UZoneGraphSubsystem>(World);
+
 	for (TActorIterator<AZoneGraphData> It(World); It; ++It)
 	{
 		AZoneGraphData* ZoneGraphDataTemp = *It;
@@ -828,7 +829,7 @@ void UTrafficSimSubsystem::AddSpawnPointAtLane(int32 LaneIndex, float DistanceAl
 		SpawnPointFrag.CruiseSpeed = CruiseSpeed;
 
 		// 调试可视化
-		DrawDebugPoint(World, LaneLocation.Position, 30.f, FColor::Green, false, 6.f);
+		//DrawDebugPoint(World, LaneLocation.Position, 30.f, FColor::Green, false, 6.f);
 
 		UE_LOG(LogTrafficSim, Log, TEXT("SpawnPoint entity created at Lane %d Dist %.2f EntitySN:%d VehIDs:%d"),
 			LaneIndex, DistanceAlongLane, SpawnPointEntity.SerialNumber, VehIDs.Num());

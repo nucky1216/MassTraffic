@@ -69,7 +69,7 @@ void UTrafficLightInitProcessor::Execute(FMassEntityManager& EntityManager, FMas
 
 			for(auto & Pair: TrafficLightFragment.PhaseControlledLanes)
 			{
-				for(auto & LaneID : Pair.Value)
+				for(auto & LaneID : Pair.Value.ControlledLaneIndice)
 				{
 					if(LaneID<0)
 					{
@@ -82,6 +82,19 @@ void UTrafficLightInitProcessor::Execute(FMassEntityManager& EntityManager, FMas
 					UE::ZoneGraph::Query::CalculateLocationAlongLane(*TrafficSimSubsystem->ZoneGraphStorage, LaneID, LaneLenth , LaneLocation);
 
 					TrafficLightFragment.CtlLaneTransforms.Add(LaneID, FTransform(LaneLocation.Direction.Rotation(),LaneLocation.Position));
+				}
+				for (const auto& LaneSectID : Pair.Value.LaneSectIDs)
+				{
+					TArray<FString> Parts;
+					LaneSectID.ToString().ParseIntoArray(Parts, TEXT("_"), true);
+					if(Parts.Num()>0)
+					{
+						TrafficLightFragment.CtlRoadIDs.AddUnique(FName(Parts[0]));
+					}
+					else
+					{
+						UE_LOG(LogTrafficLight, Warning, TEXT("Failed to Parse LaneSectID:%s to RoadID"),*LaneSectID.ToString());
+					}
 				}
 			}
 

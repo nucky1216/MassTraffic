@@ -86,7 +86,8 @@ struct FTrafficLightInitData
 	TArray<int32> ZoneIndex;
 	TArray<int32> StartSideIndex;
 
-	TArray<TMap<FName,TArray<int32>>> Arr_PhaseLanes,Arr_PhaseControlledLanes;
+	TArray<TMap<FName, TArray<int32>>> Arr_PhaseLanes;
+	TArray<TMap<FName, FPhaseLanes>> Arr_PhaseControlledLanes;
 	TArray<FName> Arr_CrossID;
 
 };

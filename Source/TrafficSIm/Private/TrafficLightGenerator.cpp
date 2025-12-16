@@ -87,7 +87,7 @@ void UTrafficLightGenerator::Generate(UObject& QueryOwner, TConstArrayView<FMass
 			InitSpawnData.StartSideIndex.Add(0); //默认从路口第0边开始
 			
 			TMap<FName, TArray<int32>> PhaseLanes;
-			TMap<FName, TArray<int32>> PhaseControlledLanes;
+			TMap<FName, FPhaseLanes> PhaseControlledLanes;
 			FName CrossID;
 			if(DT_PhaseLanes)
 			{

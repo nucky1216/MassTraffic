@@ -63,20 +63,20 @@ public:
 	void SetCrossPhaseQueue(FString JsonStr);
 
 	UFUNCTION(BlueprintCallable, Category = "TrafficLightSim| CrossPhase")
-	void GetCrossPhaseState(AActor* CrossActor, FName& Phase, float& LeftTime);
+	void GetCrossPhaseState(AActor* CrossActor, FName& Phase, float& LeftTime,TArray<FName>& LaneSectIDs,TArray<FName>&TurnType,TArray<FName>& RoadIDs);
 
 	UFUNCTION(BlueprintCallable, Category = "TrafficLightSim| CrossPhase")
 	void GetCrossPhaseCtlLanes(AActor* CrossActor, TMap<int32,FTransform>& CtlLanes,TMap<FName, FArrayInt>& PhaseToCtlLanes);
 
 	void SetCrossBySignalState(int32 ZoneIndex,ETrafficSignalType SignalType,int32 SideIndex);
 
-	void GetPhaseLanesByZoneIndex(int32 ZoneIndex, TMap<FName, TArray<int32>>& PhaseLanes,TMap<FName,TArray<int32>>& ControlledLanes, FName& CrossID);
+	void GetPhaseLanesByZoneIndex(int32 ZoneIndex, TMap<FName, TArray<int32>>& PhaseLanes,TMap<FName, FPhaseLanes>& ControlledLanes, FName& CrossID);
 
 	void RegisterCrossEntity(FName CrossName,FMassEntityHandle EntityHandle);
 
 
 	FZoneGraphTagFilter IntersectionTagFilter;
-	TMap<FName, TTuple<FPhaseLanes, TArray<int32>>> CrossPhaseLaneInfor;
+	TMap<FName, FPhaseLanes> CrossPhaseLaneInfor;
 	TMap<int32, FIntersectionData> IntersectionDatas;
 	TMap<FName, FMassEntityHandle> CrossEntityHandleMap;
 

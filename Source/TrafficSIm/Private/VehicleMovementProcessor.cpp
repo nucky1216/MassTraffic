@@ -149,24 +149,13 @@ void UVehicleMovementProcessor::Execute(FMassEntityManager& EntityManager, FMass
 				const FVector NewPos = CurLaneLocation.Position;
 				const FQuat NewRot = FRotationMatrix::MakeFromX(CurLaneLocation.Direction).ToQuat();
 
-				//// 位置阈值：0.1 cm；角度阈值：0.05°
-				//const float PosEpsilonSq = FMath::Square(0.1f);
-				//const float RotEpsilonRad = FMath::DegreesToRadians(0.05f);
-				//const bool bNearlyStopped = FMath::IsNearlyZero(Speed, 0.001f);
+				FTransform TargetTrans = FTransform(NewRot, NewPos, FVector(1, 1, 1));
+				
+				//FTransform NewTransform;
+				//NewTransform.Blend(TransformFragment.GetTransform(),TargetTrans,DeltaTime);
 
-				//const bool bPosStable = (NewPos - CurrentTransform.GetLocation()).SizeSquared() <= PosEpsilonSq;
-				//const float RotDeltaRad = 2.f * FMath::Acos(FMath::Clamp(NewRot | CurrentTransform.GetRotation(), -1.f, 1.f));
-				//const bool bRotStable = RotDeltaRad <= RotEpsilonRad;
-				//float DeltaDist = FVector::Distance(CurrentTransform.GetLocation(), NewPos);
-
-				//if (DeltaDist>200.f)
-				{
-					TransformFragment.SetTransform(
-						FTransform(
-							NewRot,
-							NewPos,
-							FVector(1, 1, 1)));
-				}
+				TransformFragment.SetTransform(TargetTrans);
+				
 			}
 		});
 
