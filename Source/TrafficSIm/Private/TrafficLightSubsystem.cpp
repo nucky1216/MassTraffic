@@ -635,7 +635,7 @@ void UTrafficLightSubsystem::GetCrossPhaseCtlLanes(AActor* CrossActor, TMap<int3
 	}
 
 	
-	PhaseFragment->CtlLaneTransforms;
+	//PhaseFragment->CtlLaneTransforms;
 	for (auto Pair : PhaseFragment->PhaseControlledLanes)
 	{
 		const TArray<FName>& SectIDs = Pair.Value.LaneSectIDs;
