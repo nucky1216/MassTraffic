@@ -309,3 +309,20 @@ struct FPhaseCtlInfo
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PhaseControl")
 	int32 LaneGroup;
 };
+
+USTRUCT(BlueprintType)
+struct FCtlLaneInfor
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CtlLaneInfor")
+	FTransform LaneTransform;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CtlLaneInfor")
+	FName LaneSectID;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CtlLaneInfor")
+	FName RoadID;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CtlLaneInfor")
+	int32 LaneGroup;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CtlLaneInfor")
+	TMap<FName, FName> PhaseTurnType;
+};

@@ -66,7 +66,7 @@ public:
 	void GetCrossPhaseState(AActor* CrossActor, FName& Phase, float& LeftTime, TArray<FPhaseCtlInfo>& CtlLaneInfor);
 
 	UFUNCTION(BlueprintCallable, Category = "TrafficLightSim| CrossPhase")
-	void GetCrossPhaseCtlLanes(AActor* CrossActor, TMap<int32,FTransform>& CtlLanes,TMap<FName, FArrayInt>& PhaseToCtlLanes);
+	void GetCrossPhaseCtlLanes(AActor* CrossActor, TMap<int32, FTransform>& CtlLanes, TMap<FName, FArrayInt>& PhaseToCtlLanes, TMap<FName, FCtlLaneInfor>& CtlLaneInfors);
 
 	void SetCrossBySignalState(int32 ZoneIndex,ETrafficSignalType SignalType,int32 SideIndex);
 

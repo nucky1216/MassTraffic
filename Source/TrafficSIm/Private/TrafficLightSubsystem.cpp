@@ -591,7 +591,7 @@ void UTrafficLightSubsystem::GetCrossPhaseState(AActor* CrossActor, FName& Phase
 	
 }
 
-void UTrafficLightSubsystem::GetCrossPhaseCtlLanes(AActor* CrossActor, TMap<int32, FTransform>& CtlLanes, TMap<FName, FArrayInt>& PhaseToCtlLanes)
+void UTrafficLightSubsystem::GetCrossPhaseCtlLanes(AActor* CrossActor, TMap<int32, FTransform>& CtlLanes, TMap<FName, FArrayInt>& PhaseToCtlLanes, TMap<FName, FCtlLaneInfor>& CtlLaneInfors)
 {
  
 	if (IsValid(CrossActor) == false)
@@ -633,6 +633,35 @@ void UTrafficLightSubsystem::GetCrossPhaseCtlLanes(AActor* CrossActor, TMap<int3
 	{
 		PhaseToCtlLanes.Add(Pair.Key, FArrayInt(Pair.Value.ControlledLaneIndice));
 	}
+
+	
+	PhaseFragment->CtlLaneTransforms;
+	for (auto Pair : PhaseFragment->PhaseControlledLanes)
+	{
+		const TArray<FName>& SectIDs = Pair.Value.LaneSectIDs;
+		const TArray<FName>& TurnType = Pair.Value.LaneTurnTypes;
+
+		for(int32 i=0; i< SectIDs.Num(); i++)
+		{
+			FCtlLaneInfor* SectInfor = CtlLaneInfors.Find(SectIDs[i]);
+			if(SectInfor)
+			{
+				SectInfor->PhaseTurnType.Add(Pair.Value.PhaseName, TurnType[i]);
+			}
+			else
+			{
+				FCtlLaneInfor NewInfor;
+				NewInfor.LaneSectID = SectIDs[i];
+				NewInfor.RoadID=Pair.Value.RoadIDs[i];
+				NewInfor.LaneTransform = CtlLanes.FindRef(Pair.Value.ControlledLaneIndice[i]);
+				NewInfor.LaneGroup=Pair.Value.LaneGroups[i];
+				NewInfor.PhaseTurnType.Add(Pair.Value.PhaseName, TurnType[i]);
+				
+				CtlLaneInfors.Add(SectIDs[i], NewInfor);
+			}
+		}
+	}
+
 
 }
 
