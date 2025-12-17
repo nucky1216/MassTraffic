@@ -263,7 +263,7 @@ struct FVehTypeRow :public FTableRowBase
 	FString TypeDescription;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LaneID to Index")
-	int32 TypeIndex;
+	TArray<int32> TypeIndices;
 
 };
 

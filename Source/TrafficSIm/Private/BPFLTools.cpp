@@ -266,16 +266,13 @@ void UBPFLTools::DeserializeOutterLaneVehicles(FJsonLibraryObject JsonObject, UD
 					UE_LOG(LogTemp, Log, TEXT("DeserializeOutterLaneVehicles: Lane %s has %d vehicle types."), *VehicleData.LaneSectID.ToString(), VehTypes.Num());
 					for(auto TypeStr: VehTypes)
 					{
-							if(TypeStr.Equals(TEXT("X99"),ESearchCase::IgnoreCase))
-							{
-								VehicleData.VehicleTypeIndices.Add(FMath::RandRange(0, 9)); // 临时处理 X99 类型为随机数
-								continue;
-							}
 
 							FVehTypeRow* Row=VehTypesDT->FindRow<FVehTypeRow>(FName(TypeStr),TEXT("Find VehType Indice"));
-							if (Row)
+							if (Row&&Row->TypeIndices.Num()>0)
 							{
-								VehicleData.VehicleTypeIndices.Add(Row->TypeIndex);
+				
+								int32 TypeIndex = FMath::RandHelper(Row->TypeIndices.Num());
+								VehicleData.VehicleTypeIndices.Add(Row->TypeIndices[TypeIndex]);
 								continue;
 							}
 							VehicleData.VehicleTypeIndices.Add(0); // 找不到类型则默认为 0

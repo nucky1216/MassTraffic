@@ -230,6 +230,29 @@ void UTrafficLightSubsystem::QueryLaneOpenState(int32 LaneIndex, bool& OpenState
 	return;
 }
 
+TArray<FZoneLaneSlotType> GetTurnTypesByName(FName TurnTypes)
+{
+	TArray<FZoneLaneSlotType> TurnTypeArr;
+	FString StrTurnType = TurnTypes.ToString();
+	if (StrTurnType.Contains(FString(TEXT("S"))))
+	{
+		TurnTypeArr.Add(FZoneLaneSlotType::Straight);
+	}
+	if (StrTurnType.Contains(FString(TEXT("L"))))
+	{
+		TurnTypeArr.Add(FZoneLaneSlotType::LeftTurn);
+	}
+	if (StrTurnType.Contains(FString(TEXT("R"))))
+	{
+		TurnTypeArr.Add(FZoneLaneSlotType::RightTurn);
+	}
+	if (StrTurnType.Contains(FString(TEXT("U"))))
+	{
+		TurnTypeArr.Add(FZoneLaneSlotType::TurnAround);
+	}
+
+	return TurnTypeArr;
+}
 void UTrafficLightSubsystem::InitialCrossPhaseRow(UDataTable* DataTable, const FName& RowName, FCrossPhaseLaneData RowData)
 {
 	//CrossPhaseLaneInfor.Empty();
@@ -242,10 +265,12 @@ void UTrafficLightSubsystem::InitialCrossPhaseRow(UDataTable* DataTable, const F
 
 	
 	TArray<int32> LaneIndices;
-	for (auto index : RowData.ControlledLaneIndice)
+	for (int32 i=0;i< RowData.ControlledLaneIndice.Num();i++)
 	{
 		TArray<int32> NextLaneIndices ;
-		GetNextLanesFromPhaseLane(index, NextLaneIndices);
+
+		TArray<FZoneLaneSlotType> TurnTypes= GetTurnTypesByName(RowData.TurnType[i]);
+		GetNextLanesFromPhaseLane(RowData.ControlledLaneIndice[i], TurnTypes, NextLaneIndices);
 		LaneIndices.Append(NextLaneIndices);
 
 	}
@@ -527,7 +552,7 @@ void UTrafficLightSubsystem::GetCrossPhaseState(AActor* CrossActor, FName& Phase
 		return;
 	}
 	Phase = PhaseFragment->CurrentPhase;
-
+	//TODO:: Only Collect LaneInfor when Phase Changed
 	const FPhaseLanes* CtlLanesInfor=PhaseFragment->PhaseControlledLanes.Find(Phase);
 	if(CtlLanesInfor)
 	{
@@ -611,7 +636,7 @@ void UTrafficLightSubsystem::GetCrossPhaseCtlLanes(AActor* CrossActor, TMap<int3
 
 }
 
-void UTrafficLightSubsystem::GetNextLanesFromPhaseLane(int32 CurLaneIndex, TArray<int32>& NextLanes)
+void UTrafficLightSubsystem::GetNextLanesFromPhaseLane(int32 CurLaneIndex, TArray<FZoneLaneSlotType> TurnTypes,TArray<int32>& NextLanes)
 {
 	if(ZoneGraphStorage==nullptr)
 	{
@@ -628,7 +653,9 @@ void UTrafficLightSubsystem::GetNextLanesFromPhaseLane(int32 CurLaneIndex, TArra
 	for (int32 i = LaneData.LinksBegin;i<LaneData.LinksEnd; ++i)
 	{
 		FZoneLaneLinkData LinkData = ZoneGraphStorage->LaneLinks[i];
-		if(LinkData.Type==EZoneLaneLinkType::Outgoing)
+		FZoneLaneData NextLaneData = ZoneGraphStorage->Lanes[LinkData.DestLaneIndex];
+
+		if(LinkData.Type==EZoneLaneLinkType::Outgoing&& TurnTypes.Contains(NextLaneData.TurnType))
 		{
 			NextLanes.Add(LinkData.DestLaneIndex);
 

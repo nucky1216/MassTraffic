@@ -51,7 +51,7 @@ public:
 	void DebugCrossPhase(TArray<int32> Lanes);
 
 	UFUNCTION(BlueprintCallable, Category = "TrafficLightSim| CrossPhase")
-	void GetNextLanesFromPhaseLane(int32 CurLaneIndex, TArray<int32>& NextLanes);
+	void GetNextLanesFromPhaseLane(int32 CurLaneIndex, TArray<FZoneLaneSlotType> TurnTypes, TArray<int32>& NextLanes);
 
 	UFUNCTION(BlueprintCallable, Category = "TrafficLightSim| CrossPhase")
 	void SetPhaseLanesOpened(int32 ZoneIndex, TArray<int32> PhaseLanes);
