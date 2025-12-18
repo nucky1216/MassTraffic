@@ -97,7 +97,7 @@ public:
 	void GetZonesSeg(TArray<FVector> Points, FZoneGraphTag AnyTag, float Height, FDTRoadLanes& ZoneSegLanes);
 
 	UFUNCTION(BlueprintCallable, Category="TrafficSim")
-	void FillVehsOnLane(TArray<int32> LaneIndice, TArray<float> StartDist, TArray<float> EndDist,float CruiseSpeed,
+	void FillVehsOnLane(TArray<int32> LaneIndice, TArray<float> StartDist, TArray<float> EndDist,float CruiseSpeed,float MinGap,float MaxGap,
 		UPARAM(ref)TArray<FName>& VehIDs, UPARAM(ref)TArray<int32>& VehTypeIndice, TArray<FName>& UsedVehIDs, TArray<int32>& UsedVehTypes);
 
 	UFUNCTION(BlueprintCallable, Category="TrafficSim")

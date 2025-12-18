@@ -67,6 +67,11 @@ void UTrafficLightInitProcessor::Execute(FMassEntityManager& EntityManager, FMas
 
 			TrafficLightFragment.PhaseControlledLanes = InitData.Arr_PhaseControlledLanes[EntityIndex];
 
+			if (TrafficSimSubsystem->ZoneGraphStorage->Lanes.Num() <= 0)
+			{
+				UE_LOG(LogTrafficLight, Warning, TEXT("ZoneGraphStorage has no Lanes data"));
+				continue;
+			}
 			for(auto & Pair: TrafficLightFragment.PhaseControlledLanes)
 			{
 				for(auto & LaneID : Pair.Value.ControlledLaneIndice)

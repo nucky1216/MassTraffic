@@ -80,6 +80,8 @@ void UTrafficLightGenerator::Generate(UObject& QueryOwner, TConstArrayView<FMass
 		//InitSpawnData.Periods = TrafficLightPeriod;
 
 		int32 SpawnCount = 0;
+
+		UE_LOG(LogTrafficLight, Log, TEXT("IntersectionPointsNum: %d SpawnNumEntities:%d"), IntersectionPoints.Num(), Result.NumEntities);
 		for (int32 LocationIndex = 0; LocationIndex < Result.NumEntities; LocationIndex++)
 		{
 			InitSpawnData.TrafficLightTransforms.Add(FTransform(IntersectionPoints[LocationIndex]));
@@ -96,7 +98,6 @@ void UTrafficLightGenerator::Generate(UObject& QueryOwner, TConstArrayView<FMass
 			InitSpawnData.Arr_PhaseLanes.Add(PhaseLanes);
 			InitSpawnData.Arr_CrossID.Add(CrossID);
 			InitSpawnData.Arr_PhaseControlledLanes.Add(PhaseControlledLanes);
-			UE_LOG(LogTrafficLight, Log, TEXT("CrossID: %s"), *CrossID.ToString());
 
 			SpawnCount++;
 		}

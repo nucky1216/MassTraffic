@@ -196,8 +196,8 @@ void UTrafficSimSubsystem::GetZonesSeg(TArray<FVector> Points, FZoneGraphTag Any
 	
 }
 
-void UTrafficSimSubsystem::FillVehsOnLane(TArray<int32> LaneIndice,TArray<float> StartDist, TArray<float> EndDist,  float CruiseSpeed,
-	UPARAM(ref)TArray<FName>& VehIDs, UPARAM(ref)TArray<int32>& VehTypeIndice, TArray<FName>& UsedVehIDs,TArray<int32>& UsedVehTypes){
+void UTrafficSimSubsystem::FillVehsOnLane(TArray<int32> LaneIndice, TArray<float> StartDist, TArray<float> EndDist, float CruiseSpeed, float MinGap, float MaxGap,
+	UPARAM(ref)TArray<FName>& VehIDs, UPARAM(ref)TArray<int32>& VehTypeIndice, TArray<FName>& UsedVehIDs, TArray<int32>& UsedVehTypes){
 	if (!ZoneGraphStorage)
 	{
 		UE_LOG(LogTrafficSim, Error, TEXT("ZoneGraphData is not initialized! Cannot fill vehicles on lane."));
@@ -237,8 +237,8 @@ void UTrafficSimSubsystem::FillVehsOnLane(TArray<int32> LaneIndice,TArray<float>
 	};
 	TMultiMap<int32, FVehInfo> TypeToVehInfoMap;
 
-	
-	float MinGap = 100.f, MaxGap = 150; // TODO: 从配置中获取最小间距
+	// TODO: 从配置中获取最小间距
+	//float MinGap = 200.f, MaxGap = 350; 
 	int32 LaneSearchIndex = LaneIndice.Num()-1;
 	float DerivedDist = EndDist[LaneSearchIndex];
 
