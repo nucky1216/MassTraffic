@@ -740,7 +740,7 @@ int32 UTrafficSimSubsystem::GetZoneLaneIndexByPoints(TArray<FVector> Points, FZo
 	TArray<int32> LaneIndiceSingle;
 	TArray<TTuple<float, float>> StartEnd;
 	FZoneGraphTagFilter Filter;
-	Filter.NotTags.Add(AnyTag);
+	Filter.NotTags.Add(NotTag);
 	UE::ZoneGraph::Query::FindNearestLanesBySeg(*ZoneGraphStorage, Points, Height, Filter, LaneIndiceSingle, StartEnd);
 
 	if(LaneIndiceSingle.Num()==0)
