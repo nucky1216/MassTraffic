@@ -730,7 +730,7 @@ void UTrafficSimSubsystem::BathSetCongestionByDT(UPARAM(ref)UDataTable*& LanesMa
 	}
 }
 
-int32 UTrafficSimSubsystem::GetZoneLaneIndexByPoints(TArray<FVector> Points, FZoneGraphTag AnyTag, float Height)
+int32 UTrafficSimSubsystem::GetZoneLaneIndexByPoints(TArray<FVector> Points, FZoneGraphTag NotTag, float Height)
 {
 	if (!ZoneGraphStorage)
 	{
@@ -740,12 +740,16 @@ int32 UTrafficSimSubsystem::GetZoneLaneIndexByPoints(TArray<FVector> Points, FZo
 	TArray<int32> LaneIndiceSingle;
 	TArray<TTuple<float, float>> StartEnd;
 	FZoneGraphTagFilter Filter;
-	Filter.AnyTags.Add(AnyTag);
+	Filter.NotTags.Add(AnyTag);
 	UE::ZoneGraph::Query::FindNearestLanesBySeg(*ZoneGraphStorage, Points, Height, Filter, LaneIndiceSingle, StartEnd);
 
 	if(LaneIndiceSingle.Num()==0)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("No Lane Found by Given Points!"));
+		for (auto P : Points)
+		{
+			DrawDebugPoint(GetWorld(), P, 30.f, FColor::Red, false, 20.f);
+		}
 		return -1;
 	}
 	return LaneIndiceSingle[0];

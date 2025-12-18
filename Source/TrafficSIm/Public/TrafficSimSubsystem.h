@@ -119,7 +119,7 @@ public:
 	void BathSetCongestionByDT(UPARAM(ref)UDataTable*& LanesMap, float TagetValue, TMap<int32,float> CongestionIndex);
 
 	UFUNCTION(BlueprintCallable, Category = "TrafficSim| LaneMapping")
-	int32 GetZoneLaneIndexByPoints(TArray<FVector> Points, FZoneGraphTag AnyTag, float Height);
+	int32 GetZoneLaneIndexByPoints(TArray<FVector> Points, FZoneGraphTag NotTag, float Height);
 
 
 	UFUNCTION(BlueprintCallable, Category = "TrafficSim| Clear")
