@@ -330,11 +330,12 @@ void UTrafficSimSubsystem::FillVehsOnLane(TArray<int32> LaneIndice, TArray<float
 				TypeToVehInfoMap.MultiFind(TypeIndex, VehInfos);
 				if (VehInfos.Num() == 0)
 				{
+					UE_LOG(LogTrafficSim, Warning, TEXT("No vehicle info found for type index %d. Skip to Spawn.."), TypeIndex);	
 					continue;
 				}
 				const FMassEntityTemplate& Template = *EntityTemplates[TypeIndex];
 				const FMassArchetypeSharedFragmentValues& SharedValues = Template.GetSharedFragmentValues();
-
+				
 				TArray<FMassEntityHandle> SpawnedEntities;
 				TSharedRef<FMassEntityManager::FEntityCreationContext> CreationContext = System.BatchCreateEntities(Template.GetArchetype(), SharedValues, VehInfos.Num(), SpawnedEntities);
 				System.BatchSetEntityFragmentsValues(CreationContext->GetEntityCollection(), Template.GetInitialFragmentValues());
@@ -357,7 +358,10 @@ void UTrafficSimSubsystem::FillVehsOnLane(TArray<int32> LaneIndice, TArray<float
 					MovementFrag.CruiseSpeed = CruiseSpeed;
 					TArray<int32> NextLanes;
 					MovementFrag.NextLane = ChooseNextLane(VehInfos[i].LaneIndex, NextLanes);
-					UE_LOG(LogTrafficSim, Log, TEXT("VehID:%s,CurIndex:%d,Next Lane Index:%d"),*(VehInfos[i].VehID.ToString()), VehInfos[i].LaneIndex, MovementFrag.NextLane);
+
+					DrawDebugPoint(World, VehInfos[i].LaneLocation.Position + FVector(0, 0, 200), 20.f, FColor::Green, true, 60.f);
+					UE_LOG(LogTrafficSim, Log, TEXT("VehID:%s,CurIndex:%d,Next Lane Index:%d TypeIndex:%d TemplateName:%s"),
+						*(VehInfos[i].VehID.ToString()), VehInfos[i].LaneIndex, MovementFrag.NextLane,TypeIndex, *Template.GetTemplateName());
 				}
 			}
 		}
