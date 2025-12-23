@@ -119,6 +119,7 @@ void UVehicleMovementProcessor::Execute(FMassEntityManager& EntityManager, FMass
 					if (VehicleMovementFragment.NextLane < 0)
 					{
 						DestroyedEntities.Add(Context.GetEntity(EntityIndex));
+						TrafficSimSubsystem->UnRegisterVehiPlateID(VehicleMovementFragment.VehID);
 						continue;
 					}
 

@@ -98,6 +98,7 @@ void UVehicleParamsInitProcessor::Execute(FMassEntityManager& EntityManager, FMa
 				VehicleMovement.MaxSpeed = InitData.MaxSpeeds[CountInTypes];
 				VehicleMovement.LaneSpeedTag = InitData.LaneSpeedTags[CountInTypes];
 				VehicleMovement.CruiseSpeed = FMath::RandRange(VehicleMovement.MinSpeed, VehicleMovement.MaxSpeed);
+				//TrafficSimSubsystem->RegisterVehPlateID(InitData.VehIDs[CountInTypes], VehicleMovement.VehicleHandle);
 				CountInTypes++;
 
 				VehicleMovement.Speed = FMath::RandRange(VehicleMovement.MinSpeed, VehicleMovement.TargetSpeed);

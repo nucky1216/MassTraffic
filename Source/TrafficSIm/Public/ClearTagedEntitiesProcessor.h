@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "MassProcessor.h"
+#include "TrafficSimSubsystem.h"
 #include "ClearTagedEntitiesProcessor.generated.h"
 
 /**
@@ -23,5 +24,5 @@ public:
 
 private:
 	FMassEntityQuery EntityQuery;
-	
+	UTrafficSimSubsystem* TrafficSimSubsystem = nullptr;
 };

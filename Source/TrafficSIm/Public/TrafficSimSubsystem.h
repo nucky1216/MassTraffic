@@ -161,7 +161,13 @@ public:
 	void TagLaneSpeedGapSetup(const TMap<FZoneGraphTag, FTagLaneSpeed>& InTagLaneSpeed,
 		const TMap<FZoneGraphTag, FTagLaneGap>& InTagLaneGap);
 	float GetLaneSpeedByTag(FZoneGraphTagMask LaneTagMask, float& OutMaxSpeed, float& OutMinSpeed, FZoneGraphTag& ZoneLaneTag);
+
+	void RegisterVehPlateID(FName VehID,FMassEntityHandle EntityHandle);
+	void UnRegisterVehiPlateID(FName VehID);
+	void GetEntityHandleByVehID(FName VehID, FMassEntityHandle& OutEntityHandle) const;
 	
+	UFUNCTION(BlueprintCallable, Category = "TrafficSim|GetFocus")
+	FTransform GetEntityTransformByVehID(FName VehID,AActor*& VehActor,bool& bSuccess);
 
 	const UWorld* World = nullptr;
 	const UZoneGraphSubsystem* ZoneGraphSubsystem = nullptr;
@@ -179,6 +185,7 @@ public:
 	TMap<FZoneGraphTag, FTagLaneGap> TagLaneGap;
 private:
 	bool bManualSim = false;
+	TMap<FName, FMassEntityHandle> VehIDToEntityMap;
 
 
 };

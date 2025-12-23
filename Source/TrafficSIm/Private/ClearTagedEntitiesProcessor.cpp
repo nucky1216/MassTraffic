@@ -12,7 +12,12 @@ UClearTagedEntitiesProcessor::UClearTagedEntitiesProcessor() :EntityQuery(*this)
 
 void UClearTagedEntitiesProcessor::Initialize(UObject& Owner)
 {
-	
+	TrafficSimSubsystem = GetWorld()->GetSubsystem<UTrafficSimSubsystem>();
+	if(!TrafficSimSubsystem)
+	{
+		UE_LOG(LogTrafficSim, Error, TEXT("TrafficSimSubsystem is not initialized! Cannot execute ClearTagedEntitiesProcessor."));
+		return;
+	}
 }
 
 void UClearTagedEntitiesProcessor::ConfigureQueries()

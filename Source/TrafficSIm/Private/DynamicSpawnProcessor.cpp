@@ -259,6 +259,7 @@ void UDynamicSpawnProcessor::Execute(FMassEntityManager& EntityManager, FMassExe
 					MoveFrag.TargetSpeed = FMath::RandRange(MoveFrag.MinSpeed, MoveFrag.MaxSpeed);
 					MoveFrag.Speed = FMath::RandRange(MoveFrag.MinSpeed, MoveFrag.TargetSpeed);
 					MoveFrag.VehID = LaneLocationsCopy[i].VehID;
+					WeakTrafficSim->RegisterVehPlateID(MoveFrag.VehID, NewEntities[i]);
 					
 					if(MoveFrag.Speed==0.0 || MoveFrag.TargetSpeed==0.0)
 					{

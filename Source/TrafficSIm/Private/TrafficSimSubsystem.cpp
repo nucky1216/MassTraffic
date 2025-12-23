@@ -349,7 +349,7 @@ void UTrafficSimSubsystem::FillVehsOnLane(TArray<int32> LaneIndice, TArray<float
 					FTransform T(VehInfos[i].LaneLocation.Position);
 					TransformFrag.SetTransform(T);
 
-
+					RegisterVehPlateID(VehInfos[i].VehID, Entity);
 					MovementFrag.LaneLocation = VehInfos[i].LaneLocation;
 					MovementFrag.DistanceAlongLane = VehInfos[i].DistAlongLane;
 					//MovementFrag.LeftDistance = LaneLength - VehInfos[i].DistAlongLane;
@@ -1370,6 +1370,64 @@ float UTrafficSimSubsystem::GetLaneSpeedByTag(FZoneGraphTagMask LaneTagMask, flo
 	OutMinSpeed = 40.f;
 	ZoneLaneTag = FZoneGraphTag::None;
 	return  FMath::RandRange(40.f, 60.f);;
+}
+
+void UTrafficSimSubsystem::RegisterVehPlateID(FName VehID, FMassEntityHandle EntityHandle)
+{
+	VehIDToEntityMap.Add(VehID, EntityHandle);
+}
+
+void UTrafficSimSubsystem::UnRegisterVehiPlateID(FName VehID)
+{
+	if(VehID!=NAME_None)
+		VehIDToEntityMap.Remove(VehID);
+}
+
+void UTrafficSimSubsystem::GetEntityHandleByVehID(FName VehID, FMassEntityHandle& OutEntityHandle) const
+{
+	OutEntityHandle = VehIDToEntityMap.FindRef(VehID);
+	//if(!OutEntityHandle.IsValid())
+	//{		
+	//	UE_LOG(LogTrafficSim, Warning, TEXT("GetEntityHandleByVehID: No valid entity handle found for VehID %s."), *VehID.ToString());
+	//}
+}
+
+FTransform UTrafficSimSubsystem::GetEntityTransformByVehID(FName VehID,AActor*& VehActor, bool& bSuccess)
+{
+	bSuccess = false;
+	UMassEntitySubsystem* EntitySubsystem = UWorld::GetSubsystem<UMassEntitySubsystem>(World);
+	UMassActorSubsystem* ActorSubsystem = UWorld::GetSubsystem<UMassActorSubsystem>(World);
+	if (!EntitySubsystem)
+	{
+		UE_LOG(LogTrafficSim, Warning, TEXT("FillVehsOnLane: Failed to get EntitySubsystem."));
+		return FTransform();
+	}
+	const FMassEntityManager& EntityManager = EntitySubsystem->GetMutableEntityManager();
+
+	FMassEntityHandle EntityHandle;
+	GetEntityHandleByVehID(VehID, EntityHandle);
+	
+	if(EntityHandle.IsValid()&& EntityManager.IsEntityValid(EntityHandle))
+	{
+		
+		const FTransformFragment* TransformFrag = EntityManager.GetFragmentDataPtr<FTransformFragment>(EntityHandle);
+		VehActor=ActorSubsystem->GetActorFromHandle(EntityHandle);
+		if (TransformFrag && VehActor)
+		{
+			bSuccess = true;
+			return TransformFrag->GetTransform();
+		}
+		else
+		{
+			UE_LOG(LogTrafficSim, Warning, TEXT("GetEntityTransformByVehID: No TransformFragment found for VehID %s."), *VehID.ToString());
+		}
+	}
+	else
+	{
+		UE_LOG(LogTrafficSim, Warning, TEXT("GetEntityTransformByVehID: No valid entity handle found for VehID %s."), *VehID.ToString());
+	}
+
+	return FTransform();
 }
 
 
