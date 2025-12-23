@@ -359,7 +359,7 @@ void UTrafficSimSubsystem::FillVehsOnLane(TArray<int32> LaneIndice, TArray<float
 					TArray<int32> NextLanes;
 					MovementFrag.NextLane = ChooseNextLane(VehInfos[i].LaneIndex, NextLanes);
 
-					DrawDebugPoint(World, VehInfos[i].LaneLocation.Position + FVector(0, 0, 200), 20.f, FColor::Green, true, 60.f);
+					//DrawDebugPoint(World, VehInfos[i].LaneLocation.Position + FVector(0, 0, 200), 20.f, FColor::Green, true, 60.f);
 					UE_LOG(LogTrafficSim, Log, TEXT("VehID:%s,CurIndex:%d,Next Lane Index:%d TypeIndex:%d TemplateName:%s"),
 						*(VehInfos[i].VehID.ToString()), VehInfos[i].LaneIndex, MovementFrag.NextLane,TypeIndex, *Template.GetTemplateName());
 				}

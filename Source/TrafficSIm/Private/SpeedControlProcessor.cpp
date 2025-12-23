@@ -37,124 +37,193 @@ void USpeedControlProcessor::Initialize(UObject& Owner)
 
 void USpeedControlProcessor::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context)
 {
-	UE_LOG(LogTrafficSim, VeryVerbose, TEXT("SpeedControlProcessor::Executing.."));
 	const float DeltaTime = Context.GetDeltaTimeSeconds();
 
-	EntityQuery.ForEachEntityChunk(EntityManager, Context, [this, DeltaTime](FMassExecutionContext& Context)
+	EntityQuery.ForEachEntityChunk(EntityManager, Context,
+		[this, DeltaTime](FMassExecutionContext& Context)
 		{
 			const int32 NumEntities = Context.GetNumEntities();
-			TArrayView<FMassVehicleMovementFragment> VehicleMovementList = Context.GetMutableFragmentView<FMassVehicleMovementFragment>();
-			TArrayView<FTransformFragment> TransformList = Context.GetMutableFragmentView<FTransformFragment>();
+
+			TArrayView<FMassVehicleMovementFragment> VehicleMovementList =
+				Context.GetMutableFragmentView<FMassVehicleMovementFragment>();
+
+			TArrayView<FTransformFragment> TransformList =
+				Context.GetMutableFragmentView<FTransformFragment>();
 
 			for (int32 i = 0; i < NumEntities; ++i)
 			{
 				FMassVehicleMovementFragment& VM = VehicleMovementList[i];
 
-				const FMassVehicleMovementFragment* FrontVM = nullptr;
+				/*------------------------------------------------------------
+				 * 0. 每帧初始化加减速（非常重要，防止残留）
+				 *------------------------------------------------------------*/
+				float Accelaration = VM.Accelaration;
+				float Decelaration = VM.Decelaration;
+
+				/*------------------------------------------------------------
+				 * 1. 查找真实前车
+				 *------------------------------------------------------------*/
+				const FMassVehicleMovementFragment* RealFront = nullptr;
 				const bool bIsFirst = TrafficSimSubsystem->FindFrontVehicle(
-					VM.LaneLocation.LaneHandle.Index, VM.NextLane, Context.GetEntity(i), FrontVM);
+					VM.LaneLocation.LaneHandle.Index,
+					VM.NextLane,
+					Context.GetEntity(i),
+					RealFront);
 
-				// 随机巡航目标（无前车或距离很充裕时使用）
-				const float CruiseTarget = VM.CruiseSpeed;
+				/*------------------------------------------------------------
+				 * 2. 判断路口灯态（是否需要虚拟前车）
+				 *------------------------------------------------------------*/
+				bool bIntersection = false;
+				bool bOpen = true;
+				TrafficLightSubsystem->QueryLaneOpenState(
+					VM.NextLane, bOpen, bIntersection);
 
-				if (FrontVM)
+				const bool bNeedVirtualFront =
+					bIsFirst &&
+					bIntersection &&
+					!bOpen &&
+					VM.LeftDistance > 0.f;
+				/*------------------------------------------------------------
+				 * 3. 选择 EffectiveFront（真实 or 虚拟）
+				 *------------------------------------------------------------*/
+				const FMassVehicleMovementFragment* EffectiveFront = RealFront;
+				FMassVehicleMovementFragment VirtualFront;
+
+				float DistToRealFront = FLT_MAX;
+				if (RealFront)
 				{
-					// 前车距离
-					const float dist = FVector::Distance(VM.LaneLocation.Position, FrontVM->LaneLocation.Position);
-					// 两车半长之和
-					const float halfLenSum = 0.5f * (VM.VehicleLength + FrontVM->VehicleLength);
+					DistToRealFront = FVector::Distance(
+						VM.LaneLocation.Position,
+						RealFront->LaneLocation.Position);
+				}
 
-					// 有效车间距 (车尾到车头)
+				const float DistToStopLine = VM.LeftDistance;
+
+				if (bNeedVirtualFront && DistToStopLine < DistToRealFront)
+				{
+					// 构造虚拟前车（停车线）
+					VirtualFront = FMassVehicleMovementFragment();
+					VirtualFront.LaneLocation.Position =
+						VM.LaneLocation.Position +
+						VM.LaneLocation.Direction * DistToStopLine;
+
+					VirtualFront.Speed = 0.f;
+					VirtualFront.VehicleLength = 0.f;
+
+					EffectiveFront = &VirtualFront;
+				}
+
+				/*------------------------------------------------------------
+				 * 4. IDM 速度控制（统一入口）
+				 *------------------------------------------------------------*/
+				const float v = FMath::Max(0.f, VM.Speed);
+				const float v0 = VM.CruiseSpeed;
+
+				// IDM 参数
+				const float aMax = 300.f;
+				const float bComfort = 400.f;
+				const float s0 = 300.f;
+				const float T = 1.6f;
+				const float delta = 4.f;
+
+				float TargetSpeed = v;
+
+				if (EffectiveFront)
+				{
+					const float vf = FMath::Max(0.f, EffectiveFront->Speed);
+
+					const float dist =
+						FVector::Distance(
+							VM.LaneLocation.Position,
+							EffectiveFront->LaneLocation.Position);
+
+					const float halfLenSum =
+						0.5f * (VM.VehicleLength + EffectiveFront->VehicleLength);
+
 					float s = dist - halfLenSum;
-					s = FMath::Max(s, 1.f);  // 避免除零
+					s = FMath::Max(s, 1.f);
 
-					// 当前速度 v，前车速度 vf
-					const float v = FMath::Max(0.f, VM.Speed);
-					const float vf = FMath::Max(0.f, FrontVM->Speed);
-					const float dv = v - vf; // 相对速度
+					const float dv = v - vf;
 
-					// ==== IDM 参数 ====
-					const float v0 = VM.CruiseSpeed; // 期望速度
-					const float aMax = 300.f;        // 最大加速度
-					const float bComfort = 400.f;    // 舒适减速度
-					const float s0 = 300.f;          // 静态距离
-					const float T = 1.6f;            // 时间头距
-					const float delta = 4.0f;
+					float sStar =
+						s0 +
+						v * T +
+						(v * dv) / (2.f * FMath::Sqrt(aMax * bComfort));
 
-					// ==== 动态安全距离 s* ====
-					float sStar = s0 + v * T + (v * dv) / (2.f * FMath::Sqrt(aMax * bComfort));
 					sStar = FMath::Max(sStar, s0);
 
-					// ==== IDM 加速度公式 ====
-					float accelFree = 1.f - FMath::Pow(v / v0, delta);
-					float accelInt = FMath::Pow(sStar / s, 2.f);
+					const float accelFree = 1.f - FMath::Pow(v / v0, delta);
+					const float accelInt = FMath::Pow(sStar / s, 2.f);
 
-					float aIDM = aMax * (accelFree - accelInt);
+					const float aIDM = aMax * (accelFree - accelInt);
 
-					// ==== 将 IDM 加速度转换为目标速度 ====
-					float newSpeed = v + aIDM * DeltaTime;
-					newSpeed = FMath::Clamp(newSpeed, 0.f, VM.MaxSpeed);
+					TargetSpeed = v + aIDM * DeltaTime;
+					TargetSpeed = FMath::Clamp(TargetSpeed, 0.f, VM.MaxSpeed);
 
-					VM.TargetSpeed = newSpeed;
-
-					// ==== 设置 VM.Deceleration / VM.Acceleration 用于你的积分部分 ====
-					if (aIDM < 0.f)
+					if (aIDM >= 0.f)
 					{
-						VM.Decelaration = -aIDM;
+						Accelaration = aIDM;
 					}
 					else
 					{
-						VM.Accelaration = aIDM;
+						Decelaration = -aIDM;
 					}
 				}
 				else
 				{
-					// 无前车：自由巡航（IDM 自由流方程）
-					const float v = VM.Speed;
-					const float v0 = VM.CruiseSpeed;
-					const float aMax = 300.f;
-					const float delta = 4.f;
+					// 自由流
+					const float aFree =
+						aMax * (1.f - FMath::Pow(v / v0, delta));
 
-					float aFree = aMax * (1 - FMath::Pow(v / v0, delta));
-					float newSpeed = v + aFree * DeltaTime;
-					newSpeed = FMath::Clamp(newSpeed, 0.f, VM.MaxSpeed);
+					TargetSpeed = v + aFree * DeltaTime;
+					TargetSpeed = FMath::Clamp(TargetSpeed, 0.f, VM.MaxSpeed);
 
-					VM.TargetSpeed = newSpeed;
+					Accelaration = aFree;
 				}
 
+				VM.TargetSpeed = TargetSpeed;
 
-				// 红绿灯一车之条件处理（保留你的逻辑）
-				if (bIsFirst && (VM.LeftDistance < VM.VehicleLength || VM.Speed == 0.f))
+				// =====================================================
+				// Emergency Brake: 绝对不能越线的兜底逻辑
+				// =====================================================
+				if (bNeedVirtualFront)
 				{
-					bool bIntersection = false, bOpen = true;
-					TrafficLightSubsystem->QueryLaneOpenState(VM.NextLane, bOpen, bIntersection);
+					float vs = VM.Speed;
+					float d = FMath::Max(VM.LeftDistance, 1.f);
+					float bMax = VM.Decelaration;
 
-					if (bIntersection && VM.LeftDistance < VM.VehicleLength)
+					float dMinStop = (vs * vs) / (2.f * bMax);
+
+					if (d <= dMinStop + 50.f)
 					{
-						VM.TargetSpeed = bOpen ? CruiseTarget : 0.f;
+						// 强制最大减速度
+						VM.TargetSpeed = 0.f;
+						Decelaration = bMax*10.0;
 					}
-					else if (VM.Speed == 0.f && !FrontVM)
-					{
-						VM.TargetSpeed = CruiseTarget;
-					}
+					//UE_LOG(LogTrafficSim, Warning, TEXT("EntitySN:%d Emergency Brake Applied: DistToStopLine=%.2f, MinStopDist=%.2f Decel:%.2f LeftDist:%f"),
+					//	Context.GetEntity(i).SerialNumber, d, dMinStop,Decelaration,d);
 				}
 
-				// 速度积分（加速/减速）
+
+				/*------------------------------------------------------------
+				 * 5. 速度积分
+				 *------------------------------------------------------------*/
 				if (VM.TargetSpeed > VM.Speed)
 				{
-					VM.Speed += VM.Accelaration * DeltaTime;
+					VM.Speed += Accelaration * DeltaTime;
 					VM.Speed = FMath::Min(VM.Speed, VM.TargetSpeed);
 				}
-				else if (VM.TargetSpeed < VM.Speed)
+				else
 				{
-					VM.Speed -= VM.Decelaration * DeltaTime;
+					VM.Speed -= Decelaration * DeltaTime;
 					VM.Speed = FMath::Max(VM.Speed, VM.TargetSpeed);
 				}
 
-				// Clamp 最终速度
 				VM.Speed = FMath::Clamp(VM.Speed, 0.f, VM.MaxSpeed);
 
-				// 冻结时间统计
+				/*------------------------------------------------------------
+				 * 6. 冻结时间统计
+				 *------------------------------------------------------------*/
 				if (VM.Speed <= 0.f)
 				{
 					VM.FreezeTime += DeltaTime;
@@ -166,4 +235,3 @@ void USpeedControlProcessor::Execute(FMassEntityManager& EntityManager, FMassExe
 			}
 		});
 }
-
