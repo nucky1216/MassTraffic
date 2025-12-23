@@ -111,7 +111,12 @@ void UTrafficLightCountingProcessor::Execute(FMassEntityManager& EntityManager, 
 			//Set Pass Lanes By PhaseList
 			else
 			{
-
+				if (TimeInDuration <= 5.f && TrafficLightFragment.bRemainToYellow)
+				{
+					TrafficLightFragment.bRemainToYellow = false;
+					TArray<int32> EmptyOpenLanes;
+					TrafficLightSubsystem->SetPhaseLanesOpened(TrafficLightFragment.ZoneIndex, EmptyOpenLanes);
+				}
 				if(TimeInDuration <= 0.f)
 				{
 					if (TrafficLightFragment.PhaseList.Num()==0)
@@ -135,7 +140,7 @@ void UTrafficLightCountingProcessor::Execute(FMassEntityManager& EntityManager, 
 					}
 
 					TrafficLightSubsystem->SetPhaseLanesOpened(TrafficLightFragment.ZoneIndex, TrafficLightFragment.CrossPhaseLanes[PhaseName]);
-
+					TrafficLightFragment.bRemainToYellow = true;
 					//Debug
 					//TrafficLightSubsystem->DebugCrossPhase(TrafficLightFragment.CrossPhaseLanes[PhaseName]);
 				}

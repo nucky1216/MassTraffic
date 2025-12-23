@@ -58,7 +58,7 @@ struct TRAFFICSIM_API FMassVehicleMovementFragment : public FMassFragment
 	float CrossStopDistance = 800.f;
 
     UPROPERTY(EditAnywhere, Category = "Initialize")
-    float MaxFreezeTime = 120.0;
+    float MaxFreezeTime = 160.0;
 
     float FreezeTime = 0.0;
 	FMassEntityHandle VehicleHandle;

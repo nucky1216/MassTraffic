@@ -36,6 +36,7 @@ struct TRAFFICSIM_API FTrafficLightFragment : public FMassFragment
 	int32 ZoneIndex;
 	FName CrossID;
 
+	bool bRemainToYellow = true;
 	bool PhaseControll =false;
 	TMap<FName,TArray<int32>> CrossPhaseLanes;
 	TMap<FName,FPhaseLanes> PhaseControlledLanes;
