@@ -198,7 +198,7 @@ void USpeedControlProcessor::Execute(FMassEntityManager& EntityManager, FMassExe
 					{
 						// 强制最大减速度
 						VM.TargetSpeed = 0.f;
-						Decelaration = bMax*10.0;
+						Decelaration = bMax*5.0;
 					}
 					//UE_LOG(LogTrafficSim, Warning, TEXT("EntitySN:%d Emergency Brake Applied: DistToStopLine=%.2f, MinStopDist=%.2f Decel:%.2f LeftDist:%f"),
 					//	Context.GetEntity(i).SerialNumber, d, dMinStop,Decelaration,d);

@@ -653,7 +653,13 @@ void UTrafficLightSubsystem::GetCrossPhaseCtlLanes(AActor* CrossActor, TMap<int3
 				FCtlLaneInfor NewInfor;
 				NewInfor.LaneSectID = SectIDs[i];
 				NewInfor.RoadID=Pair.Value.RoadIDs[i];
-				NewInfor.LaneTransform = CtlLanes.FindRef(Pair.Value.ControlledLaneIndice[i]);
+
+				if(Pair.Value.ControlledLaneIndice.IsValidIndex(i))
+					NewInfor.LaneTransform = CtlLanes.FindRef(Pair.Value.ControlledLaneIndice[i]);
+				else {
+					UE_LOG(LogTrafficLight, Warning, TEXT("GetCrossPhaseCtlLanes: Invalid ControlledLaneIndice index %d for SectID:%s at Cross:%d"), i, *SectIDs[i].ToString(), Pair.Value.CrossID);
+				}
+
 				NewInfor.LaneGroup=Pair.Value.LaneGroups[i];
 				NewInfor.PhaseTurnType.Add(Pair.Value.PhaseName, TurnType[i]);
 				

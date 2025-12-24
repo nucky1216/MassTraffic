@@ -42,6 +42,7 @@ void UClearTagedEntitiesProcessor::Execute(FMassEntityManager& EntityManager, FM
 
 	if (EntitiesToDelete.Num() > 0)
 	{
+		//EntityManager.FlushCommands();
 		EntityManager.Defer().DestroyEntities(EntitiesToDelete);  // 异步批量删除实体
 	}
 }

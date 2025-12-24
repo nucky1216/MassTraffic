@@ -90,7 +90,7 @@ public:
 
 
 	UFUNCTION(BlueprintCallable, Category = "TrafficSim| RoadToLane| Utilities")
-	void RoadToLaneIndice(UPARAM(ref)UDataTable* RoadToLaneIndiceMap,FName RoadID,TArray<FVector> RoadPoints ,FZoneGraphTag AnyTag, float Height);
+	void RoadToLaneIndice(UPARAM(ref)UDataTable* RoadToLaneIndiceMap,FName RoadID,TArray<FVector> RoadPoints , FZoneGraphTagMask NotTag, float Height);
 
 
 	UFUNCTION(BlueprintCallable, Category = "TrafficSim")
@@ -168,6 +168,10 @@ public:
 	
 	UFUNCTION(BlueprintCallable, Category = "TrafficSim|GetFocus")
 	FTransform GetEntityTransformByVehID(FName VehID,AActor*& VehActor,bool& bSuccess);
+
+
+	UFUNCTION(BlueprintCallable, Category = "TrafficSim|ZoneGraphQuery")
+	void GetZonesByViewBounds(TArray<FVector> BoundPoints, FZoneGraphTag AnyTag, float Height, TArray<int32>& OutZoneIndices);
 
 	const UWorld* World = nullptr;
 	const UZoneGraphSubsystem* ZoneGraphSubsystem = nullptr;
