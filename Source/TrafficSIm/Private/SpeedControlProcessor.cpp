@@ -117,9 +117,10 @@ void USpeedControlProcessor::Execute(FMassEntityManager& EntityManager, FMassExe
 				{
 					VehicleMovement.Speed -= VehicleMovement.Decelaration * DeltaTime;
 				}
-				//FMath::Clamp(VehicleMovement.Speed,0.,500.f);
-				//UE_LOG(LogTrafficSim, VeryVerbose, TEXT("1.VehicleSN:%d, Speed:%f,Decelaration:%f,DeltaDece:%f TargetSpeed:%f"), Context.GetEntity(i).SerialNumber, 
-					//VehicleMovement.Speed, VehicleMovement.Decelaration, VehicleMovement.Decelaration * DeltaTime,VehicleMovement.TargetSpeed);
+				FMath::Clamp(VehicleMovement.Speed,0.,500.f);
+				if(i==0)
+				UE_LOG(LogTrafficSim, VeryVerbose, TEXT("1.VehicleSN:%d, Speed:%f,Decelaration:%f,DeltaDece:%f TargetSpeed:%f"), Context.GetEntity(i).SerialNumber, 
+					VehicleMovement.Speed, VehicleMovement.Decelaration, VehicleMovement.Decelaration * DeltaTime,VehicleMovement.TargetSpeed);
 				VehicleMovement.Speed = FMath::Clamp(VehicleMovement.Speed, 0.f, VehicleMovement.MaxSpeed);
 				//UE_LOG(LogTrafficSim, VeryVerbose, TEXT("2.VehicleSN:%d, Speed:%f, TargetSpeed:%f"), Context.GetEntity(i).SerialNumber, VehicleMovement.Speed, VehicleMovement.TargetSpeed);
 				//�ۼ�ֹͣʱ��
