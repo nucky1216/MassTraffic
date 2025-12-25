@@ -1,4 +1,4 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+ï»¿// Fill out your copyright notice in the Description page of Project Settings.
 
 
 #include "SpeedControlProcessor.h"
@@ -28,7 +28,7 @@ void USpeedControlProcessor::Initialize(UObject& Owner)
 		return;
 	}
 	TrafficLightSubsystem = UWorld::GetSubsystem<UTrafficLightSubsystem>(GetWorld());
-	if(!TrafficLightSubsystem)
+	if (!TrafficLightSubsystem)
 	{
 		UE_LOG(LogTrafficSim, Error, TEXT("TrafficLightSubsystem is not initialized! Cannot execute VehicleMovementProcessor."));
 		return;
@@ -37,201 +37,101 @@ void USpeedControlProcessor::Initialize(UObject& Owner)
 
 void USpeedControlProcessor::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context)
 {
-	const float DeltaTime = Context.GetDeltaTimeSeconds();
+	UE_LOG(LogTrafficSim, VeryVerbose, TEXT("SpeedControlProcessor::Executing.."));
+	float DeltaTime = Context.GetDeltaTimeSeconds();
 
-	EntityQuery.ForEachEntityChunk(EntityManager, Context,
-		[this, DeltaTime](FMassExecutionContext& Context)
+	EntityQuery.ForEachEntityChunk(EntityManager, Context, [this, DeltaTime](FMassExecutionContext& Context)
 		{
-			const int32 NumEntities = Context.GetNumEntities();
-
-			TArrayView<FMassVehicleMovementFragment> VehicleMovementList =
-				Context.GetMutableFragmentView<FMassVehicleMovementFragment>();
-
-			TArrayView<FTransformFragment> TransformList =
-				Context.GetMutableFragmentView<FTransformFragment>();
-
+			int32 NumEntities = Context.GetNumEntities();
+			TArrayView<FMassVehicleMovementFragment> VehicleMovementList = Context.GetMutableFragmentView<FMassVehicleMovementFragment>();
+			TArrayView<FTransformFragment> TransformList = Context.GetMutableFragmentView<FTransformFragment>();
 			for (int32 i = 0; i < NumEntities; ++i)
 			{
-				FMassVehicleMovementFragment& VM = VehicleMovementList[i];
+				FMassVehicleMovementFragment& VehicleMovement = VehicleMovementList[i];
+				//FTransformFragment				
 
-				/*------------------------------------------------------------
-				 * 0. Ã¿Ö¡³õÊ¼»¯¼Ó¼õËÙ£¨·Ç³£ÖØÒª£¬·ÀÖ¹²ÐÁô£©
-				 *------------------------------------------------------------*/
-				float Accelaration = VM.Accelaration;
-				float Decelaration = VM.Decelaration;
+				const FMassVehicleMovementFragment* FrontVehicleMovement = nullptr;
+				bool FirstVehAtLane = TrafficSimSubsystem->FindFrontVehicle(VehicleMovement.LaneLocation.LaneHandle.Index,
+					VehicleMovement.NextLane, Context.GetEntity(i), FrontVehicleMovement);
 
-				/*------------------------------------------------------------
-				 * 1. ²éÕÒÕæÊµÇ°³µ
-				 *------------------------------------------------------------*/
-				const FMassVehicleMovementFragment* RealFront = nullptr;
-				const bool bIsFirst = TrafficSimSubsystem->FindFrontVehicle(
-					VM.LaneLocation.LaneHandle.Index,
-					VM.NextLane,
-					Context.GetEntity(i),
-					RealFront);
+				float NewTargetSpeed = VehicleMovement.CruiseSpeed;
 
-				/*------------------------------------------------------------
-				 * 2. ÅÐ¶ÏÂ·¿ÚµÆÌ¬£¨ÊÇ·ñÐèÒªÐéÄâÇ°³µ£©
-				 *------------------------------------------------------------*/
-				bool bIntersection = false;
-				bool bOpen = true;
-				TrafficLightSubsystem->QueryLaneOpenState(
-					VM.NextLane, bOpen, bIntersection);
-
-				const bool bNeedVirtualFront =
-					bIsFirst &&
-					bIntersection &&
-					!bOpen &&
-					VM.LeftDistance > 0.f;
-				/*------------------------------------------------------------
-				 * 3. Ñ¡Ôñ EffectiveFront£¨ÕæÊµ or ÐéÄâ£©
-				 *------------------------------------------------------------*/
-				const FMassVehicleMovementFragment* EffectiveFront = RealFront;
-				FMassVehicleMovementFragment VirtualFront;
-
-				float DistToRealFront = FLT_MAX;
-				if (RealFront)
+				if (FrontVehicleMovement)//ï¿½ï¿½ï¿½ï¿½Ä¿ï¿½ï¿½ï¿½Ù¶ï¿½ÎªÇ°ï¿½ï¿½ï¿½Ù¶ï¿½
 				{
-					DistToRealFront = FVector::Distance(
-						VM.LaneLocation.Position,
-						RealFront->LaneLocation.Position);
+					float DistanceToFrontVehicle = FVector::Distance(VehicleMovement.LaneLocation.Position, FrontVehicleMovement->LaneLocation.Position);
+					float HalfLength = (VehicleMovement.VehicleLength + FrontVehicleMovement->VehicleLength) * 0.5f;
+
+					//ï¿½ï¿½ï¿½ï¿½Ð¡ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½+ï¿½Ù¶ï¿½*5ï¿½ï¿½Ä¾ï¿½ï¿½ï¿½
+					if (DistanceToFrontVehicle < HalfLength * 2.5)//+ VehicleMovement.Speed*500.0/18.0*5.0)
+					{
+						if (VehicleMovement.Speed > FrontVehicleMovement->Speed || VehicleMovement.TargetSpeed > FrontVehicleMovement->Speed)
+							VehicleMovement.TargetSpeed = FrontVehicleMovement->Speed;
+						//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+						if (DistanceToFrontVehicle < HalfLength * 1.5)
+							VehicleMovement.TargetSpeed = 0;
+					}
+					else if (DistanceToFrontVehicle > HalfLength * 1.2)
+					{
+
+						VehicleMovement.TargetSpeed = NewTargetSpeed;
+					}
 				}
 
-				const float DistToStopLine = VM.LeftDistance;
+				//ï¿½ï¿½ï¿½ÃºÏ²ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä³ï¿½ï¿½ï¿½
+				//const FMassVehicleMovementFragment* AheadVehicle = nullptr;
+				//if (TrafficSimSubsystem->WaitForMergeVehilce(&VehicleMovement, AheadVehicle))
+				//{
+				//	//if (AheadVehicle)
+				//	//{
+				//	//	float AheadGap = AheadVehicle->VehicleLength / 2 + AheadVehicle->LeftDistance + VehicleMovement.VehicleLength / 2;
+				//	//	if(AheadGap< VehicleMovement.LeftDistance)
+				//	//		
+				//	//}
+				//	VehicleMovement.TargetSpeed = 0;
+				//}
 
-				if (bNeedVirtualFront && DistToStopLine < DistToRealFront)
+				//ï¿½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ìµï¿½Ð¡ï¿½ï¿½500ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Çºï¿½Æ£ï¿½ï¿½ï¿½Í£ï¿½ï¿½ ï¿½ï¿½ï¿½ßµï¿½Ç°ï¿½Ù¶ï¿½Îª0ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½Î»ï¿½ÌµÆ£ï¿½ï¿½ï¿½ï¿½ï¿½
+				if (FirstVehAtLane && (VehicleMovement.LeftDistance < VehicleMovement.VehicleLength || VehicleMovement.Speed == 0))
 				{
-					// ¹¹ÔìÐéÄâÇ°³µ£¨Í£³µÏß£©
-					VirtualFront = FMassVehicleMovementFragment();
-					VirtualFront.LaneLocation.Position =
-						VM.LaneLocation.Position +
-						VM.LaneLocation.Direction * DistToStopLine;
+					bool IntersectionLane = false, OpenLane = true;
 
-					VirtualFront.Speed = 0.f;
-					VirtualFront.VehicleLength = 0.f;
+					TrafficLightSubsystem->QueryLaneOpenState(VehicleMovement.NextLane, OpenLane, IntersectionLane);
 
-					EffectiveFront = &VirtualFront;
+					if (IntersectionLane && VehicleMovement.LeftDistance < VehicleMovement.VehicleLength)
+					{
+						VehicleMovement.TargetSpeed = OpenLane ? NewTargetSpeed : 0.f;
+					}
+					else if (VehicleMovement.Speed == 0 && !FrontVehicleMovement)
+					{
+						VehicleMovement.TargetSpeed = NewTargetSpeed;
+					}
 				}
 
-				/*------------------------------------------------------------
-				 * 4. IDM ËÙ¶È¿ØÖÆ£¨Í³Ò»Èë¿Ú£©
-				 *------------------------------------------------------------*/
-				const float v = FMath::Max(0.f, VM.Speed);
-				const float v0 = VM.CruiseSpeed<KINDA_SMALL_NUMBER?100.f:VM.CruiseSpeed;
-
-				// IDM ²ÎÊý
-				const float aMax = 300.f;
-				const float bComfort = 400.f;
-				const float s0 = 300.f;
-				const float T = 1.6f;
-				const float delta = 4.f;
-
-				float TargetSpeed = v;
-
-				if (EffectiveFront)
+				//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä¿ï¿½ï¿½ï¿½Ù¶ï¿½
+				if (VehicleMovement.TargetSpeed > VehicleMovement.Speed)
 				{
-					const float vf = FMath::Max(0.f, EffectiveFront->Speed);
-
-					const float dist =
-						FVector::Distance(
-							VM.LaneLocation.Position,
-							EffectiveFront->LaneLocation.Position);
-
-					const float halfLenSum =
-						0.5f * (VM.VehicleLength + EffectiveFront->VehicleLength);
-
-					float s = dist - halfLenSum;
-					s = FMath::Max(s, 1.f);
-
-					const float dv = v - vf;
-
-					float sStar =
-						s0 +
-						v * T +
-						(v * dv) / (2.f * FMath::Sqrt(aMax * bComfort));
-
-					sStar = FMath::Max(sStar, s0);
-
-					const float accelFree = 1.f - FMath::Pow(v / v0, delta);
-					const float accelInt = FMath::Pow(sStar / s, 2.f);
-
-					const float aIDM = aMax * (accelFree - accelInt);
-
-					TargetSpeed = v + aIDM * DeltaTime;
-					TargetSpeed = FMath::Clamp(TargetSpeed, 0.f, VM.MaxSpeed);
-
-					if (aIDM >= 0.f)
-					{
-						Accelaration = aIDM;
-					}
-					else
-					{
-						Decelaration = -aIDM;
-					}
+					VehicleMovement.Speed += VehicleMovement.Accelaration * DeltaTime;
+				}
+				//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä¿ï¿½ï¿½ï¿½Ù¶ï¿½
+				else if (VehicleMovement.TargetSpeed < VehicleMovement.Speed)
+				{
+					VehicleMovement.Speed -= VehicleMovement.Decelaration * DeltaTime;
+				}
+				//FMath::Clamp(VehicleMovement.Speed,0.,500.f);
+				//UE_LOG(LogTrafficSim, VeryVerbose, TEXT("1.VehicleSN:%d, Speed:%f,Decelaration:%f,DeltaDece:%f TargetSpeed:%f"), Context.GetEntity(i).SerialNumber, 
+					//VehicleMovement.Speed, VehicleMovement.Decelaration, VehicleMovement.Decelaration * DeltaTime,VehicleMovement.TargetSpeed);
+				VehicleMovement.Speed = FMath::Clamp(VehicleMovement.Speed, 0.f, VehicleMovement.MaxSpeed);
+				//UE_LOG(LogTrafficSim, VeryVerbose, TEXT("2.VehicleSN:%d, Speed:%f, TargetSpeed:%f"), Context.GetEntity(i).SerialNumber, VehicleMovement.Speed, VehicleMovement.TargetSpeed);
+				//ï¿½Û¼ï¿½Í£Ö¹Ê±ï¿½ï¿½
+				if (VehicleMovement.Speed <= 0.0f)
+				{
+					VehicleMovement.FreezeTime += Context.GetDeltaTimeSeconds();
 				}
 				else
 				{
-					// ×ÔÓÉÁ÷
-					const float aFree =
-						aMax * (1.f - FMath::Pow(v / v0, delta));
-
-					TargetSpeed = v + aFree * DeltaTime;
-					TargetSpeed = FMath::Clamp(TargetSpeed, 0.f, VM.MaxSpeed);
-
-					Accelaration = aFree;
-				}
-
-				VM.TargetSpeed = TargetSpeed;
-
-				// =====================================================
-				// Emergency Brake: ¾ø¶Ô²»ÄÜÔ½ÏßµÄ¶µµ×Âß¼­
-				// =====================================================
-				if (bNeedVirtualFront)
-				{
-					float vs = VM.Speed;
-					float d = FMath::Max(VM.LeftDistance, 1.f);
-					float bMax = VM.Decelaration;
-
-					float dMinStop = (vs * vs) / (2.f * bMax);
-
-					if (d <= dMinStop + 50.f)
-					{
-						// Ç¿ÖÆ×î´ó¼õËÙ¶È
-						VM.TargetSpeed = 0.f;
-						Decelaration = bMax*5.0;
-					}
-					//UE_LOG(LogTrafficSim, Warning, TEXT("EntitySN:%d Emergency Brake Applied: DistToStopLine=%.2f, MinStopDist=%.2f Decel:%.2f LeftDist:%f"),
-					//	Context.GetEntity(i).SerialNumber, d, dMinStop,Decelaration,d);
-				}
-
-
-				/*------------------------------------------------------------
-				 * 5. ËÙ¶È»ý·Ö
-				 *------------------------------------------------------------*/
-				if (VM.TargetSpeed > VM.Speed)
-				{
-					VM.Speed += Accelaration * DeltaTime;
-					VM.Speed = FMath::Min(VM.Speed, VM.TargetSpeed);
-				}
-				else
-				{
-					VM.Speed -= Decelaration * DeltaTime;
-					VM.Speed = FMath::Max(VM.Speed, VM.TargetSpeed);
-				}
-
-				VM.Speed = FMath::Clamp(VM.Speed, 0.f, VM.MaxSpeed);
-
-				/*------------------------------------------------------------
-				 * 6. ¶³½áÊ±¼äÍ³¼Æ
-				 *------------------------------------------------------------*/
-				if (VM.Speed <= 0.f)
-				{
-					VM.FreezeTime += DeltaTime;
-				}
-				else
-				{
-					VM.FreezeTime = 0.f;
+					VehicleMovement.FreezeTime = 0.0f;
 				}
 			}
 		});
 }
+
