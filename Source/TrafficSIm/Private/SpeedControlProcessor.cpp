@@ -117,7 +117,7 @@ void USpeedControlProcessor::Execute(FMassEntityManager& EntityManager, FMassExe
 				 * 4. IDM 速度控制（统一入口）
 				 *------------------------------------------------------------*/
 				const float v = FMath::Max(0.f, VM.Speed);
-				const float v0 = VM.CruiseSpeed;
+				const float v0 = VM.CruiseSpeed<KINDA_SMALL_NUMBER?100.f:VM.CruiseSpeed;
 
 				// IDM 参数
 				const float aMax = 300.f;

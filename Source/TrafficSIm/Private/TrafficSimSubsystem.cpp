@@ -358,7 +358,13 @@ void UTrafficSimSubsystem::FillVehsOnLane(TArray<int32> LaneIndice, TArray<float
 					//MovementFrag.LeftDistance = LaneLength - VehInfos[i].DistAlongLane;
 					MovementFrag.VehID = VehInfos[i].VehID;
 					MovementFrag.Speed = 0.f;
+					if (CruiseSpeed <= KINDA_SMALL_NUMBER)
+					{
+						UE_LOG(LogTrafficSim, Warning, TEXT("CruiseSpeed%.2f is invalid, using default value 40.f"),CruiseSpeed);
+						CruiseSpeed = 40.f;
+					}
 					MovementFrag.CruiseSpeed = CruiseSpeed;
+					MovementFrag.VehicleHandle = SpawnedEntities[i];
 
 					TArray<int32> NextLanes;
 					MovementFrag.NextLane = ChooseNextLane(VehInfos[i].LaneIndex, NextLanes);
@@ -804,7 +810,7 @@ void UTrafficSimSubsystem::AddSpawnPointAtLane(int32 LaneIndex, float DistanceAl
 	}
 	if (VehIDs.Num() != VehTypes.Num() || VehIDs.Num() == 0 || VehTypes.Num() == 0)
 	{
-		UE_LOG(LogTrafficSim, Warning, TEXT("AddSpawnPointAtLane: VehIDs and VehTypes count mismatch. or VehIDs/VehTypes Num is 0"));
+		UE_LOG(LogTrafficSim, Warning, TEXT("AddSpawnPointAtLane: VehIDs and VehTypes count mismatch.VehIDs:%d,VehTypes Num:%d"),VehIDs.Num(),VehTypes.Num());
 		return;
 	}
 
