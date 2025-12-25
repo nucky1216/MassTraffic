@@ -782,74 +782,89 @@ void UTrafficSimSubsystem::ClearAllEntities()
 	UE::Mass::Executor::Run(*ClearProcessor,ProcessingContext);
 }
 
-void UTrafficSimSubsystem::AddSpawnPointAtLane(int32 LaneIndex, float DistanceAlongLane, float CruiseSpeed, UMassEntityConfigAsset * EntityConfigAsset, TArray<FName> VehIDs, TArray<int32> VehTypes)
+void UTrafficSimSubsystem::AddSpawnPointAtLane(int32 LaneIndex, float DistanceAlongLane, float CruiseSpeed, UMassEntityConfigAsset* EntityConfigAsset, TArray<FName> VehIDs, TArray<int32> VehTypes)
 {
-		if (!World || !ZoneGraphStorage)
+	if (!World || !ZoneGraphStorage)
+	{
+		UE_LOG(LogTrafficSim, Warning, TEXT("AddSpawnPointAtLane: World or ZoneGraphStorage invalid."));
+		return;
+	}
+
+	UMassEntitySubsystem* EntitySubsystem = UWorld::GetSubsystem<UMassEntitySubsystem>(World);
+	if (!EntitySubsystem)
+	{
+		UE_LOG(LogTrafficSim, Warning, TEXT("AddSpawnPointAtLane: Failed to get EntitySubsystem."));
+		return;
+	}
+
+	if (!EntityConfigAsset)
+	{
+		UE_LOG(LogTrafficSim, Warning, TEXT("AddSpawnPointAtLane: EntityConfigAsset is null."));
+		return;
+	}
+	if (VehIDs.Num() != VehTypes.Num() || VehIDs.Num() == 0 || VehTypes.Num() == 0)
+	{
+		UE_LOG(LogTrafficSim, Warning, TEXT("AddSpawnPointAtLane: VehIDs and VehTypes count mismatch. or VehIDs/VehTypes Num is 0"));
+		return;
+	}
+
+	// 计算车道上的位置
+	FZoneGraphLaneLocation LaneLocation;
+	UE::ZoneGraph::Query::CalculateLocationAlongLane(*ZoneGraphStorage, LaneIndex, DistanceAlongLane, LaneLocation);
+
+	const FMassEntityTemplate& Template = EntityConfigAsset->GetOrCreateEntityTemplate(*World);
+	if (!Template.IsValid())
+	{
+		UE_LOG(LogTrafficSim, Error, TEXT("AddSpawnPointAtLane: Invalid entity template."));
+		return;
+	}
+
+	FMassEntityManager& EntityManager = EntitySubsystem->GetMutableEntityManager();
+	const FMassArchetypeSharedFragmentValues& SharedValues = Template.GetSharedFragmentValues();
+
+	// 使用 deferred 命令在安全时机创建并初始化实体（避免同步 API）
+	EntityManager.Defer().PushCommand<FMassDeferredCreateCommand>(
+		[this, LaneLocation, CruiseSpeed, VehIDs, VehTypes, &Template, SharedValues](FMassEntityManager& System)
 		{
-			UE_LOG(LogTrafficSim, Warning, TEXT("AddSpawnPointAtLane: World or ZoneGraphStorage invalid."));
-			return;
+			TArray<FMassEntityHandle> Spawned;
+			TSharedRef<FMassEntityManager::FEntityCreationContext> Ctx =
+				System.BatchCreateEntities(Template.GetArchetype(), SharedValues, 1, Spawned);
+
+			// 应用模板初始片段值
+			System.BatchSetEntityFragmentsValues(Ctx->GetEntityCollection(), Template.GetInitialFragmentValues());
+
+			if (Spawned.Num() == 1)
+			{
+				const FMassEntityHandle SpawnPointEntity = Spawned[0];
+
+				// 设置 Transform
+				FTransformFragment& TransformFrag = System.GetFragmentDataChecked<FTransformFragment>(SpawnPointEntity);
+				TransformFrag.SetTransform(FTransform(LaneLocation.Position));
+
+				// 设置 SpawnPointFragment
+				FMassSpawnPointFragment& SpawnPointFrag = System.GetFragmentDataChecked<FMassSpawnPointFragment>(SpawnPointEntity);
+				SpawnPointFrag.LaneLocation = LaneLocation;
+				SpawnPointFrag.Controlled = true;
+				SpawnPointFrag.Duration = 1.f;
+				SpawnPointFrag.RandOffset = 1.f;
+				SpawnPointFrag.Clock = 1.0;
+				SpawnPointFrag.SpawnVehicleIDIndex = 0;
+				SpawnPointFrag.VehicleIDs = VehIDs;
+				SpawnPointFrag.VehicleTypes = VehTypes;
+				SpawnPointFrag.CruiseSpeed = CruiseSpeed;
+
+				UE_LOG(LogTrafficSim, Log, TEXT("SpawnPoint entity (deferred) created at Lane %d Dist %.2f EntitySN:%d VehIDs:%d"),
+					LaneLocation.LaneHandle.Index, LaneLocation.DistanceAlongLane, SpawnPointEntity.SerialNumber, VehIDs.Num());
+			}
+			else
+			{
+				UE_LOG(LogTrafficSim, Warning, TEXT("AddSpawnPointAtLane: deferred BatchCreateEntities failed."));
+			}
 		}
+	);
 
-		UMassEntitySubsystem* EntitySubsystem = UWorld::GetSubsystem<UMassEntitySubsystem>(World);
-		if (!EntitySubsystem)
-		{
-			UE_LOG(LogTrafficSim, Warning, TEXT("AddSpawnPointAtLane: Failed to get EntitySubsystem."));
-			return;
-		}
-
-		if (!EntityConfigAsset)
-		{
-			UE_LOG(LogTrafficSim, Warning, TEXT("AddSpawnPointAtLane: EntityConfigAsset is null."));
-			return;
-		}
-		if (VehIDs.Num() != VehTypes.Num() || VehIDs.Num() == 0 || VehTypes.Num() == 0)
-		{
-			UE_LOG(LogTrafficSim, Warning, TEXT("AddSpawnPointAtLane: VehIDs and VehTypes count mismatch. or VehIDs/VehTypes Num is 0"));
-			return;
-		}
-
-		// 计算车道上的位置
-		FZoneGraphLaneLocation LaneLocation;
-		UE::ZoneGraph::Query::CalculateLocationAlongLane(*ZoneGraphStorage, LaneIndex, DistanceAlongLane, LaneLocation);
-
-		//GetVehicleConfigs();
-
-		const FMassEntityTemplate& Template = EntityConfigAsset->GetOrCreateEntityTemplate(*World);
-		if (!Template.IsValid())
-		{
-			UE_LOG(LogTrafficSim, Error, TEXT("AddSpawnPointAtLane: Invalid entity template."));
-			return;
-		}
-
-		FMassEntityManager& EntityManager = EntitySubsystem->GetMutableEntityManager();
-
-		// 创建生成点实体
-		FMassEntityHandle SpawnPointEntity = EntityManager.CreateEntity(Template.GetArchetype());
-
-
-		FTransformFragment& TransformFrag = EntityManager.GetFragmentDataChecked<FTransformFragment>(SpawnPointEntity);
-		FMassSpawnPointFragment& SpawnPointFrag = EntityManager.GetFragmentDataChecked<FMassSpawnPointFragment>(SpawnPointEntity);
-
-		TransformFrag.SetTransform(FTransform(LaneLocation.Position));
-		
-
-		// 初始化 Fragment
-		SpawnPointFrag.LaneLocation = LaneLocation;
-		SpawnPointFrag.Controlled = true;
-		SpawnPointFrag.Duration = 1.f;
-		SpawnPointFrag.RandOffset = 1.f;
-		SpawnPointFrag.Clock = 1.0;//初始延迟时间
-		SpawnPointFrag.SpawnVehicleIDIndex = 0; // 示例：默认指向第一个
-		SpawnPointFrag.VehicleIDs = VehIDs;
-		SpawnPointFrag.VehicleTypes = VehTypes;
-		SpawnPointFrag.CruiseSpeed = CruiseSpeed;
-
-		// 调试可视化
-		//DrawDebugPoint(World, LaneLocation.Position, 30.f, FColor::Green, false, 6.f);
-
-		UE_LOG(LogTrafficSim, Log, TEXT("SpawnPoint entity created at Lane %d Dist %.2f EntitySN:%d VehIDs:%d"),
-			LaneIndex, DistanceAlongLane, SpawnPointEntity.SerialNumber, VehIDs.Num());
-	
+	// 如需本帧立即可见（慎用，可能影响性能），在此处 flush
+	// EntityManager.FlushCommands();
 }
 
 FName UTrafficSimSubsystem::GetVehIDFromActor(AActor* ClickedActor)
