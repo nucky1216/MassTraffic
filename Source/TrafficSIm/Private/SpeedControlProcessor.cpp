@@ -69,11 +69,15 @@ void USpeedControlProcessor::Execute(FMassEntityManager& EntityManager, FMassExe
 						//����������
 						if (DistanceToFrontVehicle < HalfLength * 1.5)
 							VehicleMovement.TargetSpeed = 0;
+						UE_LOG(LogTrafficSim, VeryVerbose, TEXT("===Deccelaraiton--> VehicleSN:%d, DistanceToFrontVehicle:%f, HalfLength:%f, FrontVehSN:%d, FrontVehSpeed:%f TargetSpeed:%.2f"), Context.GetEntity(i).SerialNumber,
+							DistanceToFrontVehicle, HalfLength, FrontVehicleMovement->VehicleHandle.SerialNumber, FrontVehicleMovement->Speed, VehicleMovement.TargetSpeed);
 					}
 					else if (DistanceToFrontVehicle > HalfLength * 1.2)
 					{
 
 						VehicleMovement.TargetSpeed = NewTargetSpeed;
+						UE_LOG(LogTrafficSim, VeryVerbose, TEXT("===Accelaraiton--> VehicleSN:%d, DistanceToFrontVehicle:%f, HalfLength:%f, FrontVehSN:%d, FrontVehSpeed:%f,TargetSpeed:%.2f"), Context.GetEntity(i).SerialNumber,
+							DistanceToFrontVehicle, HalfLength, FrontVehicleMovement->VehicleHandle.SerialNumber, FrontVehicleMovement->Speed,VehicleMovement.TargetSpeed);
 					}
 				}
 
@@ -100,10 +104,14 @@ void USpeedControlProcessor::Execute(FMassEntityManager& EntityManager, FMassExe
 					if (IntersectionLane && VehicleMovement.LeftDistance < VehicleMovement.VehicleLength)
 					{
 						VehicleMovement.TargetSpeed = OpenLane ? NewTargetSpeed : 0.f;
+						UE_LOG(LogTrafficSim, VeryVerbose, TEXT("+++Intersection Stop+++ VehicleSN:%d, LeftDistance:%f, OpenLane:%d, TargetSpeed:%f"), Context.GetEntity(i).SerialNumber,
+							VehicleMovement.LeftDistance, OpenLane, VehicleMovement.TargetSpeed);
 					}
 					else if (VehicleMovement.Speed == 0 && !FrontVehicleMovement)
 					{
 						VehicleMovement.TargetSpeed = NewTargetSpeed;
+						UE_LOG(LogTrafficSim, VeryVerbose, TEXT("+++Start Moving+++ VehicleSN:%d, LeftDistance:%f, OpenLane:%d, TargetSpeed:%f"), Context.GetEntity(i).SerialNumber,
+							VehicleMovement.LeftDistance, OpenLane, VehicleMovement.TargetSpeed);
 					}
 				}
 
@@ -117,12 +125,16 @@ void USpeedControlProcessor::Execute(FMassEntityManager& EntityManager, FMassExe
 				{
 					VehicleMovement.Speed -= VehicleMovement.Decelaration * DeltaTime;
 				}
+
 				FMath::Clamp(VehicleMovement.Speed,0.,500.f);
-				if(i==0)
-				UE_LOG(LogTrafficSim, VeryVerbose, TEXT("1.VehicleSN:%d, Speed:%f,Decelaration:%f,DeltaDece:%f TargetSpeed:%f"), Context.GetEntity(i).SerialNumber, 
-					VehicleMovement.Speed, VehicleMovement.Decelaration, VehicleMovement.Decelaration * DeltaTime,VehicleMovement.TargetSpeed);
+				//if(i==0)
+					UE_LOG(LogTrafficSim, VeryVerbose, TEXT("1.VehicleSN:%d, Speed:%f,Decelaration:%f,DeltaDece:%f TargetSpeed:%f bFront:%d,bFirst:%d"), Context.GetEntity(i).SerialNumber, 
+						VehicleMovement.Speed, VehicleMovement.Decelaration, VehicleMovement.Decelaration * DeltaTime,VehicleMovement.TargetSpeed, FrontVehicleMovement != nullptr, FirstVehAtLane);
 				VehicleMovement.Speed = FMath::Clamp(VehicleMovement.Speed, 0.f, VehicleMovement.MaxSpeed);
 				//UE_LOG(LogTrafficSim, VeryVerbose, TEXT("2.VehicleSN:%d, Speed:%f, TargetSpeed:%f"), Context.GetEntity(i).SerialNumber, VehicleMovement.Speed, VehicleMovement.TargetSpeed);
+				
+				
+				
 				//�ۼ�ֹͣʱ��
 				if (VehicleMovement.Speed <= 0.0f)
 				{

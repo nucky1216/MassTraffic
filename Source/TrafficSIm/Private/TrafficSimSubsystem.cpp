@@ -364,6 +364,7 @@ void UTrafficSimSubsystem::FillVehsOnLane(TArray<int32> LaneIndice, TArray<float
 						CruiseSpeed = 40.f;
 					}
 					MovementFrag.CruiseSpeed = CruiseSpeed;
+					MovementFrag.TargetSpeed = 0.0f;
 					MovementFrag.VehicleHandle = SpawnedEntities[i];
 
 					TArray<int32> NextLanes;
@@ -374,8 +375,8 @@ void UTrafficSimSubsystem::FillVehsOnLane(TArray<int32> LaneIndice, TArray<float
 					//DrawDebugDirectionalArrow(World, Start, End,100.f,
 					//	FColor::Green,false,50.f,0,50.f);
 
-					UE_LOG(LogTrafficSim, Log, TEXT("VehID:%s,CurIndex:%d,Next Lane Index:%d TypeIndex:%d TemplateName:%s "),
-						*(VehInfos[i].VehID.ToString()), VehInfos[i].LaneIndex, MovementFrag.NextLane,TypeIndex, *Template.GetTemplateName());
+					UE_LOG(LogTrafficSim, Log, TEXT("VehSN:%d,VehID:%s,CurIndex:%d,Next Lane Index:%d TypeIndex:%d TemplateName:%s Speed:%.2f TargetSpeed:%.2f"), MovementFrag.VehicleHandle.SerialNumber,
+						*(VehInfos[i].VehID.ToString()), VehInfos[i].LaneIndex, MovementFrag.NextLane,TypeIndex, *Template.GetTemplateName(), MovementFrag.Speed, MovementFrag.TargetSpeed);
 				}
 			}
 		}
