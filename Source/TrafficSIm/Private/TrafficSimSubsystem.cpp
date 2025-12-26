@@ -1,4 +1,4 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+ï»¿// Fill out your copyright notice in the Description page of Project Settings.
 
 
 #include "TrafficSimSubsystem.h"
@@ -25,7 +25,7 @@ DEFINE_LOG_CATEGORY(LogTrafficSim);
 
 void UTrafficSimSubsystem::InitializeLaneToEntitiesMap()
 {
-	//TODO:: ¸ßĞ§µÄ½áºÏProcessorÀ´¹ÜÀí³µµÀµ½³µÁ¾Ó³Éä
+	//TODO:: é«˜æ•ˆçš„ç»“åˆProcessoræ¥ç®¡ç†è½¦é“åˆ°è½¦è¾†æ˜ å°„
 
 	LaneToEntitiesMap.Empty();
 	if(!ZoneGraphStorage)
@@ -58,7 +58,7 @@ int32 UTrafficSimSubsystem::ChooseNextLane(int32 CurLaneIndex,TArray<int32>& Nex
 	{
 		const FZoneLaneLinkData& LaneLink = ZoneGraphStorage->LaneLinks[LinkIndex];
 
-		//TODO:: ¸ù¾İlaneÀàĞÍÕÒµ½×óÓÒ×ª³µµÀ
+		//TODO:: æ ¹æ®laneç±»å‹æ‰¾åˆ°å·¦å³è½¬è½¦é“
 		//..
 		if(LaneLink.Type == EZoneLaneLinkType::Outgoing)
 		{
@@ -237,7 +237,7 @@ void UTrafficSimSubsystem::FillVehsOnLane(TArray<int32> LaneIndice, TArray<float
 	};
 	TMultiMap<int32, FVehInfo> TypeToVehInfoMap;
 
-	// TODO: ´ÓÅäÖÃÖĞ»ñÈ¡×îĞ¡¼ä¾à
+	// TODO: ä»é…ç½®ä¸­è·å–æœ€å°é—´è·
 	//float MinGap = 200.f, MaxGap = 350; 
 	int32 LaneSearchIndex = LaneIndice.Num()-1;
 	float DerivedDist = EndDist[LaneSearchIndex];
@@ -318,7 +318,7 @@ void UTrafficSimSubsystem::FillVehsOnLane(TArray<int32> LaneIndice, TArray<float
 
 
 
-	// ÔÚÒ»¸ö×Ô¶¨Òå Processor »òºÏÊÊ³õÊ¼»¯½×¶Îµ÷ÓÃ
+	// åœ¨ä¸€ä¸ªè‡ªå®šä¹‰ Processor æˆ–åˆé€‚åˆå§‹åŒ–é˜¶æ®µè°ƒç”¨
 	EntityManager.Defer().PushCommand<FMassDeferredCreateCommand>(
 		[this,UniqueTypeIndices, CruiseSpeed, TypeToVehInfoMap](FMassEntityManager& System) mutable
 		{
@@ -693,7 +693,7 @@ void UTrafficSimSubsystem::RoadToLanes(UDataTable* UpdatedRoadStatus, UDataTable
 	
 	if (LanesMap->GetRowStruct() == nullptr)
 	{
-		// ÔËĞĞÊ±¹¹Ôì/Î´ÉèÖÃÊ±£¬ÏÔÊ½Ö¸¶¨
+		// è¿è¡Œæ—¶æ„é€ /æœªè®¾ç½®æ—¶ï¼Œæ˜¾å¼æŒ‡å®š
 		LanesMap->RowStruct = FDTRoadLanes::StaticStruct();
 	}
 	LanesMap->EmptyTable();
@@ -815,7 +815,7 @@ void UTrafficSimSubsystem::AddSpawnPointAtLane(int32 LaneIndex, float DistanceAl
 		return;
 	}
 
-	// ¼ÆËã³µµÀÉÏµÄÎ»ÖÃ
+	// è®¡ç®—è½¦é“ä¸Šçš„ä½ç½®
 	FZoneGraphLaneLocation LaneLocation;
 	UE::ZoneGraph::Query::CalculateLocationAlongLane(*ZoneGraphStorage, LaneIndex, DistanceAlongLane, LaneLocation);
 
@@ -829,7 +829,7 @@ void UTrafficSimSubsystem::AddSpawnPointAtLane(int32 LaneIndex, float DistanceAl
 	FMassEntityManager& EntityManager = EntitySubsystem->GetMutableEntityManager();
 	const FMassArchetypeSharedFragmentValues& SharedValues = Template.GetSharedFragmentValues();
 
-	// Ê¹ÓÃ deferred ÃüÁîÔÚ°²È«Ê±»ú´´½¨²¢³õÊ¼»¯ÊµÌå£¨±ÜÃâÍ¬²½ API£©
+	// ä½¿ç”¨ deferred å‘½ä»¤åœ¨å®‰å…¨æ—¶æœºåˆ›å»ºå¹¶åˆå§‹åŒ–å®ä½“ï¼ˆé¿å…åŒæ­¥ APIï¼‰
 	EntityManager.Defer().PushCommand<FMassDeferredCreateCommand>(
 		[this, LaneLocation, CruiseSpeed, VehIDs, VehTypes, &Template, SharedValues](FMassEntityManager& System)
 		{
@@ -837,18 +837,18 @@ void UTrafficSimSubsystem::AddSpawnPointAtLane(int32 LaneIndex, float DistanceAl
 			TSharedRef<FMassEntityManager::FEntityCreationContext> Ctx =
 				System.BatchCreateEntities(Template.GetArchetype(), SharedValues, 1, Spawned);
 
-			// Ó¦ÓÃÄ£°å³õÊ¼Æ¬¶ÎÖµ
+			// åº”ç”¨æ¨¡æ¿åˆå§‹ç‰‡æ®µå€¼
 			System.BatchSetEntityFragmentsValues(Ctx->GetEntityCollection(), Template.GetInitialFragmentValues());
 
 			if (Spawned.Num() == 1)
 			{
 				const FMassEntityHandle SpawnPointEntity = Spawned[0];
 
-				// ÉèÖÃ Transform
+				// è®¾ç½® Transform
 				FTransformFragment& TransformFrag = System.GetFragmentDataChecked<FTransformFragment>(SpawnPointEntity);
 				TransformFrag.SetTransform(FTransform(LaneLocation.Position));
 
-				// ÉèÖÃ SpawnPointFragment
+				// è®¾ç½® SpawnPointFragment
 				FMassSpawnPointFragment& SpawnPointFrag = System.GetFragmentDataChecked<FMassSpawnPointFragment>(SpawnPointEntity);
 				SpawnPointFrag.LaneLocation = LaneLocation;
 				SpawnPointFrag.Controlled = true;
@@ -870,7 +870,7 @@ void UTrafficSimSubsystem::AddSpawnPointAtLane(int32 LaneIndex, float DistanceAl
 		}
 	);
 
-	// ÈçĞè±¾Ö¡Á¢¼´¿É¼û£¨É÷ÓÃ£¬¿ÉÄÜÓ°ÏìĞÔÄÜ£©£¬ÔÚ´Ë´¦ flush
+	// å¦‚éœ€æœ¬å¸§ç«‹å³å¯è§ï¼ˆæ…ç”¨ï¼Œå¯èƒ½å½±å“æ€§èƒ½ï¼‰ï¼Œåœ¨æ­¤å¤„ flush
 	// EntityManager.FlushCommands();
 }
 
@@ -890,7 +890,7 @@ FName UTrafficSimSubsystem::GetVehIDFromActor(AActor* ClickedActor)
 			return NAME_None;
 		}
 
-		// »ñÈ¡MassActorSubsystem
+		// è·å–MassActorSubsystem
 		UMassActorSubsystem* MassActorSubsystem = World->GetSubsystem<UMassActorSubsystem>();
 		if (!MassActorSubsystem)
 		{
@@ -898,7 +898,7 @@ FName UTrafficSimSubsystem::GetVehIDFromActor(AActor* ClickedActor)
 			return NAME_None;
 		}
 
-		// »ñÈ¡MassEntitySubsystem
+		// è·å–MassEntitySubsystem
 		UMassEntitySubsystem* MassEntitySubsystem = World->GetSubsystem<UMassEntitySubsystem>();
 		if (!MassEntitySubsystem)
 		{
@@ -906,7 +906,7 @@ FName UTrafficSimSubsystem::GetVehIDFromActor(AActor* ClickedActor)
 			return NAME_None;
 		}
 
-		// ´ÓActor»ñÈ¡ÊµÌå¾ä±ú
+		// ä»Actorè·å–å®ä½“å¥æŸ„
 		FMassEntityHandle EntityHandle = MassActorSubsystem->GetEntityHandleFromActor(ClickedActor);
 		if (!EntityHandle.IsValid())
 		{
@@ -915,7 +915,7 @@ FName UTrafficSimSubsystem::GetVehIDFromActor(AActor* ClickedActor)
 			return NAME_None;
 		}
 		UE_LOG(LogTrafficSim, Log, TEXT("Get Valid Handle:%d"), EntityHandle.SerialNumber);
-		// »ñÈ¡ÊµÌåµÄVehicleMovementFragmentÀ´»ñÈ¡VehID
+		// è·å–å®ä½“çš„VehicleMovementFragmentæ¥è·å–VehID
 		const FMassVehicleMovementFragment* VehicleMovementFragment =
 			MassEntitySubsystem->GetEntityManager().GetFragmentDataPtr<FMassVehicleMovementFragment>(EntityHandle);
 
@@ -1001,12 +1001,12 @@ bool UTrafficSimSubsystem::SwitchToNextLane(FZoneGraphLaneLocation& LaneLocation
 
 	return true;
 }
-//·µ»Ø¸Ã³µÊÇ·ñÊÇµ±Ç°³µµÀµÄµÚÒ»Á¾³µ
+//è¿”å›è¯¥è½¦æ˜¯å¦æ˜¯å½“å‰è½¦é“çš„ç¬¬ä¸€è¾†è½¦
 bool UTrafficSimSubsystem::FindFrontVehicle(int32 LaneIndex, int32 NextLaneIndex, FMassEntityHandle CurVehicle, const FMassVehicleMovementFragment*& FrontVehicle)
 {
 	FrontVehicle = nullptr;
 
-	// ÊÕ¼¯µ±Ç°³µµÀÓëÆäºÏ²¢ÏàÁÚ³µµÀµÄ³µÁ¾Ö¸Õë
+	// æ”¶é›†å½“å‰è½¦é“ä¸å…¶åˆå¹¶ç›¸é‚»è½¦é“çš„è½¦è¾†æŒ‡é’ˆ
 	TArray<const FLaneVehicle*> VehiclesPtr;
 
 	const TArray<FLaneVehicle>* CurLaneVehicles = LaneToEntitiesMap.Find(LaneIndex);
@@ -1043,13 +1043,13 @@ bool UTrafficSimSubsystem::FindFrontVehicle(int32 LaneIndex, int32 NextLaneIndex
 		return false;
 	}
 
-	// ºÏ²¢³¡¾°ÏÂ°´Ê£Óà¾àÀë LeftDistance ½µĞòÅÅĞò£¨Ê£Óà¾àÀëÔ½´óÔ½¿¿Ç°£©
+	// åˆå¹¶åœºæ™¯ä¸‹æŒ‰å‰©ä½™è·ç¦» LeftDistance é™åºæ’åºï¼ˆå‰©ä½™è·ç¦»è¶Šå¤§è¶Šé å‰ï¼‰
 	VehiclesPtr.Sort([](const FLaneVehicle& A, const FLaneVehicle& B) {
 		return A.VehicleMovementFragment.LeftDistance > B.VehicleMovementFragment.LeftDistance;
 		});
 
     
-	// ÕÒµ½µ±Ç°³µÁ¾ÔÚ½µĞòĞòÁĞÖĞµÄÎ»ÖÃ£¨¶ÔÓÚÖ¸ÕëÊı×é£¬²ÎÊıÀàĞÍ±ØĞëÊÇ const FLaneVehicle* const&£©
+	// æ‰¾åˆ°å½“å‰è½¦è¾†åœ¨é™åºåºåˆ—ä¸­çš„ä½ç½®ï¼ˆå¯¹äºæŒ‡é’ˆæ•°ç»„ï¼Œå‚æ•°ç±»å‹å¿…é¡»æ˜¯ const FLaneVehicle* const&ï¼‰
 	const int32 CurIndex = VehiclesPtr.IndexOfByPredicate([CurVehicle](const FLaneVehicle* const& V) {
 		return V->EntityHandle == CurVehicle;
 		});
@@ -1060,14 +1060,14 @@ bool UTrafficSimSubsystem::FindFrontVehicle(int32 LaneIndex, int32 NextLaneIndex
 		return false;
 	}
 
-	// µ±Ç°³µµÀ¼¯ºÏÖĞÊÇ·ñ´æÔÚÇ°³µ£¨½µĞòÏÂ±ê¸ü´ó±íÊ¾¸ü¿¿Ç°£©
+	// å½“å‰è½¦é“é›†åˆä¸­æ˜¯å¦å­˜åœ¨å‰è½¦ï¼ˆé™åºä¸‹æ ‡æ›´å¤§è¡¨ç¤ºæ›´é å‰ï¼‰
 	if (CurIndex < VehiclesPtr.Num() - 1)
 	{
-		FrontVehicle = &VehiclesPtr[CurIndex + 1]->VehicleMovementFragment; // Ö¸ÏòÔ­Êı¾İ
-		return false; // ²»ÊÇµÚÒ»Á¾
+		FrontVehicle = &VehiclesPtr[CurIndex + 1]->VehicleMovementFragment; // æŒ‡å‘åŸæ•°æ®
+		return false; // ä¸æ˜¯ç¬¬ä¸€è¾†
 	}
 
-	// µ±Ç°ÊÇ¼¯ºÏÖĞµÄ×î¿¿Ç°³µÁ¾£¬¼ì²éÏÂÒ»³µµÀ¼°ÆäºÏ²¢ÏàÁÚ
+	// å½“å‰æ˜¯é›†åˆä¸­çš„æœ€é å‰è½¦è¾†ï¼Œæ£€æŸ¥ä¸‹ä¸€è½¦é“åŠå…¶åˆå¹¶ç›¸é‚»
 	if (NextLaneIndex < 0)
 	{
 		return false;
@@ -1079,7 +1079,7 @@ bool UTrafficSimSubsystem::FindFrontVehicle(int32 LaneIndex, int32 NextLaneIndex
 		{
 			if (!LaneVehicles || LaneVehicles->Num() == 0) return;
 
-			// ÔÚ¸Ã³µµÀÖĞÑ¡Ôñ LeftDistance ×î´óµÄ×÷Îª¡°¶ÓÍ·¡±
+			// åœ¨è¯¥è½¦é“ä¸­é€‰æ‹© LeftDistance æœ€å¤§çš„ä½œä¸ºâ€œé˜Ÿå¤´â€
 			const FLaneVehicle* Candidate = &(*LaneVehicles)[0];
 			for (const FLaneVehicle& V : *LaneVehicles)
 			{
@@ -1107,15 +1107,15 @@ bool UTrafficSimSubsystem::FindFrontVehicle(int32 LaneIndex, int32 NextLaneIndex
 
 	if (!NextHead)
 	{
-		// ÏÂÒ»¶ÎÃ»ÓĞ³µÁ¾£¬µ±Ç°ÎªµÚÒ»Á¾
+		// ä¸‹ä¸€æ®µæ²¡æœ‰è½¦è¾†ï¼Œå½“å‰ä¸ºç¬¬ä¸€è¾†
 		return true;
 	}
 
-	FrontVehicle = &NextHead->VehicleMovementFragment; // Ö¸ÏòÔ­Êı¾İ
-	return true; // µ±Ç°ÎªµÚÒ»Á¾£¨ÏÂÒ»¶Î´æÔÚÇ°³µĞÅÏ¢£©
+	FrontVehicle = &NextHead->VehicleMovementFragment; // æŒ‡å‘åŸæ•°æ®
+	return true; // å½“å‰ä¸ºç¬¬ä¸€è¾†ï¼ˆä¸‹ä¸€æ®µå­˜åœ¨å‰è½¦ä¿¡æ¯ï¼‰
 }
 
-//·µ»ØtrueÔòĞèÒªÖ´ĞĞ±ÜÈÃµÈ²Ù×÷
+//è¿”å›trueåˆ™éœ€è¦æ‰§è¡Œé¿è®©ç­‰æ“ä½œ
 bool UTrafficSimSubsystem::WaitForMergeVehilce(FMassVehicleMovementFragment* CurVehicle, const FMassVehicleMovementFragment*& AheadVehicle)
 {
 	if (!ZoneGraphStorage)
@@ -1130,12 +1130,12 @@ bool UTrafficSimSubsystem::WaitForMergeVehilce(FMassVehicleMovementFragment* Cur
 		return false;
 	}
 
-	//µ±Ç°LaneÊÇ·ñÎ»ÓÚConnectorÇøÓò
+	//å½“å‰Laneæ˜¯å¦ä½äºConnectoråŒºåŸŸ
 	int32 ZoneIndex = ZoneGraphStorage->Lanes[LaneIndex].ZoneIndex;
 	if(!ZoneGraphStorage->Zones[ZoneIndex].Tags.Contains(ConnectorTag))
 		return false;
 
-	//ÊÇ·ñÊÇµ±Ç°³µµÀµÄµÚÒ»Á¾³µ
+	//æ˜¯å¦æ˜¯å½“å‰è½¦é“çš„ç¬¬ä¸€è¾†è½¦
 	TArray<FLaneVehicle>* Vehicles=LaneToEntitiesMap.Find(LaneIndex);
 	if (!Vehicles )
 		return false;
@@ -1152,7 +1152,7 @@ bool UTrafficSimSubsystem::WaitForMergeVehilce(FMassVehicleMovementFragment* Cur
 		const FZoneLaneLinkData& LaneLink = ZoneGraphStorage->LaneLinks[LinkIndex];
 		if (LaneLink.Type == EZoneLaneLinkType::Adjacent && LaneLink.HasFlags(EZoneLaneLinkFlags::Merging))
 		{
-			//ÕÒµ½ÏàÁÚºÏ²¢³µµÀµÄµÚÒ»Á¾³µ
+			//æ‰¾åˆ°ç›¸é‚»åˆå¹¶è½¦é“çš„ç¬¬ä¸€è¾†è½¦
 			int32 AdjLaneIndex = LaneLink.DestLaneIndex;
 			TArray<FLaneVehicle>* AdjLaneVehicles = LaneToEntitiesMap.Find(AdjLaneIndex);
 
@@ -1166,7 +1166,7 @@ bool UTrafficSimSubsystem::WaitForMergeVehilce(FMassVehicleMovementFragment* Cur
 	if (AdjVehicles.Num() == 0)
 		return false;
 
-	//ÕÒµ½ÏàÁÚ³µµÀµÄµÚÒ»Á¾³µÃÇµÄ×î¶ÌÊ£Óà¾àÀë
+	//æ‰¾åˆ°ç›¸é‚»è½¦é“çš„ç¬¬ä¸€è¾†è½¦ä»¬çš„æœ€çŸ­å‰©ä½™è·ç¦»
 	float MinLeftDist=FLT_MAX;
 	for (auto Vehicle : AdjVehicles)
 	{
@@ -1254,7 +1254,7 @@ void UTrafficSimSubsystem::InitializeTrafficTypes(TConstArrayView<FMassSpawnedEn
 	EntityTemplates.Empty();
 	for (const FMassSpawnedEntityType& Type : VehicleConfigTypes)
 	{
-		// »ñÈ¡ÊµÌåÄ£°å
+		// è·å–å®ä½“æ¨¡æ¿
 		const UMassEntityConfigAsset* EntityConfig = Type.EntityConfig.LoadSynchronous();
 		if (!IsValid(EntityConfig))
 		{
@@ -1284,7 +1284,7 @@ void UTrafficSimSubsystem::GetVehicleConfigs(TArray<float>& VehicleLenth, TArray
 	for(const FMassSpawnedEntityType& Type : VehicleConfigTypes)
 	{
 		TotalProportion += Type.Proportion;
-		// »ñÈ¡ÊµÌåÄ£°å
+		// è·å–å®ä½“æ¨¡æ¿
 		const FMassEntityTemplate& EntityTemplate =*EntityTemplates[ConfigIndex++];
 
 		TConstArrayView<FInstancedStruct> InitialFragmentValues = EntityTemplate.GetInitialFragmentValues();
@@ -1296,7 +1296,7 @@ void UTrafficSimSubsystem::GetVehicleConfigs(TArray<float>& VehicleLenth, TArray
 				const FMassVehicleMovementFragment* InitFrag = Fragment.GetPtr<FMassVehicleMovementFragment>();
 				if (InitFrag)
 				{
-					// ·ÃÎÊ fragment µÄÊôĞÔ
+					// è®¿é—® fragment çš„å±æ€§
 					float VehicleLength = InitFrag->VehicleLength;
 					VehicleLenth.Add(VehicleLength);
 				}
@@ -1304,7 +1304,7 @@ void UTrafficSimSubsystem::GetVehicleConfigs(TArray<float>& VehicleLenth, TArray
 		}
 
 	}
-	//¹¹½¨ÀÛ»ı¸ÅÂÊ±í
+	//æ„å»ºç´¯ç§¯æ¦‚ç‡è¡¨
 	PrefixSum.Reserve(VehicleLenth.Num());
 	float Accumulate = 0.0f;
 	for (int32 i = 0; i < VehicleConfigTypes.Num(); i++)
@@ -1375,7 +1375,7 @@ void UTrafficSimSubsystem::AdjustLaneCongestion(int32 LaneIndex, ELaneCongestion
 		return;
 	}
 	ULaneCongestionAdjustProcessor* Processor = NewObject<ULaneCongestionAdjustProcessor>(this);
-	Processor->ManualInit(*this); // µ÷ÓÃ°ü×°µÄ³õÊ¼»¯
+	Processor->ManualInit(*this); // è°ƒç”¨åŒ…è£…çš„åˆå§‹åŒ–
 	Processor->TargetLaneIndex = LaneIndex;
 	Processor->StartDist = StartDist;
 	Processor->EndDist = EndDist;
