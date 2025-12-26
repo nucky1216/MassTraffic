@@ -1002,100 +1002,118 @@ bool UTrafficSimSubsystem::SwitchToNextLane(FZoneGraphLaneLocation& LaneLocation
 	return true;
 }
 //返回该车是否是当前车道的第一辆车
-bool UTrafficSimSubsystem::FindFrontVehicle(int32 LaneIndex, int32 NextLaneIndex,FMassEntityHandle CurVehicle, const FMassVehicleMovementFragment* & FrontVehicle)
+bool UTrafficSimSubsystem::FindFrontVehicle(int32 LaneIndex, int32 NextLaneIndex, FMassEntityHandle CurVehicle, const FMassVehicleMovementFragment*& FrontVehicle)
 {
+	FrontVehicle = nullptr;
 
-	TArray<FLaneVehicle>* LaneVehicles = LaneToEntitiesMap.Find(LaneIndex);
-	TArray<FLaneVehicle> LaneVehicleCopy;
+	// 收集当前车道与其合并相邻车道的车辆指针
+	TArray<const FLaneVehicle*> VehiclesPtr;
 
-	LaneVehicleCopy.Append(*LaneVehicles);
+	const TArray<FLaneVehicle>* CurLaneVehicles = LaneToEntitiesMap.Find(LaneIndex);
+	if (CurLaneVehicles && CurLaneVehicles->Num() > 0)
+	{
+		VehiclesPtr.Reserve(VehiclesPtr.Num() + CurLaneVehicles->Num());
+		for (const FLaneVehicle& V : *CurLaneVehicles)
+		{
+			VehiclesPtr.Add(&V);
+		}
+	}
 
-	TArray<int32>* AdjLanes = AdjMergeLanes.Find(LaneIndex);
+	const TArray<int32>* AdjLanes = AdjMergeLanes.Find(LaneIndex);
 	if (AdjLanes)
 	{
-		//找到合并车道上的所有车辆
-		for (int32 i=0; i < AdjLanes->Num(); ++i)
+		for (int32 AdjLane : *AdjLanes)
 		{
-			LaneVehicleCopy.Append(*LaneToEntitiesMap.Find((*AdjLanes)[i]));
+			const TArray<FLaneVehicle>* AdjLaneVehicles = LaneToEntitiesMap.Find(AdjLane);
+			if (!AdjLaneVehicles || AdjLaneVehicles->Num() == 0)
+			{
+				continue;
+			}
+			VehiclesPtr.Reserve(VehiclesPtr.Num() + AdjLaneVehicles->Num());
+			for (const FLaneVehicle& V : *AdjLaneVehicles)
+			{
+				VehiclesPtr.Add(&V);
+			}
 		}
-
-		LaneVehicleCopy.Sort([](const FLaneVehicle& A, const FLaneVehicle& B) {
-			return A.VehicleMovementFragment.LeftDistance > B.VehicleMovementFragment.LeftDistance;
-			});
-		//UE_LOG(LogTemp, Log, TEXT("Total Vehicles Num:%d"), LaneVehicleCopy.Num());
-		
 	}
 
-		
-	if(LaneVehicleCopy.Num()==0)
+	if (VehiclesPtr.Num() == 0)
 	{
-		UE_LOG(LogTrafficSim, Warning, TEXT("No vehicles found in lane %d."), LaneIndex);
+		UE_LOG(LogTrafficSim, VeryVerbose, TEXT("FindFrontVehicle: No vehicles found for lane %d and adjacents."), LaneIndex);
 		return false;
 	}
 
-	int32 VehicleNumInCurLane = LaneVehicleCopy.Num();
-
-	int32 CurVehicleIndex = LaneVehicleCopy.IndexOfByPredicate([CurVehicle](const FLaneVehicle& Vehicle) {
-		return Vehicle.EntityHandle == CurVehicle;
+	// 合并场景下按剩余距离 LeftDistance 降序排序（剩余距离越大越靠前）
+	VehiclesPtr.Sort([](const FLaneVehicle& A, const FLaneVehicle& B) {
+		return A.VehicleMovementFragment.LeftDistance > B.VehicleMovementFragment.LeftDistance;
 		});
 
-	if(CurVehicleIndex==INDEX_NONE)
+    
+	// 找到当前车辆在降序序列中的位置（对于指针数组，参数类型必须是 const FLaneVehicle* const&）
+	const int32 CurIndex = VehiclesPtr.IndexOfByPredicate([CurVehicle](const FLaneVehicle* const& V) {
+		return V->EntityHandle == CurVehicle;
+		});
+
+	if (CurIndex == INDEX_NONE)
 	{
-		UE_LOG(LogTrafficSim, Warning, TEXT("Current vehicle not found in lane %d."), LaneIndex);
+		UE_LOG(LogTrafficSim, Warning, TEXT("FindFrontVehicle: Current vehicle not found in merged list for lane %d."), LaneIndex);
 		return false;
 	}
-	
-	//当前车辆不是车道第一辆车 (越靠前的车辆下标越大)
-	if (CurVehicleIndex < VehicleNumInCurLane - 1)
+
+	// 当前车道集合中是否存在前车（降序下标更大表示更靠前）
+	if (CurIndex < VehiclesPtr.Num() - 1)
 	{
-		FrontVehicle = &LaneVehicleCopy[CurVehicleIndex + 1].VehicleMovementFragment;
-		return false;
+		FrontVehicle = &VehiclesPtr[CurIndex + 1]->VehicleMovementFragment; // 指向原数据
+		return false; // 不是第一辆
 	}
+
+	// 当前是集合中的最靠前车辆，检查下一车道及其合并相邻
 	if (NextLaneIndex < 0)
 	{
-		//UE_LOG(LogTrafficSim, VeryVerbose, TEXT("NextLaneIndex is invalid: %d."), NextLaneIndex);
 		return false;
 	}
-	//当前车辆是车道第一辆车，即将进入下一车道且下条车道有车辆
-	if(CurVehicleIndex == VehicleNumInCurLane - 1 )
-	{
-		TArray<int32>* NextAdjLanes = AdjMergeLanes.Find(NextLaneIndex);
-		if (NextAdjLanes)
-		{
-			LaneVehicleCopy.Empty();
-			LaneVehicleCopy.Append(*LaneToEntitiesMap.Find(NextLaneIndex));
-			for (int32 i = 0; i < NextAdjLanes->Num(); ++i)
-			{
-				LaneVehicleCopy.Append(*LaneToEntitiesMap.Find((*NextAdjLanes)[i]));
-			}
-			const FLaneVehicle* MaxVeh = Algo::MaxElementBy(
-				LaneVehicleCopy,
-				[](const FLaneVehicle& V) { return V.VehicleMovementFragment.LeftDistance; }
-			);
-			
-			if(LaneVehicleCopy.Num() == 0)
-				return true;
 
-			FrontVehicle = &MaxVeh->VehicleMovementFragment;
-			return true;
-		}
-		else 
+	const FLaneVehicle* NextHead = nullptr;
+
+	auto ConsiderLaneHeadByLeftDist = [&NextHead](const TArray<FLaneVehicle>* LaneVehicles)
 		{
-			TArray<FLaneVehicle>* NextLaneVehicles = LaneToEntitiesMap.Find(NextLaneIndex);
-			if (LaneVehicleCopy.Num()==0 || NextLaneVehicles->Num() == 0)
+			if (!LaneVehicles || LaneVehicles->Num() == 0) return;
+
+			// 在该车道中选择 LeftDistance 最大的作为“队头”
+			const FLaneVehicle* Candidate = &(*LaneVehicles)[0];
+			for (const FLaneVehicle& V : *LaneVehicles)
 			{
-				return true;
+				if (V.VehicleMovementFragment.LeftDistance > Candidate->VehicleMovementFragment.LeftDistance)
+				{
+					Candidate = &V;
+				}
 			}
-			FrontVehicle = &(*NextLaneVehicles)[0].VehicleMovementFragment;
-			return true;
+
+			if (!NextHead || Candidate->VehicleMovementFragment.LeftDistance > NextHead->VehicleMovementFragment.LeftDistance)
+			{
+				NextHead = Candidate;
+			}
+		};
+
+	ConsiderLaneHeadByLeftDist(LaneToEntitiesMap.Find(NextLaneIndex));
+
+	if (const TArray<int32>* NextAdjLanes = AdjMergeLanes.Find(NextLaneIndex))
+	{
+		for (int32 AdjLane : *NextAdjLanes)
+		{
+			ConsiderLaneHeadByLeftDist(LaneToEntitiesMap.Find(AdjLane));
 		}
 	}
 
-	
+	if (!NextHead)
+	{
+		// 下一段没有车辆，当前为第一辆
+		return true;
+	}
 
-	return false;
+	FrontVehicle = &NextHead->VehicleMovementFragment; // 指向原数据
+	return true; // 当前为第一辆（下一段存在前车信息）
 }
-
 
 //返回true则需要执行避让等操作
 bool UTrafficSimSubsystem::WaitForMergeVehilce(FMassVehicleMovementFragment* CurVehicle, const FMassVehicleMovementFragment*& AheadVehicle)
