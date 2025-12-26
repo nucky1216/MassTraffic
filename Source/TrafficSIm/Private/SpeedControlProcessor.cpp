@@ -13,11 +13,6 @@ USpeedControlProcessor::USpeedControlProcessor() :EntityQuery(*this)
 	bAutoRegisterWithProcessingPhases = true;
 }
 
-void USpeedControlProcessor::ConfigureQueries()
-{
-	EntityQuery.AddRequirement<FMassVehicleMovementFragment>(EMassFragmentAccess::ReadWrite);
-	EntityQuery.AddRequirement<FTransformFragment>(EMassFragmentAccess::ReadOnly);
-}
 
 void USpeedControlProcessor::Initialize(UObject& Owner)
 {
@@ -35,116 +30,119 @@ void USpeedControlProcessor::Initialize(UObject& Owner)
 	}
 }
 
-void USpeedControlProcessor::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context)
+void USpeedControlProcessor::ConfigureQueries()
 {
-	UE_LOG(LogTrafficSim, VeryVerbose, TEXT("SpeedControlProcessor::Executing.."));
-	float DeltaTime = Context.GetDeltaTimeSeconds();
-
-	EntityQuery.ForEachEntityChunk(EntityManager, Context, [this, DeltaTime](FMassExecutionContext& Context)
-		{
-			int32 NumEntities = Context.GetNumEntities();
-			TArrayView<FMassVehicleMovementFragment> VehicleMovementList = Context.GetMutableFragmentView<FMassVehicleMovementFragment>();
-			TArrayView<FTransformFragment> TransformList = Context.GetMutableFragmentView<FTransformFragment>();
-			for (int32 i = 0; i < NumEntities; ++i)
-			{
-				FMassVehicleMovementFragment& VehicleMovement = VehicleMovementList[i];
-				//FTransformFragment				
-
-				const FMassVehicleMovementFragment* FrontVehicleMovement = nullptr;
-				bool FirstVehAtLane = TrafficSimSubsystem->FindFrontVehicle(VehicleMovement.LaneLocation.LaneHandle.Index,
-					VehicleMovement.NextLane, Context.GetEntity(i), FrontVehicleMovement);
-
-				float NewTargetSpeed = VehicleMovement.CruiseSpeed;
-
-				if (FrontVehicleMovement)//����Ŀ���ٶ�Ϊǰ���ٶ�
-				{
-					float DistanceToFrontVehicle = FVector::Distance(VehicleMovement.LaneLocation.Position, FrontVehicleMovement->LaneLocation.Position);
-					float HalfLength = (VehicleMovement.VehicleLength + FrontVehicleMovement->VehicleLength) * 0.5f;
-
-					//����С�� ����+�ٶ�*5��ľ���
-					if (DistanceToFrontVehicle < HalfLength * 2.5)//+ VehicleMovement.Speed*500.0/18.0*5.0)
-					{
-						if (VehicleMovement.Speed > FrontVehicleMovement->Speed || VehicleMovement.TargetSpeed > FrontVehicleMovement->Speed)
-							VehicleMovement.TargetSpeed = FrontVehicleMovement->Speed;
-						//����������
-						if (DistanceToFrontVehicle < HalfLength * 1.5)
-							VehicleMovement.TargetSpeed = 0;
-						UE_LOG(LogTrafficSim, VeryVerbose, TEXT("===Deccelaraiton--> VehicleSN:%d, DistanceToFrontVehicle:%f, HalfLength:%f, FrontVehSN:%d, FrontVehSpeed:%f TargetSpeed:%.2f"), Context.GetEntity(i).SerialNumber,
-							DistanceToFrontVehicle, HalfLength, FrontVehicleMovement->VehicleHandle.SerialNumber, FrontVehicleMovement->Speed, VehicleMovement.TargetSpeed);
-					}
-					else if (DistanceToFrontVehicle > HalfLength * 1.2)
-					{
-
-						VehicleMovement.TargetSpeed = NewTargetSpeed;
-						UE_LOG(LogTrafficSim, VeryVerbose, TEXT("===Accelaraiton--> VehicleSN:%d, DistanceToFrontVehicle:%f, HalfLength:%f, FrontVehSN:%d, FrontVehSpeed:%f,TargetSpeed:%.2f"), Context.GetEntity(i).SerialNumber,
-							DistanceToFrontVehicle, HalfLength, FrontVehicleMovement->VehicleHandle.SerialNumber, FrontVehicleMovement->Speed,VehicleMovement.TargetSpeed);
-					}
-				}
-
-				//���úϲ������ĳ���
-				//const FMassVehicleMovementFragment* AheadVehicle = nullptr;
-				//if (TrafficSimSubsystem->WaitForMergeVehilce(&VehicleMovement, AheadVehicle))
-				//{
-				//	//if (AheadVehicle)
-				//	//{
-				//	//	float AheadGap = AheadVehicle->VehicleLength / 2 + AheadVehicle->LeftDistance + VehicleMovement.VehicleLength / 2;
-				//	//	if(AheadGap< VehicleMovement.LeftDistance)
-				//	//		
-				//	//}
-				//	VehicleMovement.TargetSpeed = 0;
-				//}
-
-				//��һ�������������̵�С��500�� ��������һ�������Ǻ�ƣ���ͣ�� ���ߵ�ǰ�ٶ�Ϊ0����һ����λ�̵ƣ�����
-				if (FirstVehAtLane && (VehicleMovement.LeftDistance < VehicleMovement.VehicleLength || VehicleMovement.Speed == 0))
-				{
-					bool IntersectionLane = false, OpenLane = true;
-
-					TrafficLightSubsystem->QueryLaneOpenState(VehicleMovement.NextLane, OpenLane, IntersectionLane);
-
-					if (IntersectionLane && VehicleMovement.LeftDistance < VehicleMovement.VehicleLength)
-					{
-						VehicleMovement.TargetSpeed = OpenLane ? NewTargetSpeed : 0.f;
-						UE_LOG(LogTrafficSim, VeryVerbose, TEXT("+++Intersection Stop+++ VehicleSN:%d, LeftDistance:%f, OpenLane:%d, TargetSpeed:%f"), Context.GetEntity(i).SerialNumber,
-							VehicleMovement.LeftDistance, OpenLane, VehicleMovement.TargetSpeed);
-					}
-					else if (VehicleMovement.Speed == 0 && !FrontVehicleMovement)
-					{
-						VehicleMovement.TargetSpeed = NewTargetSpeed;
-						UE_LOG(LogTrafficSim, VeryVerbose, TEXT("+++Start Moving+++ VehicleSN:%d, LeftDistance:%f, OpenLane:%d, TargetSpeed:%f"), Context.GetEntity(i).SerialNumber,
-							VehicleMovement.LeftDistance, OpenLane, VehicleMovement.TargetSpeed);
-					}
-				}
-
-				//������Ŀ���ٶ�
-				if (VehicleMovement.TargetSpeed > VehicleMovement.Speed)
-				{
-					VehicleMovement.Speed += VehicleMovement.Accelaration * DeltaTime;
-				}
-				//������Ŀ���ٶ�
-				else if (VehicleMovement.TargetSpeed < VehicleMovement.Speed)
-				{
-					VehicleMovement.Speed -= VehicleMovement.Decelaration * DeltaTime;
-				}
-
-				FMath::Clamp(VehicleMovement.Speed,0.,500.f);
-				//if(i==0)
-					UE_LOG(LogTrafficSim, VeryVerbose, TEXT("1.VehicleSN:%d, Speed:%f,Decelaration:%f,DeltaDece:%f TargetSpeed:%f bFront:%d,bFirst:%d"), Context.GetEntity(i).SerialNumber, 
-						VehicleMovement.Speed, VehicleMovement.Decelaration, VehicleMovement.Decelaration * DeltaTime,VehicleMovement.TargetSpeed, FrontVehicleMovement != nullptr, FirstVehAtLane);
-				VehicleMovement.Speed = FMath::Clamp(VehicleMovement.Speed, 0.f, VehicleMovement.MaxSpeed);
-				//UE_LOG(LogTrafficSim, VeryVerbose, TEXT("2.VehicleSN:%d, Speed:%f, TargetSpeed:%f"), Context.GetEntity(i).SerialNumber, VehicleMovement.Speed, VehicleMovement.TargetSpeed);
-				
-				
-				
-				//�ۼ�ֹͣʱ��
-				if (VehicleMovement.Speed <= 0.0f)
-				{
-					VehicleMovement.FreezeTime += Context.GetDeltaTimeSeconds();
-				}
-				else
-				{
-					VehicleMovement.FreezeTime = 0.0f;
-				}
-			}
-		});
+    EntityQuery.AddRequirement<FMassVehicleMovementFragment>(EMassFragmentAccess::ReadWrite);
+    EntityQuery.AddRequirement<FTransformFragment>(EMassFragmentAccess::ReadOnly);
 }
 
+void USpeedControlProcessor::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context)
+{
+    UE_LOG(LogTrafficSim, VeryVerbose, TEXT("SpeedControlProcessor::Executing.."));
+    const float DeltaTime = Context.GetDeltaTimeSeconds();
+
+    EntityQuery.ForEachEntityChunk(EntityManager, Context, [this, DeltaTime](FMassExecutionContext& Context)
+        {
+            const int32 NumEntities = Context.GetNumEntities();
+            TArrayView<FMassVehicleMovementFragment> VehicleMovementList = Context.GetMutableFragmentView<FMassVehicleMovementFragment>();
+            // 获取只读视图，避免与查询权限不匹配产生未定义行为
+            TArrayView<const FTransformFragment> TransformList = Context.GetFragmentView<FTransformFragment>();
+
+            for (int32 i = 0; i < NumEntities; ++i)
+            {
+                FMassVehicleMovementFragment& VehicleMovement = VehicleMovementList[i];
+
+                const FMassVehicleMovementFragment* FrontVehicleMovement = nullptr;
+                const bool FirstVehAtLane = TrafficSimSubsystem->FindFrontVehicle(
+                    VehicleMovement.LaneLocation.LaneHandle.Index,
+                    VehicleMovement.NextLane,
+                    Context.GetEntity(i),
+                    FrontVehicleMovement);
+
+                const float NewTargetSpeed = VehicleMovement.CruiseSpeed;
+
+                if (FrontVehicleMovement)
+                {
+                    const float DistanceToFrontVehicle = FVector::Distance(
+                        VehicleMovement.LaneLocation.Position,
+                        FrontVehicleMovement->LaneLocation.Position);
+
+                    const float HalfLength = (VehicleMovement.VehicleLength + FrontVehicleMovement->VehicleLength) * 0.5f;
+
+                    if (DistanceToFrontVehicle < HalfLength * 2.5f)
+                    {
+                        if (VehicleMovement.Speed > FrontVehicleMovement->Speed || VehicleMovement.TargetSpeed > FrontVehicleMovement->Speed)
+                        {
+                            VehicleMovement.TargetSpeed = FrontVehicleMovement->Speed;
+                        }
+                        if (DistanceToFrontVehicle < HalfLength * 1.5f)
+                        {
+                            VehicleMovement.TargetSpeed = 0.0f;
+                        }
+                        UE_LOG(LogTrafficSim, VeryVerbose, TEXT("===Deccelaraiton--> VehicleSN:%d, DistanceToFrontVehicle:%f, HalfLength:%f, FrontVehSN:%d, FrontVehSpeed:%f TargetSpeed:%.2f"),
+                            Context.GetEntity(i).SerialNumber,
+                            DistanceToFrontVehicle, HalfLength,
+                            FrontVehicleMovement->VehicleHandle.SerialNumber,
+                            FrontVehicleMovement->Speed, VehicleMovement.TargetSpeed);
+                    }
+                    else if (DistanceToFrontVehicle > HalfLength * 1.2f)
+                    {
+                        VehicleMovement.TargetSpeed = NewTargetSpeed;
+                        UE_LOG(LogTrafficSim, VeryVerbose, TEXT("===Accelaraiton--> VehicleSN:%d, DistanceToFrontVehicle:%f, HalfLength:%f, FrontVehSN:%d, FrontVehSpeed:%f,TargetSpeed:%.2f"),
+                            Context.GetEntity(i).SerialNumber,
+                            DistanceToFrontVehicle, HalfLength,
+                            FrontVehicleMovement->VehicleHandle.SerialNumber,
+                            FrontVehicleMovement->Speed, VehicleMovement.TargetSpeed);
+                    }
+                }
+
+                if (FirstVehAtLane && (VehicleMovement.LeftDistance < VehicleMovement.VehicleLength || VehicleMovement.Speed <= KINDA_SMALL_NUMBER))
+                {
+                    bool IntersectionLane = false, OpenLane = true;
+
+                    TrafficLightSubsystem->QueryLaneOpenState(VehicleMovement.NextLane, OpenLane, IntersectionLane);
+
+                    if (IntersectionLane && VehicleMovement.LeftDistance < VehicleMovement.VehicleLength)
+                    {
+                        VehicleMovement.TargetSpeed = OpenLane ? NewTargetSpeed : 0.0f;
+                        UE_LOG(LogTrafficSim, VeryVerbose, TEXT("+++Intersection Stop+++ VehicleSN:%d, LeftDistance:%f, OpenLane:%d, TargetSpeed:%f"),
+                            Context.GetEntity(i).SerialNumber, VehicleMovement.LeftDistance, OpenLane, VehicleMovement.TargetSpeed);
+                    }
+                    else if (VehicleMovement.Speed <= KINDA_SMALL_NUMBER && !FrontVehicleMovement)
+                    {
+                        VehicleMovement.TargetSpeed = NewTargetSpeed;
+                        UE_LOG(LogTrafficSim, VeryVerbose, TEXT("+++Start Moving+++ VehicleSN:%d, LeftDistance:%f, OpenLane:%d, TargetSpeed:%f"),
+                            Context.GetEntity(i).SerialNumber, VehicleMovement.LeftDistance, OpenLane, VehicleMovement.TargetSpeed);
+                    }
+                }
+
+                if (VehicleMovement.TargetSpeed > VehicleMovement.Speed)
+                {
+                    VehicleMovement.Speed += VehicleMovement.Accelaration * DeltaTime;
+                }
+                else if (VehicleMovement.TargetSpeed < VehicleMovement.Speed)
+                {
+                    VehicleMovement.Speed -= VehicleMovement.Decelaration * DeltaTime;
+                }
+
+                // 去掉无效的 Clamp 调用或改为赋值
+                VehicleMovement.Speed = FMath::Clamp(VehicleMovement.Speed, 0.0f, VehicleMovement.MaxSpeed);
+
+                UE_LOG(LogTrafficSim, VeryVerbose, TEXT("1.VehicleSN:%d, Speed:%f,Decelaration:%f,DeltaDece:%f TargetSpeed:%f bFront:%d,bFirst:%d, DeltaTime:%f"),
+                    Context.GetEntity(i).SerialNumber,
+                    VehicleMovement.Speed, VehicleMovement.Decelaration,
+                    VehicleMovement.Decelaration * DeltaTime,
+                    VehicleMovement.TargetSpeed, FrontVehicleMovement != nullptr,
+                    FirstVehAtLane, DeltaTime);
+
+                if (VehicleMovement.Speed <= KINDA_SMALL_NUMBER)
+                {
+                    VehicleMovement.FreezeTime += DeltaTime;
+                }
+                else
+                {
+                    VehicleMovement.FreezeTime = 0.0f;
+                }
+            }
+        });
+}
