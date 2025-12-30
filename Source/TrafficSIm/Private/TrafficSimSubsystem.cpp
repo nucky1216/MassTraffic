@@ -233,6 +233,7 @@ void UTrafficSimSubsystem::FillVehsOnLane(TArray<int32> LaneIndice, TArray<float
 		FName VehID;
 		FZoneGraphLaneLocation LaneLocation;
 		int32 LaneIndex;
+		FZoneGraphTagMask LaneTagMask;
 		float DistAlongLane = 0.f;
 	};
 	TMultiMap<int32, FVehInfo> TypeToVehInfoMap;
@@ -285,12 +286,14 @@ void UTrafficSimSubsystem::FillVehsOnLane(TArray<int32> LaneIndice, TArray<float
 
 		FZoneGraphLaneLocation LaneLocation;
 		UE::ZoneGraph::Query::CalculateLocationAlongLane(*ZoneGraphStorage, LaneIndice[LaneSearchIndex], DerivedDist, LaneLocation);
+		
 
 		FVehInfo Info;
 		Info.VehID = VehIDs[0] ;
 		Info.LaneLocation = LaneLocation;
 		Info.LaneIndex = LaneLocation.LaneHandle.Index;
 		Info.DistAlongLane = DerivedDist;
+		Info.LaneTagMask = ZoneGraphStorage->Lanes[LaneIndice[LaneSearchIndex]].Tags;
 
 		UsedVehIDs.Add(Info.VehID);
 		UsedVehTypes.Add(VehTypeIndice[0]);
@@ -360,8 +363,11 @@ void UTrafficSimSubsystem::FillVehsOnLane(TArray<int32> LaneIndice, TArray<float
 					MovementFrag.Speed = 0.f;
 					if (CruiseSpeed <= KINDA_SMALL_NUMBER)
 					{
-						UE_LOG(LogTrafficSim, Warning, TEXT("CruiseSpeed%.2f is invalid, using default value 40.f"),CruiseSpeed);
-						CruiseSpeed = 40.f;
+						float MinSpeed, MaxSpeed;
+						FZoneGraphTag LaneTagType;
+						GetLaneSpeedByTag(VehInfos[i].LaneTagMask,MaxSpeed,MinSpeed,LaneTagType);
+						CruiseSpeed = FMath::RandRange(MinSpeed, MaxSpeed);
+						UE_LOG(LogTrafficSim, Verbose, TEXT("CruiseSpeed%.2f is invalid, using Tagged RandomSpeed"), CruiseSpeed);
 					}
 					MovementFrag.CruiseSpeed = CruiseSpeed;
 					MovementFrag.TargetSpeed = 0.0f;
@@ -375,7 +381,7 @@ void UTrafficSimSubsystem::FillVehsOnLane(TArray<int32> LaneIndice, TArray<float
 					//DrawDebugDirectionalArrow(World, Start, End,100.f,
 					//	FColor::Green,false,50.f,0,50.f);
 
-					UE_LOG(LogTrafficSim, Log, TEXT("VehSN:%d,VehID:%s,CurIndex:%d,Next Lane Index:%d TypeIndex:%d TemplateName:%s Speed:%.2f TargetSpeed:%.2f"), MovementFrag.VehicleHandle.SerialNumber,
+					UE_LOG(LogTrafficSim, Verbose, TEXT("VehSN:%d,VehID:%s,CurIndex:%d,Next Lane Index:%d TypeIndex:%d TemplateName:%s Speed:%.2f TargetSpeed:%.2f"), MovementFrag.VehicleHandle.SerialNumber,
 						*(VehInfos[i].VehID.ToString()), VehInfos[i].LaneIndex, MovementFrag.NextLane,TypeIndex, *Template.GetTemplateName(), MovementFrag.Speed, MovementFrag.TargetSpeed);
 				}
 			}
@@ -824,6 +830,15 @@ void UTrafficSimSubsystem::AddSpawnPointAtLane(int32 LaneIndex, float DistanceAl
 	{
 		UE_LOG(LogTrafficSim, Error, TEXT("AddSpawnPointAtLane: Invalid entity template."));
 		return;
+	}
+
+	if (CruiseSpeed <= KINDA_SMALL_NUMBER)
+	{
+		const FZoneGraphTagMask& CurLaneTagMask=ZoneGraphStorage->Lanes[LaneIndex].Tags;
+		FZoneGraphTag TypedLaneTag;
+		float MaxSpeed, MinSpeed;
+		GetLaneSpeedByTag(CurLaneTagMask, MaxSpeed, MinSpeed, TypedLaneTag);
+		CruiseSpeed = FMath::RandRange(MinSpeed, MaxSpeed);
 	}
 
 	FMassEntityManager& EntityManager = EntitySubsystem->GetMutableEntityManager();
