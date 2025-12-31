@@ -196,7 +196,7 @@ void UTrafficSimSubsystem::GetZonesSeg(TArray<FVector> Points, FZoneGraphTag Any
 	
 }
 
-void UTrafficSimSubsystem::FillVehsOnLane(TArray<int32> LaneIndice, TArray<float> StartDist, TArray<float> EndDist, float CruiseSpeed, float MinGap, float MaxGap,
+void UTrafficSimSubsystem::FillVehsOnLane(TArray<int32> LaneIndice, TArray<float> StartDist, TArray<float> EndDist, float CruiseSpeed, UPARAM(ref) FTagLaneFillGap& TagLaneFillGap,
 	UPARAM(ref)TArray<FName>& VehIDs, UPARAM(ref)TArray<int32>& VehTypeIndice, TArray<FName>& UsedVehIDs, TArray<int32>& UsedVehTypes){
 	if (!ZoneGraphStorage)
 	{
@@ -242,7 +242,25 @@ void UTrafficSimSubsystem::FillVehsOnLane(TArray<int32> LaneIndice, TArray<float
 	//float MinGap = 200.f, MaxGap = 350; 
 	int32 LaneSearchIndex = LaneIndice.Num()-1;
 	float DerivedDist = EndDist[LaneSearchIndex];
+	
+	FZoneGraphTagMask LaneTagMask = ZoneGraphStorage->Lanes[LaneIndice[LaneSearchIndex]].Tags;
 
+	auto GetLaneGapByTag = [this, &TagLaneFillGap](FZoneGraphTagMask LaneTagMask, float& OutMinGap, float& OutMaxGap)
+	{
+		OutMinGap = 200.f;
+		OutMaxGap = 350.f;
+		for (const auto& Pair : TagLaneFillGap.TagedGaps)
+		{
+			if (LaneTagMask.Contains(Pair.Key))
+			{
+				OutMinGap = Pair.Value.MinValue;
+				OutMaxGap = Pair.Value.MaxValue;
+				return;
+			}
+		}
+		};
+	float MinGap, MaxGap;
+	GetLaneGapByTag(LaneTagMask, MinGap, MaxGap);
 	for (int32 i=0; VehTypeIndice.Num()>0 && LaneSearchIndex>=0;i++)
 	{
 		int32 TypeIndex = VehTypeIndice[0];
@@ -277,12 +295,14 @@ void UTrafficSimSubsystem::FillVehsOnLane(TArray<int32> LaneIndice, TArray<float
 				LaneSearchIndex--;
 				DerivedDist = EndDist[LaneSearchIndex]- offset;
 
+				LaneTagMask = ZoneGraphStorage->Lanes[LaneIndice[LaneSearchIndex]].Tags;
+				GetLaneGapByTag(LaneTagMask, MinGap, MaxGap);
+
 			}
 			else
 				break;
 
 		}
-
 
 		FZoneGraphLaneLocation LaneLocation;
 		UE::ZoneGraph::Query::CalculateLocationAlongLane(*ZoneGraphStorage, LaneIndice[LaneSearchIndex], DerivedDist, LaneLocation);
@@ -294,6 +314,7 @@ void UTrafficSimSubsystem::FillVehsOnLane(TArray<int32> LaneIndice, TArray<float
 		Info.LaneIndex = LaneLocation.LaneHandle.Index;
 		Info.DistAlongLane = DerivedDist;
 		Info.LaneTagMask = ZoneGraphStorage->Lanes[LaneIndice[LaneSearchIndex]].Tags;
+		
 
 		UsedVehIDs.Add(Info.VehID);
 		UsedVehTypes.Add(VehTypeIndice[0]);

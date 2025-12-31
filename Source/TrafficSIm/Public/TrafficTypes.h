@@ -326,3 +326,22 @@ struct FCtlLaneInfor
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CtlLaneInfor")
 	TMap<FName, FName> PhaseTurnType;
 };
+
+USTRUCT(BlueprintType)
+struct FRangedFloat
+{
+	GENERATED_BODY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RangedFloat")
+	float MinValue;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RangedFloat")
+	float MaxValue;
+	FRangedFloat() :MinValue(0.f), MaxValue(0.f) {}
+	FRangedFloat(float InMin, float InMax) :MinValue(InMin), MaxValue(InMax) {}
+};
+USTRUCT(BlueprintType)
+struct FTagLaneFillGap
+{
+	GENERATED_BODY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TagedFillGaps")
+	TMap<FZoneGraphTag, FRangedFloat> TagedGaps;
+};
