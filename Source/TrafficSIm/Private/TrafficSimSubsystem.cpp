@@ -865,14 +865,14 @@ void UTrafficSimSubsystem::AddSpawnPointAtLane(int32 LaneIndex, float DistanceAl
 	const FZoneGraphTagMask& LaneTagMask = ZoneGraphStorage->Lanes[LaneIndex].Tags;
 
 
-	float MinGap, MaxGap;
+	float MinGap=0.f, MaxGap=0.f;
 	for (const auto& Pair : TagLaneFillGap.TagedGaps)
 	{
 		if (LaneTagMask.Contains(Pair.Key))
 		{
 			MinGap = Pair.Value.MinValue;
 			MaxGap = Pair.Value.MaxValue;
-			return;
+			break;
 		}
 	}
 	
