@@ -258,7 +258,7 @@ void UTrafficSimSubsystem::FillVehsOnLane(TArray<int32> LaneIndice, TArray<float
 				return;
 			}
 		}
-		};
+	};
 	float MinGap, MaxGap;
 	GetLaneGapByTag(LaneTagMask, MinGap, MaxGap);
 	for (int32 i=0; VehTypeIndice.Num()>0 && LaneSearchIndex>=0;i++)
@@ -816,7 +816,7 @@ void UTrafficSimSubsystem::ClearAllEntities()
 	UE::Mass::Executor::Run(*ClearProcessor,ProcessingContext);
 }
 
-void UTrafficSimSubsystem::AddSpawnPointAtLane(int32 LaneIndex, float DistanceAlongLane, float CruiseSpeed, UMassEntityConfigAsset* EntityConfigAsset, TArray<FName> VehIDs, TArray<int32> VehTypes)
+void UTrafficSimSubsystem::AddSpawnPointAtLane(int32 LaneIndex, float DistanceAlongLane, float CruiseSpeed, UMassEntityConfigAsset* EntityConfigAsset, TArray<FName> VehIDs, TArray<int32> VehTypes,UPARAM(ref)FTagLaneFillGap TagLaneFillGap)
 {
 	if (!World || !ZoneGraphStorage)
 	{
@@ -862,12 +862,27 @@ void UTrafficSimSubsystem::AddSpawnPointAtLane(int32 LaneIndex, float DistanceAl
 		CruiseSpeed = FMath::RandRange(MinSpeed, MaxSpeed);
 	}
 
+	const FZoneGraphTagMask& LaneTagMask = ZoneGraphStorage->Lanes[LaneIndex].Tags;
+
+
+	float MinGap, MaxGap;
+	for (const auto& Pair : TagLaneFillGap.TagedGaps)
+	{
+		if (LaneTagMask.Contains(Pair.Key))
+		{
+			MinGap = Pair.Value.MinValue;
+			MaxGap = Pair.Value.MaxValue;
+			return;
+		}
+	}
+	
+
 	FMassEntityManager& EntityManager = EntitySubsystem->GetMutableEntityManager();
 	const FMassArchetypeSharedFragmentValues& SharedValues = Template.GetSharedFragmentValues();
 
 	// 使用 deferred 命令在安全时机创建并初始化实体（避免同步 API）
 	EntityManager.Defer().PushCommand<FMassDeferredCreateCommand>(
-		[this, LaneLocation, CruiseSpeed, VehIDs, VehTypes, &Template, SharedValues](FMassEntityManager& System)
+		[this, LaneLocation, CruiseSpeed, VehIDs, VehTypes, &Template, SharedValues,MinGap,MaxGap](FMassEntityManager& System)
 		{
 			TArray<FMassEntityHandle> Spawned;
 			TSharedRef<FMassEntityManager::FEntityCreationContext> Ctx =
@@ -889,12 +904,14 @@ void UTrafficSimSubsystem::AddSpawnPointAtLane(int32 LaneIndex, float DistanceAl
 				SpawnPointFrag.LaneLocation = LaneLocation;
 				SpawnPointFrag.Controlled = true;
 				SpawnPointFrag.Duration = 1.f;
-				SpawnPointFrag.RandOffset = 1.f;
+				SpawnPointFrag.RandOffset = 2.f;
 				SpawnPointFrag.Clock = 1.0;
 				SpawnPointFrag.SpawnVehicleIDIndex = 0;
 				SpawnPointFrag.VehicleIDs = VehIDs;
 				SpawnPointFrag.VehicleTypes = VehTypes;
 				SpawnPointFrag.CruiseSpeed = CruiseSpeed;
+				SpawnPointFrag.MinGap = MinGap;
+				SpawnPointFrag.MaxGap = MaxGap;
 
 				UE_LOG(LogTrafficSim, Log, TEXT("SpawnPoint entity (deferred) created at Lane %d Dist %.2f EntitySN:%d VehIDs:%d"),
 					LaneLocation.LaneHandle.Index, LaneLocation.DistanceAlongLane, SpawnPointEntity.SerialNumber, VehIDs.Num());

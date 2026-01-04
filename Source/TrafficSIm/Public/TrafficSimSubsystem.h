@@ -126,7 +126,7 @@ public:
 	void ClearAllEntities();
 
 	UFUNCTION(BlueprintCallable, Category = "TrafficSim| SpawnPoint")
-	void AddSpawnPointAtLane(int32 LaneIndex, float DistanceAlongLane, float CruiseSpeed,UMassEntityConfigAsset* EntityConfigAsset,TArray<FName> VehIDs,TArray<int32> VehTypes);
+	void AddSpawnPointAtLane(int32 LaneIndex, float DistanceAlongLane, float CruiseSpeed,UMassEntityConfigAsset* EntityConfigAsset,TArray<FName> VehIDs,TArray<int32> VehTypes, UPARAM(ref)FTagLaneFillGap TagLaneFillGap);
 
 	UFUNCTION(BlueprintCallable, Category = "Traffic|Mass")
 	FName GetVehIDFromActor(AActor* ClickedActor);

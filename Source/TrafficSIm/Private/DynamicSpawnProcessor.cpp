@@ -40,6 +40,7 @@ void UDynamicSpawnProcessor::Initialize(UObject& Owner)
 	}
 
 	TrafficSimSubsystem->GetVehicleConfigs(VehicleLenth,PrefixSum);
+
 }
 
 void UDynamicSpawnProcessor::ConfigureQueries()
@@ -113,6 +114,8 @@ void UDynamicSpawnProcessor::Execute(FMassEntityManager& EntityManager, FMassExe
 					}
 
 					FName VehID = TEXT("None");
+
+					float RandomGap = 0.f;
 					if (Configs[i].Controlled)
 					{
 						if (Config.SpawnVehicleIDIndex >= Config.VehicleIDs.Num())
@@ -125,6 +128,7 @@ void UDynamicSpawnProcessor::Execute(FMassEntityManager& EntityManager, FMassExe
 
 						Frag.NextVehicleType = Config.VehicleTypes[Config.SpawnVehicleIDIndex];
 
+						RandomGap = FMath::RandRange(Frag.MinGap, Frag.MaxGap);
 
 					}
 					else {
@@ -135,7 +139,7 @@ void UDynamicSpawnProcessor::Execute(FMassEntityManager& EntityManager, FMassExe
 					}
 
 					LeftSpace -= LaneLocation.DistanceAlongLane;
-					if (LeftSpace > VehicleLenth[Frag.NextVehicleType])
+					if (LeftSpace > VehicleLenth[Frag.NextVehicleType]+RandomGap)
 					{
 						FSpawnPointData SpawnData;
 						SpawnData.LaneLocation = LaneLocation;
