@@ -413,6 +413,7 @@ void UTrafficLightSubsystem::GetPhaseLanesByZoneIndex(int32 ZoneIndex, TMap<FNam
 void UTrafficLightSubsystem::RegisterCrossEntity(FName CrossName, FMassEntityHandle EntityHandle)
 {
 	CrossEntityHandleMap.Add(CrossName, EntityHandle);
+	UE_LOG(LogTrafficLight, Log, TEXT("Registered Cross Entity: %s"), *CrossName.ToString());
 }
 
 void UTrafficLightSubsystem::InitializeCrossPhaseLaneInfor(UDataTable* DataTable)
