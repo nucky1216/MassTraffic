@@ -198,6 +198,12 @@ struct FMassGlobalDespawnTag : public FMassTag
 	GENERATED_BODY()
 };
 
+USTRUCT()
+struct FVehicleDeleteTag : public FMassTag
+{
+	GENERATED_BODY()
+};
+
 USTRUCT(BlueprintType)
 struct FTagLaneSpeed
 {

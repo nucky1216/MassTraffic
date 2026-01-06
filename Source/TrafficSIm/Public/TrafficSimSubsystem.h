@@ -26,6 +26,9 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnEntitySpawned,
 	const TArray<int32>&,VehTypes,
 	const TArray<FVector>&,VehPositions);
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnEntityDestroy,
+	const TArray<FName>&, VehIDs);
+
 
 namespace TrafficSim::MoveFrag::Debug {
 
@@ -87,6 +90,9 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category = "TrafficSim|Event")
 	FOnEntitySpawned OnEntitySpawned;
+
+	UPROPERTY(BlueprintAssignable, Category = "TrafficSim|Event")
+	FOnEntityDestroy OnEntityDestroied;
 
 
 	UFUNCTION(BlueprintCallable, Category = "TrafficSim| RoadToLane| Utilities")
@@ -151,6 +157,8 @@ public:
 	void BroadcastEntitySpawnedEvent(const TArray<FName>& VehIDs,
 		const TArray<int32>& VehTypes,
 		const TArray<FVector>& VehPositions);
+
+	void BroadcastEntityDestoryEvent(const TArray<FName>& VehIDs);
 
 	UFUNCTION(BlueprintCallable, Category="TrafficSim|Control")
 	void AdjustLaneCongestion(int32 LaneIndex, ELaneCongestionMetric MetricType, float TargetValue, UMassEntityConfigAsset* OptionalConfig, float StartDist,float EndDist,float MinSafetyGap = 200.f);

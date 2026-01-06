@@ -163,6 +163,7 @@ void UVehicleMovementProcessor::Execute(FMassEntityManager& EntityManager, FMass
 	// Destroy entities that have no lane to switch to
 	for (const FMassEntityHandle& Entity : DestroyedEntities)
 	{
-		EntityManager.Defer().DestroyEntity(Entity);
+		//EntityManager.Defer().DestroyEntity(Entity);
+		EntityManager.Defer().AddTag<FVehicleDeleteTag>(Entity);
 	}
 }

@@ -1375,6 +1375,14 @@ void UTrafficSimSubsystem::BroadcastEntitySpawnedEvent(const TArray<FName>& VehI
 	}
 }
 
+void UTrafficSimSubsystem::BroadcastEntityDestoryEvent(const TArray<FName>& VehIDs)
+{
+	if (bManualSim)
+	{
+		OnEntityDestroied.Broadcast(VehIDs);
+	}
+}
+
 
 void UTrafficSimSubsystem::InitOnPostLoadMap(const UWorld::FActorsInitializedParams& Params)
 {
