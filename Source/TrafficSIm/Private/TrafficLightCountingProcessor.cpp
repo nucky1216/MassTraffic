@@ -90,7 +90,7 @@ void UTrafficLightCountingProcessor::Execute(FMassEntityManager& EntityManager, 
 					}
 					else if (SequenceIndex + 1 < SignalSequence.Num())
 					{
-						SequenceIndex++;
+						SequenceIndex= (SequenceIndex+1)% SignalSequence.Num();
 						CurrentSignal = SignalSequence[SequenceIndex];
 					}
 					else
