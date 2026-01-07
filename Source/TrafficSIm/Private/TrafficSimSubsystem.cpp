@@ -1377,7 +1377,7 @@ void UTrafficSimSubsystem::BroadcastEntitySpawnedEvent(const TArray<FName>& VehI
 
 void UTrafficSimSubsystem::BroadcastEntityDestoryEvent(const TArray<FName>& VehIDs)
 {
-	if (bManualSim)
+	if (bManualSim && VehIDs.Num()>0)
 	{
 		OnEntityDestroied.Broadcast(VehIDs);
 	}
