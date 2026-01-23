@@ -92,9 +92,13 @@ void USpeedControlProcessor::Execute(FMassEntityManager& EntityManager, FMassExe
 				float DistToRealFront = FLT_MAX;
 				if (RealFront)
 				{
-					DistToRealFront = FVector::Distance(
-						VM.LaneLocation.Position,
-						RealFront->LaneLocation.Position);
+					FVector FrontRearPos =
+						RealFront->LaneLocation.Position -
+						RealFront->LaneLocation.Direction * (RealFront->VehicleLength * 0.5f);
+					FVector SelfFrontPos =
+						VM.LaneLocation.Position +
+						VM.LaneLocation.Direction * (VM.VehicleLength * 0.5f);
+					DistToRealFront= FVector::DotProduct(VM.LaneLocation.Direction,SelfFrontPos- FrontRearPos);
 				}
 
 				const float DistToStopLine = VM.LeftDistance;
@@ -120,8 +124,8 @@ void USpeedControlProcessor::Execute(FMassEntityManager& EntityManager, FMassExe
 				const float v0 = VM.CruiseSpeed < KINDA_SMALL_NUMBER ? 100.f : VM.CruiseSpeed;
 
 				// IDM 参数
-				const float aMax = 100.f;
-				const float bComfort = 400.f;
+				const float aMax = 50.f;
+				const float bComfort = 100.f;
 				const float s0 = 300.f;
 				const float T = 1.6f;
 				const float delta = 4.f;
