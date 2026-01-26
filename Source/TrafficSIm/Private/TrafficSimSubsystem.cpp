@@ -390,7 +390,7 @@ void UTrafficSimSubsystem::FillVehsOnLane(TArray<int32> LaneIndice, TArray<float
 						CruiseSpeed = FMath::RandRange(MinSpeed, MaxSpeed);
 						UE_LOG(LogTrafficSim, Verbose, TEXT("CruiseSpeed%.2f is invalid, using Tagged RandomSpeed"), CruiseSpeed);
 					}
-					MovementFrag.CruiseSpeed = CruiseSpeed;
+					MovementFrag.CruiseSpeed = CruiseSpeed+FMath::RandRange(-10.f, 10.f);
 					MovementFrag.TargetSpeed = 0.0f;
 					MovementFrag.VehicleHandle = SpawnedEntities[i];
 

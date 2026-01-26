@@ -124,11 +124,11 @@ void USpeedControlProcessor::Execute(FMassEntityManager& EntityManager, FMassExe
 				const float v0 = VM.CruiseSpeed < KINDA_SMALL_NUMBER ? 100.f : VM.CruiseSpeed;
 
 				// IDM 参数
-				const float aMax = 50.f;
-				const float bComfort = 100.f;
-				const float s0 = 300.f;
-				const float T = 1.6f;
-				const float delta = 4.f;
+				const float aMax = 50.f; //最大加速度
+				const float bComfort = 50.f;//舒适减速度
+				const float s0 = 300.f;// 最小安全间距
+				const float T = 1.6f;	// 期望时间间隔
+				const float delta = 4.f;//加速度指数
 
 				float TargetSpeed = v;
 

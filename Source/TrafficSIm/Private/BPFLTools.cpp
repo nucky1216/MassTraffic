@@ -62,6 +62,7 @@ void UBPFLTools::JsonToDT(const TArray<uint8>& RawData, UPARAM(ref) UDataTable*&
 			const TSharedPtr<FJsonObject> ItemObj = DataArray[Index].IsValid() ? DataArray[Index]->AsObject() : nullptr;
 			if (!ItemObj.IsValid())
 			{
+				UE_LOG(LogTemp, Error, TEXT("JsonToDT: Failed to parse JSON object."));
 				return;
 			}
 

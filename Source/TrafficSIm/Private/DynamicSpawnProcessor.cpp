@@ -257,7 +257,7 @@ void UDynamicSpawnProcessor::Execute(FMassEntityManager& EntityManager, FMassExe
 					}
 					else
 					{
-						MoveFrag.CruiseSpeed = CruiseSpeed;
+						MoveFrag.CruiseSpeed = CruiseSpeed+ FMath::RandRange(-10.f, 10.f);;
 					}
 
 					MoveFrag.TargetSpeed = FMath::RandRange(MoveFrag.MinSpeed, MoveFrag.MaxSpeed);
