@@ -198,7 +198,7 @@ void USpeedControlProcessor::Execute(FMassEntityManager& EntityManager, FMassExe
 
 					float dMinStop = (vs * vs) / (2.f * bMax);
 
-					if (d <= dMinStop + 50.f)
+					if (d <= dMinStop + VM.VehicleLength/2.0)
 					{
 						// 强制最大减速度
 						VM.TargetSpeed = 0.f;
