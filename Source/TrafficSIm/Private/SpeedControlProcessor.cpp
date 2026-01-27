@@ -228,7 +228,7 @@ void USpeedControlProcessor::Execute(FMassEntityManager& EntityManager, FMassExe
 				/*------------------------------------------------------------
 				 * 6. 冻结时间统计
 				 *------------------------------------------------------------*/
-				if (VM.Speed <= 0.f)
+				if (VM.Speed <= KINDA_SMALL_NUMBER)
 				{
 					VM.FreezeTime += DeltaTime;
 				}

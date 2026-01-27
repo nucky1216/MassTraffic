@@ -153,7 +153,7 @@ void UVehicleMovementProcessor::Execute(FMassEntityManager& EntityManager, FMass
 				FTransform TargetTrans = FTransform(NewRot, NewPos, FVector(1, 1, 1));
 				
 				// 稳定性写入：速度近零且位置 / 角度变化低于阈值时，不写 Transform，避免抖动
-				if (Speed <= UE_KINDA_SMALL_NUMBER*100 )
+				if (VehicleMovementFragment.FreezeTime > UE_KINDA_SMALL_NUMBER * 100)
 				{			
 					continue;
 				}
