@@ -370,11 +370,11 @@ void UTrafficSimSubsystem::FillVehsOnLane(TArray<int32> LaneIndice, TArray<float
 				for (int32 i = 0; i < SpawnedEntities.Num(); ++i)
 				{
 					const FMassEntityHandle Entity = SpawnedEntities[i];
-					FTransformFragment& TransformFrag = System.GetFragmentDataChecked<FTransformFragment>(Entity);
+					//FTransformFragment& TransformFrag = System.GetFragmentDataChecked<FTransformFragment>(Entity);
 					FMassVehicleMovementFragment& MovementFrag = System.GetFragmentDataChecked<FMassVehicleMovementFragment>(Entity);
 
-					FTransform T(VehInfos[i].LaneLocation.Position);
-					TransformFrag.SetTransform(T);
+					//FTransform T(VehInfos[i].LaneLocation.Position,);
+					//TransformFrag.SetTransform(T);
 
 					RegisterVehPlateID(VehInfos[i].VehID, Entity);
 					MovementFrag.LaneLocation = VehInfos[i].LaneLocation;
@@ -393,6 +393,7 @@ void UTrafficSimSubsystem::FillVehsOnLane(TArray<int32> LaneIndice, TArray<float
 					MovementFrag.CruiseSpeed = CruiseSpeed+FMath::RandRange(-10.f, 10.f);
 					MovementFrag.TargetSpeed = 0.0f;
 					MovementFrag.VehicleHandle = SpawnedEntities[i];
+					MovementFrag.FreezeTime = 0.0f;
 
 					TArray<int32> NextLanes;
 					MovementFrag.NextLane = ChooseNextLane(VehInfos[i].LaneIndex, NextLanes);
