@@ -370,11 +370,11 @@ void UTrafficSimSubsystem::FillVehsOnLane(TArray<int32> LaneIndice, TArray<float
 				for (int32 i = 0; i < SpawnedEntities.Num(); ++i)
 				{
 					const FMassEntityHandle Entity = SpawnedEntities[i];
-					//FTransformFragment& TransformFrag = System.GetFragmentDataChecked<FTransformFragment>(Entity);
+					FTransformFragment& TransformFrag = System.GetFragmentDataChecked<FTransformFragment>(Entity);
 					FMassVehicleMovementFragment& MovementFrag = System.GetFragmentDataChecked<FMassVehicleMovementFragment>(Entity);
 
-					//FTransform T(VehInfos[i].LaneLocation.Position,);
-					//TransformFrag.SetTransform(T);
+					FTransform T(FRotationMatrix::MakeFromX(VehInfos[i].LaneLocation.Direction).ToQuat(),VehInfos[i].LaneLocation.Position);
+					TransformFrag.SetTransform(T);
 
 					RegisterVehPlateID(VehInfos[i].VehID, Entity);
 					MovementFrag.LaneLocation = VehInfos[i].LaneLocation;
@@ -1073,6 +1073,13 @@ bool UTrafficSimSubsystem::FindFrontVehicle(int32 LaneIndex, int32 NextLaneIndex
 		}
 	}
 
+	// 找到当前车辆在降序序列中的位置（对于指针数组，参数类型必须是 const FLaneVehicle* const&）
+	int32 CurIndex = VehiclesPtr.IndexOfByPredicate([CurVehicle](const FLaneVehicle* const& V) {
+		return V->EntityHandle == CurVehicle;
+		});
+	const FLaneVehicle* CurLaneVehiclePtr = (CurIndex != INDEX_NONE) ? VehiclesPtr[CurIndex] : nullptr;
+
+	
 	const TArray<int32>* AdjLanes = AdjMergeLanes.Find(LaneIndex);
 	if (AdjLanes)
 	{
@@ -1086,7 +1093,12 @@ bool UTrafficSimSubsystem::FindFrontVehicle(int32 LaneIndex, int32 NextLaneIndex
 			VehiclesPtr.Reserve(VehiclesPtr.Num() + AdjLaneVehicles->Num());
 			for (const FLaneVehicle& V : *AdjLaneVehicles)
 			{
-				VehiclesPtr.Add(&V);
+				
+				FVector PosVector = V.VehicleMovementFragment.LaneLocation.Position-CurLaneVehiclePtr->VehicleMovementFragment.LaneLocation.Position;
+				FVector CurVehRight = FVector::CrossProduct(CurLaneVehiclePtr->VehicleMovementFragment.LaneLocation.Direction, CurLaneVehiclePtr->VehicleMovementFragment.LaneLocation.Up).GetSafeNormal();
+				//横向距离小于130才算合并车道的前车
+				if(abs(PosVector.Dot(CurVehRight)) <= 180.f)
+					VehiclesPtr.Add(&V);
 			}
 		}
 	}
@@ -1102,11 +1114,11 @@ bool UTrafficSimSubsystem::FindFrontVehicle(int32 LaneIndex, int32 NextLaneIndex
 		return A.VehicleMovementFragment.LeftDistance > B.VehicleMovementFragment.LeftDistance;
 		});
 
-    
-	// 找到当前车辆在降序序列中的位置（对于指针数组，参数类型必须是 const FLaneVehicle* const&）
-	const int32 CurIndex = VehiclesPtr.IndexOfByPredicate([CurVehicle](const FLaneVehicle* const& V) {
+	// 找到当前车辆在降序序列中的位置
+	CurIndex = VehiclesPtr.IndexOfByPredicate([CurVehicle](const FLaneVehicle* const& V) {
 		return V->EntityHandle == CurVehicle;
 		});
+
 
 	if (CurIndex == INDEX_NONE)
 	{

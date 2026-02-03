@@ -26,7 +26,7 @@ void FIntersectionData::SideSortLanes(const FZoneGraphStorage* ZoneGraphStorage)
 
 	int32 sideCount = Sides.Num();
 
-	if (sideCount == 3)
+	if (sideCount == 3|| sideCount==2)
 	{
 		FindAloneSide(ZoneGraphStorage);
 	}
@@ -86,6 +86,23 @@ void FIntersectionData::SideSortLanes(const FZoneGraphStorage* ZoneGraphStorage)
 				}
 				side.TurnTypeToLanes.Add(TurnType, laneIndex);
 			}
+			if (sideCount == 2)
+			{
+				ETurnType TurnType = ETurnType::Straight;
+				UE_LOG(LogTemp, Warning, TEXT(" -- TwoSide: Lane StartEntryId:%d, EndEntryId:%d"), lane.StartEntryId, lane.EndEntryId);
+				
+				if (lane.EndEntryId == (lane.StartEntryId + 1) % 3)
+				{
+					TurnType = ETurnType::LeftTurn;
+				}
+				else if (lane.EndEntryId == (lane.StartEntryId + 2) % 3)
+				{
+					TurnType = ETurnType::RightTurn;
+				}
+				
+				side.TurnTypeToLanes.Add(TurnType, laneIndex);
+			}
+		
 			
 			OpenLanes.Add(laneIndex, false);
 		}

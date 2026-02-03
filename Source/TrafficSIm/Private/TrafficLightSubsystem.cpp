@@ -17,7 +17,7 @@ void UTrafficLightSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 	if(GetWorld()->IsGameWorld())
 	{
-		//BeginPlay时获取ZoneGraphData
+		//BeginPlay时锟斤拷取ZoneGraphData
 		FWorldDelegates::OnWorldInitializedActors.AddUObject(this, &UTrafficLightSubsystem::HandleRunWorldInitialized);
 	}
 
@@ -387,6 +387,28 @@ void UTrafficLightSubsystem::SetCrossBySignalState(int32 ZoneIndex, ETrafficSign
 			SetOpenLanes(ZoneIndex, SideIndex, ETurnType::RightTurn, false);
 		}
 	}
+	else if (SideNum == 2)
+	{
+		switch (SignalType) {
+		case ETrafficSignalType::Straight:
+			SetOpenLanes(ZoneIndex, SideIndex, ETurnType::Straight, true);
+			SetOpenLanes(ZoneIndex, (SideIndex+1)% SideNum, ETurnType::Straight);
+			break;
+		case ETrafficSignalType::StraightAndRight:
+			SetOpenLanes(ZoneIndex, SideIndex, ETurnType::Straight, true);
+			SetOpenLanes(ZoneIndex, (SideIndex + 1) % SideNum, ETurnType::Straight);
+
+			SetOpenLanes(ZoneIndex, SideIndex, ETurnType::RightTurn);
+			SetOpenLanes(ZoneIndex, (SideIndex + 1) % SideNum, ETurnType::RightTurn);
+			break;
+		case ETrafficSignalType::Left:
+
+			SetOpenLanes(ZoneIndex, SideIndex, ETurnType::LeftTurn, true);
+			SetOpenLanes(ZoneIndex, (SideIndex + 1) % SideNum, ETurnType::RightTurn);
+			break;
+
+		}
+	}
 }
 
 void UTrafficLightSubsystem::GetPhaseLanesByZoneIndex(int32 ZoneIndex, TMap<FName, TArray<int32>>& PhaseLanes, TMap<FName, FPhaseLanes>& ControlledLanes, FName& CrossID)
@@ -516,14 +538,14 @@ void UTrafficLightSubsystem::GetCrossPhaseState(AActor* CrossActor, FName& Phase
 		UE_LOG(LogTrafficLight, Warning, TEXT("TraffiLightSubsystem::GetCrossPhaseState: Invalid CrossActor!"));
 		return;
 	}
-	// 获取MassActorSubsystem
+	// 锟斤拷取MassActorSubsystem
 	UMassActorSubsystem* MassActorSubsystem = CrossActor->GetWorld()->GetSubsystem<UMassActorSubsystem>();
 	if (!MassActorSubsystem)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("GetVehIDFromActor: MassActorSubsystem not found"));
 		return ;
 	}
-	// 获取MassEntitySubsystem
+	// 锟斤拷取MassEntitySubsystem
 	UMassEntitySubsystem* MassEntitySubsystem = CrossActor->GetWorld()->GetSubsystem<UMassEntitySubsystem>();
 	if (!MassEntitySubsystem)
 	{
@@ -600,14 +622,14 @@ void UTrafficLightSubsystem::GetCrossPhaseCtlLanes(AActor* CrossActor, TMap<int3
 		UE_LOG(LogTrafficLight, Warning, TEXT("GetCrossPhaseCtlLanes::GetCrossPhaseState: Invalid CrossActor!"));
 		return;
 	}
-	// 获取MassActorSubsystem
+	// 锟斤拷取MassActorSubsystem
 	UMassActorSubsystem* MassActorSubsystem = CrossActor->GetWorld()->GetSubsystem<UMassActorSubsystem>();
 	if (!MassActorSubsystem)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("GetCrossPhaseCtlLanes: MassActorSubsystem not found"));
 		return;
 	}
-	// 获取MassEntitySubsystem
+	// 锟斤拷取MassEntitySubsystem
 	UMassEntitySubsystem* MassEntitySubsystem = CrossActor->GetWorld()->GetSubsystem<UMassEntitySubsystem>();
 	if (!MassEntitySubsystem)
 	{

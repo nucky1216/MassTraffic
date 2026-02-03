@@ -14,7 +14,7 @@
 
 void UTrafficLightGenerator::Generate(UObject& QueryOwner, TConstArrayView<FMassSpawnedEntityType> EntityTypes, int32 Count, FFinishedGeneratingSpawnDataSignature& FinishedGeneratingSpawnPointsDelegate) const
 {
-	//获取ZoneGraphData
+	//锟斤拷取ZoneGraphData
 	if (!ZoneGraphData)
 	{
 		UE_LOG(LogTrafficSim, Warning, TEXT("ZoneGraphData is not set in TrafficLightGenerator"));
@@ -39,7 +39,7 @@ void UTrafficLightGenerator::Generate(UObject& QueryOwner, TConstArrayView<FMass
 	{
 		const FZoneData& ZoneData = ZoneGraphStorage.Zones[i];
 
-		//是交叉路口的Tag
+		//锟角斤拷锟斤拷路锟节碉拷Tag
 		if (IntersectionTagFilter.Pass(ZoneData.Tags))
 		{
 			UE_LOG(LogTrafficSim, Log, TEXT("Zone %d is an intersection"), i);
@@ -50,16 +50,16 @@ void UTrafficLightGenerator::Generate(UObject& QueryOwner, TConstArrayView<FMass
 
 
 
-	//根据路口类型生成位置集合
+	//锟斤拷锟斤拷路锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷位锟矫硷拷锟斤拷
 	TArray<FMassEntitySpawnDataGeneratorResult> Results;
 	BuildResultsFromEntityTypes(IntersectionPoints.Num(), EntityTypes, Results);
 
 	for (auto& Result : Results)
 	{
-		//指定生成处理器
+		//指锟斤拷锟斤拷锟缴达拷锟斤拷锟斤拷
 		Result.SpawnDataProcessor = UTrafficLightInitProcessor::StaticClass();
 
-		//初始化生成位置数据
+		//锟斤拷始锟斤拷锟斤拷锟斤拷位锟斤拷锟斤拷锟斤拷
 		Result.SpawnData.InitializeAs<FTrafficLightInitData>();
 		FTrafficLightInitData& InitSpawnData = Result.SpawnData.GetMutable<FTrafficLightInitData>();
 
@@ -86,7 +86,7 @@ void UTrafficLightGenerator::Generate(UObject& QueryOwner, TConstArrayView<FMass
 		{
 			InitSpawnData.TrafficLightTransforms.Add(FTransform(IntersectionPoints[LocationIndex]));
 			InitSpawnData.ZoneIndex.Add(IntersectionZoneIndices[LocationIndex]);
-			InitSpawnData.StartSideIndex.Add(0); //默认从路口第0边开始
+			InitSpawnData.StartSideIndex.Add(0); //默锟较达拷路锟节碉拷0锟竭匡拷始
 			
 			TMap<FName, TArray<int32>> PhaseLanes;
 			TMap<FName, FPhaseLanes> PhaseControlledLanes;
