@@ -8,7 +8,7 @@ void FIntersectionData::SideAddLane(const FZoneGraphStorage* ZoneGraphStorage,in
 	int32 index=Lane.StartEntryId;
 	if(Sides.Num() <= index)
 	{
-		for (int32 i = Sides.Num(); i <= index; i++)
+		for (int32 i = Sides.Num(); i <= FMath::Max(Lane.StartEntryId, Lane.EndEntryId); i++)
 		{
 			FSide newSide;
 			Sides.Add(newSide);

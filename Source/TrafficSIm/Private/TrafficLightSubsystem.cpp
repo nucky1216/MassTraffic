@@ -377,6 +377,7 @@ void UTrafficLightSubsystem::SetCrossBySignalState(int32 ZoneIndex, ETrafficSign
 				SetOpenLanes(ZoneIndex, SideIndex, ETurnType::LeftTurn, true);
 
 				SetOpenLanes(ZoneIndex, OppositeSideIndex, ETurnType::LeftTurn, false);
+				SetOpenLanes(ZoneIndex, OppositeSideIndex, ETurnType::RightTurn, false);
 
 				SetOpenLanes(ZoneIndex, AloneSide, ETurnType::RightTurn, false);
 				break;
@@ -387,7 +388,7 @@ void UTrafficLightSubsystem::SetCrossBySignalState(int32 ZoneIndex, ETrafficSign
 			SetOpenLanes(ZoneIndex, SideIndex, ETurnType::RightTurn, false);
 		}
 	}
-	else if (SideNum == 2)
+	/*else if (SideNum == 2)
 	{
 		switch (SignalType) {
 		case ETrafficSignalType::Straight:
@@ -408,7 +409,7 @@ void UTrafficLightSubsystem::SetCrossBySignalState(int32 ZoneIndex, ETrafficSign
 			break;
 
 		}
-	}
+	}*/
 }
 
 void UTrafficLightSubsystem::GetPhaseLanesByZoneIndex(int32 ZoneIndex, TMap<FName, TArray<int32>>& PhaseLanes, TMap<FName, FPhaseLanes>& ControlledLanes, FName& CrossID)
