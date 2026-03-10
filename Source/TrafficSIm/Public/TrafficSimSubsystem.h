@@ -33,15 +33,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnEntityDestroy,
 DECLARE_DYNAMIC_DELEGATE_OneParam(FEntityActorReady, AActor*, VeActor);
 
 
-namespace TrafficSim::MoveFrag::Debug {
 
-	extern bool bEnbaleCustomData = false;
-	//extern bool bRemoveSameDestination = true;
-	//extern bool bFillEmptyDestination = true;
-
-	extern FAutoConsoleVariableRef VarsGeneration[];
-
-} // UE::ZoneGraph::Debug
 USTRUCT()
 struct FLaneVehicle
 {

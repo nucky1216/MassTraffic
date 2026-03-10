@@ -72,7 +72,7 @@ void UVehicleMovementProcessor::Execute(FMassEntityManager& EntityManager, FMass
 				float CurLaneDistance = 0.0f;
 
 				// д�� Per-Instance Custom Data������ʵ�� SerialNumber �ȣ�
-				if (TrafficSim::MoveFrag::Debug::bEnbaleCustomData)
+				if (0)
 				{
 					FMassEntityHandle Entity = Context.GetEntity(EntityIndex);
 					const int32 EntitySN = Entity.SerialNumber;

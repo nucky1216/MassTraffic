@@ -271,7 +271,7 @@ void UDynamicSpawnProcessor::Execute(FMassEntityManager& EntityManager, FMassExe
 					TArray<int32> NextLanes;
 					MoveFrag.NextLane= WeakTrafficSim->ChooseNextLane(LaneLoc.LaneHandle.Index, NextLanes);
 
-					if (TrafficSim::MoveFrag::Debug::bEnbaleCustomData)
+					if (0)
 					{
 						auto SMInfos = WeakRepSubsystem->GetMutableInstancedStaticMeshInfos();
 
