@@ -25,6 +25,8 @@
 DEFINE_LOG_CATEGORY(LogTrafficSim);
 
 
+
+
 void UTrafficSimSubsystem::InitializeLaneToEntitiesMap()
 {
 	//TODO:: 高效的结合Processor来管理车道到车辆映射

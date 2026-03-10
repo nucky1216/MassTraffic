@@ -35,15 +35,11 @@ DECLARE_DYNAMIC_DELEGATE_OneParam(FEntityActorReady, AActor*, VeActor);
 
 namespace TrafficSim::MoveFrag::Debug {
 
-	bool bEnbaleCustomData = false;
-	//bool bRemoveSameDestination = true;
-	//bool bFillEmptyDestination = true;
+	extern bool bEnbaleCustomData = false;
+	//extern bool bRemoveSameDestination = true;
+	//extern bool bFillEmptyDestination = true;
 
-	FAutoConsoleVariableRef VarsGeneration[] = {
-		FAutoConsoleVariableRef(TEXT("trafficsim.debug.customdata"), bEnbaleCustomData, TEXT("show movefrag by custom data writing.")),
-		//FAutoConsoleVariableRef(TEXT("ai.debug.zonegraph.generation.RemoveSameDestination"), bRemoveSameDestination, TEXT("Remove merging lanes leading to same destination.")),
-		//FAutoConsoleVariableRef(TEXT("ai.debug.zonegraph.generation.FillEmptyDestination"), bFillEmptyDestination, TEXT("Fill stray empty destination lanes.")),
-	};
+	extern FAutoConsoleVariableRef VarsGeneration[];
 
 } // UE::ZoneGraph::Debug
 USTRUCT()
