@@ -20,6 +20,8 @@
 #include "TrafficCommonFragments.h"
 #include "Engine/InstancedStaticMesh.h"
 #include "MassActorSubsystem.h"
+#include "MassRepresentationTypes.h"
+#include "MassRepresentationFragments.h"
 DEFINE_LOG_CATEGORY(LogTrafficSim);
 
 
@@ -1514,7 +1516,7 @@ void UTrafficSimSubsystem::GetEntityHandleByVehID(FName VehID, FMassEntityHandle
 	//}
 }
 
-FTransform UTrafficSimSubsystem::GetEntityTransformByVehID(FName VehID,AActor*& VehActor, bool& bSuccess)
+FTransform UTrafficSimSubsystem::GetEntityTransformByVehID(FName VehID,bool& bSuccess)
 {
 	bSuccess = false;
 	UMassEntitySubsystem* EntitySubsystem = UWorld::GetSubsystem<UMassEntitySubsystem>(World);
@@ -1533,8 +1535,9 @@ FTransform UTrafficSimSubsystem::GetEntityTransformByVehID(FName VehID,AActor*& 
 	{
 		
 		const FTransformFragment* TransformFrag = EntityManager.GetFragmentDataPtr<FTransformFragment>(EntityHandle);
-		VehActor=ActorSubsystem->GetActorFromHandle(EntityHandle);
-		if (TransformFrag && VehActor)
+
+		EntityManager.GetFragmentDataPtr<FMassRepresentationFragment>(EntityHandle);
+		if (TransformFrag)
 		{
 			bSuccess = true;
 			return TransformFrag->GetTransform();
@@ -1550,6 +1553,70 @@ FTransform UTrafficSimSubsystem::GetEntityTransformByVehID(FName VehID,AActor*& 
 	}
 
 	return FTransform();
+}
+
+void UTrafficSimSubsystem::CheckEntityActorReady(FName VehID, float TimeOut,FEntityActorReady OnEntityActorReady)
+{
+
+
+	if (CheckActorReadyTimerHandle.IsValid())
+	{
+		World->GetTimerManager().ClearTimer(CheckActorReadyTimerHandle);
+	}
+	OnEntityActorReadyDelegate = OnEntityActorReady;
+	TimerStartTime = FPlatformTime::Seconds();
+
+	FTimerDelegate TimerDel;
+	TimerDel.BindLambda([this, VehID, TimeOut]()
+		{
+			if (!World)
+			{
+				UE_LOG(LogTrafficSim, Warning, TEXT("CheckEntityActorReady: World is null"));
+				if (OnEntityActorReadyDelegate.IsBound()) OnEntityActorReadyDelegate.ExecuteIfBound(nullptr);
+				return;
+			}
+
+			UMassEntitySubsystem* EntitySubsystem = World->GetSubsystem<UMassEntitySubsystem>();
+			UMassActorSubsystem* ActorSubsystem = World->GetSubsystem<UMassActorSubsystem>();
+
+			if(!EntitySubsystem||!ActorSubsystem)
+			{
+				UE_LOG(LogTrafficSim, Warning, TEXT("CheckEntityActorReady: MassEntitySubsystem or ActorSubsystem not found"));
+				if (OnEntityActorReadyDelegate.IsBound()) OnEntityActorReadyDelegate.ExecuteIfBound(nullptr);
+				return;
+			}
+
+			FMassEntityHandle EntityHandle = VehIDToEntityMap.FindRef(VehID);
+			if (!EntityHandle.IsValid())
+			{
+				UE_LOG(LogTrafficSim, Warning, TEXT("CheckEntityActorReady: No valid entity handle found for VehID %s."), *VehID.ToString());
+				if (OnEntityActorReadyDelegate.IsBound()) OnEntityActorReadyDelegate.ExecuteIfBound(nullptr);
+				World->GetTimerManager().ClearTimer(CheckActorReadyTimerHandle);
+				return;
+			}
+			else
+			{
+				AActor* Actor = ActorSubsystem->GetActorFromHandle(EntityHandle);
+				if(Actor)
+				{
+					if (OnEntityActorReadyDelegate.IsBound()) OnEntityActorReadyDelegate.ExecuteIfBound(Actor);
+					World->GetTimerManager().ClearTimer(CheckActorReadyTimerHandle);
+					return;
+				}
+			}
+
+			if (TimeOut > 0.f && (FPlatformTime::Seconds()-TimerStartTime) > TimeOut)
+			{
+				UE_LOG(LogTrafficSim, Warning, TEXT("CheckEntityActorReady: Timeout while waiting for actor of VehID %s to be ready."), *VehID.ToString());
+				if (OnEntityActorReadyDelegate.IsBound()) OnEntityActorReadyDelegate.ExecuteIfBound(nullptr);
+				World->GetTimerManager().ClearTimer(CheckActorReadyTimerHandle);
+				return;
+			}
+
+		});
+
+	World->GetTimerManager().SetTimer(CheckActorReadyTimerHandle, TimerDel, PendingPollInterval, true);
+
 }
 
 void UTrafficSimSubsystem::GetZonesByViewBounds(TArray<FVector> BoundPoints, FZoneGraphTag AnyTag, float Height, TArray<int32>& OutZoneIndices)

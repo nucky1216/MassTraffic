@@ -13,6 +13,7 @@
 #include "CesiumGeoreference.h"
 #include "Engine/DataTable.h"
 #include "TrafficTypes.h"
+#include "TimerManager.h"
 // Forward declare congestion enum (defined in LaneCongestionAdjustProcessor.h)
 enum class ELaneCongestionMetric : uint8;
 
@@ -28,6 +29,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnEntitySpawned,
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnEntityDestroy,
 	const TArray<FName>&, VehIDs);
+
+DECLARE_DYNAMIC_DELEGATE_OneParam(FEntityActorReady, AActor*, VeActor);
 
 
 namespace TrafficSim::MoveFrag::Debug {
@@ -175,7 +178,11 @@ public:
 	void GetEntityHandleByVehID(FName VehID, FMassEntityHandle& OutEntityHandle) const;
 	
 	UFUNCTION(BlueprintCallable, Category = "TrafficSim|GetFocus")
-	FTransform GetEntityTransformByVehID(FName VehID,AActor*& VehActor,bool& bSuccess);
+	FTransform GetEntityTransformByVehID(FName VehID,bool& bSuccess);
+
+	UFUNCTION(BlueprintCallable, Category = "TrafficSim|GetFocus")
+	void CheckEntityActorReady(FName VehID,float TimeOut, FEntityActorReady OnEntityActorReady);
+
 
 
 	UFUNCTION(BlueprintCallable, Category = "TrafficSim|ZoneGraphQuery")
@@ -198,6 +205,13 @@ public:
 private:
 	bool bManualSim = false;
 	TMap<FName, FMassEntityHandle> VehIDToEntityMap;
+
+
+	// Handle for the timer that checks if an entity's actor is ready
+	FTimerHandle CheckActorReadyTimerHandle;
+	float TimerStartTime;
+	FEntityActorReady OnEntityActorReadyDelegate;
+	float PendingPollInterval = 0.1f;
 
 
 };

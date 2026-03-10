@@ -29,7 +29,7 @@ void UVehDeletorProcessor::ConfigureQueries()
 void UVehDeletorProcessor::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context)
 {
 	TArray<FMassEntityHandle> EntitiesToDelete;
-	EntitiesToDelete.Reserve(50); // Ô¤ÁôÒ»Ð©ÈÝÁ¿£¬¼õÉÙÖØ¸´·ÖÅä
+	EntitiesToDelete.Reserve(50); // Ô¤ï¿½ï¿½Ò»Ð©ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ø¸ï¿½ï¿½ï¿½ï¿½ï¿½
 
 	TArray<FName> VehIDsToDelete;
 
@@ -50,7 +50,7 @@ void UVehDeletorProcessor::Execute(FMassEntityManager& EntityManager, FMassExecu
 
 	if (EntitiesToDelete.Num() > 0)
 	{
-		// Í¨¹ýÑÓ³ÙÃüÁîÅúÁ¿É¾³ý
+		// Í¨ï¿½ï¿½ï¿½Ó³ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½É¾ï¿½ï¿½
 		EntityManager.Defer().DestroyEntities(EntitiesToDelete);
 	}
 	if(VehIDsToDelete.Num()>0)

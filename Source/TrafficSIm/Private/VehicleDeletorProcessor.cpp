@@ -44,6 +44,6 @@ void UVehicleDeletorProcessor::Execute(FMassEntityManager& EntityManager, FMassE
 
 	if (EntitiesToDelete.Num() > 0)
 	{
-		EntityManager.Defer().DestroyEntities(EntitiesToDelete);  // Òì²½ÅúÁ¿É¾³ıÊµÌå
+		EntityManager.Defer().DestroyEntities(EntitiesToDelete);  // ï¿½ì²½ï¿½ï¿½ï¿½ï¿½É¾ï¿½ï¿½Êµï¿½ï¿½
 	}
 }
