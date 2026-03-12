@@ -19,7 +19,7 @@ UDynamicSpawnProcessor::UDynamicSpawnProcessor() :EntityQuery(*this)
 	//ExecutionOrder.ExecuteAfter.Add(FName(TEXT("VehicleMovementProcessor")));
 	ExecutionOrder.ExecuteAfter.Add(FName(TEXT("CollectLaneVehiclesProcessor")));
 	//ExecutionOrder.ExecuteBefore.Add(FName(TEXT("VehicleParamsInitProcessor")));
-	ProcessingPhase = EMassProcessingPhase::EndPhysics; // ÐÞ¸ÄÎª PostPhysics ½×¶Î
+	ProcessingPhase = EMassProcessingPhase::EndPhysics; // ï¿½Þ¸ï¿½Îª PostPhysics ï¿½×¶ï¿½
 	bAutoRegisterWithProcessingPhases = true;
 }
 
@@ -67,15 +67,15 @@ void UDynamicSpawnProcessor::Execute(FMassEntityManager& EntityManager, FMassExe
 	TMultiMap<int32, FSpawnPointData> ReadySpawnLocs;
 	auto SelectRandomItem = [&]()
 		{
-			float R = FMath::FRand(); // Éú³É 0~1 µÄËæ»úÊý
+			float R = FMath::FRand(); // ï¿½ï¿½ï¿½ï¿½ 0~1 ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 			for (int32 i = 0; i < PrefixSum.Num(); i++)
 			{
 				if (R <= PrefixSum[i])
 				{
-					return i; // ·µ»ØÑ¡ÖÐµÄÔªËØ
+					return i; // ï¿½ï¿½ï¿½ï¿½Ñ¡ï¿½Ðµï¿½Ôªï¿½ï¿½
 				}
 			}
-			return PrefixSum.Num() - 1; // ÀíÂÛÉÏ²»»á×ßµ½ÕâÀï
+			return PrefixSum.Num() - 1; // ï¿½ï¿½ï¿½ï¿½ï¿½Ï²ï¿½ï¿½ï¿½ï¿½ßµï¿½ï¿½ï¿½ï¿½ï¿½
 		};
 
 	TArray<FMassEntityHandle> ToDeleteEntities;
@@ -108,7 +108,7 @@ void UDynamicSpawnProcessor::Execute(FMassEntityManager& EntityManager, FMassExe
 					}
 					else
 					{
-						//È¡³ö×îºóÒ»Á¾³µ
+						//È¡ï¿½ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½
 						FLaneVehicle LastVehicle = LaneVehicles[0];
 						LeftSpace = LastVehicle.VehicleMovementFragment.LaneLocation.DistanceAlongLane - LastVehicle.VehicleMovementFragment.VehicleLength;
 					}
@@ -202,8 +202,6 @@ void UDynamicSpawnProcessor::Execute(FMassEntityManager& EntityManager, FMassExe
 				UE_LOG(LogTemp, Warning, TEXT("No RepresentationSubsystem found"));
 				return;
 			}			
-			if(NewSpawnVehIDs.Num()!=0)
-				TrafficSimSubsystem->BroadcastEntitySpawnedEvent(NewSpawnVehIDs, NewSpawnVehTypeIndex,NewSpawnLocations);
 			
 			// Capture by value to ensure safety until deferred execution
 			int32 ConfigIndexCopy = Key;
@@ -273,18 +271,18 @@ void UDynamicSpawnProcessor::Execute(FMassEntityManager& EntityManager, FMassExe
 					TArray<int32> NextLanes;
 					MoveFrag.NextLane= WeakTrafficSim->ChooseNextLane(LaneLoc.LaneHandle.Index, NextLanes);
 
-					if (TrafficSim::MoveFrag::Debug::bEnbaleCustomData)
+					if (0)
 					{
 						auto SMInfos = WeakRepSubsystem->GetMutableInstancedStaticMeshInfos();
 
-						// »ñÈ¡ InstancedStaticMesh µÄË÷Òý
+						// ï¿½ï¿½È¡ InstancedStaticMesh ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 						const int32 StaticMeshInstanceIndex = Representation.StaticMeshDescIndex;
 						if (StaticMeshInstanceIndex == INDEX_NONE)
 						{
-							continue; // ÎÞÐ§Ë÷Òý£¬Ìø¹ý
+							continue; // ï¿½ï¿½Ð§ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 						}
 
-						// »ñÈ¡ InstancedStaticMesh ÐÅÏ¢
+						// ï¿½ï¿½È¡ InstancedStaticMesh ï¿½ï¿½Ï¢
 						FMassInstancedStaticMeshInfo& MeshInfo = SMInfos[StaticMeshInstanceIndex];
 
 						const float LODSignificance = RepresentationLOD.LODSignificance;
@@ -310,6 +308,9 @@ void UDynamicSpawnProcessor::Execute(FMassEntityManager& EntityManager, FMassExe
 				//UE_LOG(LogTrafficSim, Log, TEXT("Deferred Spawned Entity Num:%d ConfigIndex:%d"), NewEntities.Num(), ConfigIndexCopy);
 			});
 		}
+
+		if (NewSpawnVehIDs.Num() != 0)
+			TrafficSimSubsystem->BroadcastEntitySpawnedEvent(NewSpawnVehIDs, NewSpawnVehTypeIndex, NewSpawnLocations);
 	}
 	// Removed MassSpawnerSubsystem spawning & initializer processor usage; deferred commands will flush later.
 	// Removed invalid call to EntityManager.Defer().BatchCreateEntities();
