@@ -26,8 +26,14 @@ public class TrafficSIm : ModuleRules
 			new string[]
 			{
 				"Core",
-
+                "AIModule",
                 "MassSpawner",
+                    "MassMovement",
+                    "MassNavigation",
+                "StateTreeModule",
+                "MassAIBehavior",
+                "NetCore",
+                 "MassSimulation",
 				// ... add other public dependencies that you statically link with here ...
 			}
 			);
@@ -51,6 +57,7 @@ public class TrafficSIm : ModuleRules
 				"MassLOD",
                 "HTTP",
 				"JsonLibrary"
+
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);
