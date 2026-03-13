@@ -13,7 +13,7 @@ struct TRAFFICSIM_API FMassDebugLogTaskInstanceData
 {
     GENERATED_BODY()
 
-    UPROPERTY(EditAnywhere, Category = Input)
+    UPROPERTY(EditAnywhere, Category = Parameter)
     FString Message;
 };
 

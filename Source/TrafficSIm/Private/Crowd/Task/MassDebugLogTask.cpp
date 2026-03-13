@@ -5,7 +5,6 @@
 #include "MassAIBehaviorTypes.h"
 #include "MassStateTreeExecutionContext.h"
 #include "StateTreeExecutionContext.h"
-#include "EngineUtils.h"
 
 EStateTreeRunStatus FMassDebugLogTask::EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const
 {
@@ -13,11 +12,11 @@ EStateTreeRunStatus FMassDebugLogTask::EnterState(FStateTreeExecutionContext& Co
 
     if (InstanceData.Message.IsEmpty())
     {
-        MASSBEHAVIOR_LOG(Log, TEXT("[DebugTask] Message is empty."));
+        UE_LOG(LogTemp,Log, TEXT("[DebugTask] Message is empty."));
     }
     else
     {
-        MASSBEHAVIOR_LOG(Log, TEXT("[DebugTask] %s"), *InstanceData.Message);
+        UE_LOG(LogTemp,Log, TEXT("[DebugTask] %s"), *InstanceData.Message);
     }
 
     return EStateTreeRunStatus::Succeeded;
