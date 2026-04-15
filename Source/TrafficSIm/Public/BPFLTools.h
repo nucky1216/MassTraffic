@@ -50,4 +50,7 @@ public:
 
 	UFUNCTION(BlueprintCallAble, Category = "Json/Deserialize")
 	static void DeserializeOutterLaneVehicles(FJsonLibraryObject JsonObject,UDataTable* VehTypesDT, FOnJsonDeserializeFinished OnFinished);
+
+	UFUNCTION(BlueprintCallAble, Category = "ActorUtility")
+	static void AddInstanceComponent(AActor* Actor, UActorComponent* CompIn);
 };

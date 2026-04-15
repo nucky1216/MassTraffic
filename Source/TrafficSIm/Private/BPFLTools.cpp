@@ -291,3 +291,20 @@ void UBPFLTools::DeserializeOutterLaneVehicles(FJsonLibraryObject JsonObject, UD
 				});
 		});
 }
+
+void UBPFLTools::AddInstanceComponent(AActor* Actor, UActorComponent* CompIn)
+{
+	if (!Actor|| !CompIn) return;
+
+	Actor->Modify();
+	CompIn->Modify();
+
+	Actor->AddInstanceComponent(CompIn);
+	CompIn->RegisterComponent();
+	CompIn->OnComponentCreated();
+	CompIn->MarkPackageDirty();
+
+	Actor->MarkPackageDirty();
+
+
+}
