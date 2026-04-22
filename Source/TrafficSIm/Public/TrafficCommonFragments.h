@@ -2,8 +2,17 @@
 #include "MassEntityTypes.h"
 #include "ZoneGraphTypes.h"
 #include "MassSpawnerTypes.h"
+#include "MassSmartObjectRequest.h"
 #include "TrafficCommonFragments.generated.h"
 
+USTRUCT()
+struct TRAFFICSIM_API FMassQueuedAdvanceSlotFragment : public FMassFragment
+{
+	GENERATED_BODY()
+
+	bool bHasPendingSlot = false;
+	FSmartObjectRequestResult PendingSlot;
+};
 
 USTRUCT()
 struct TRAFFICSIM_API FMassSpawnPointFragment : public FMassFragment

@@ -28,12 +28,17 @@ public class TrafficSIm : ModuleRules
 				"Core",
                 "AIModule",
                 "MassSpawner",
-                    "MassMovement",
-                    "MassNavigation",
+                "MassMovement",
+                "MassNavigation",
+                "MassZoneGraphNavigation",
                 "StateTreeModule",
                 "MassAIBehavior",
+				"MassSmartObjects",
+                "MassSignals",
+                "GameplayTags",
                 "NetCore",
-                 "MassSimulation",
+                "MassSimulation",
+                "SmartObjectsModule",
 				// ... add other public dependencies that you statically link with here ...
 			}
 			);
