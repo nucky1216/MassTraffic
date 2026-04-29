@@ -12,12 +12,11 @@ class UMassSignalSubsystem;
 struct FMassSmartObjectUserFragment;
 struct FStateTreeExecutionContext;
 
-UENUM()
+UENUM(BlueprintType)
 enum class EQueueSlotWaitFinishReason : uint8
 {
 	NotSet,
 	TimedOut,
-	AdvanceRequested,
 	ClaimInvalid
 };
 
@@ -29,10 +28,6 @@ struct TRAFFICSIM_API FMassQueueSlotWaitTaskInstanceData
 	/** Claimed slot for the current entity in queue (Input). */
 	UPROPERTY(EditAnywhere, Category = Input)
 	FSmartObjectClaimHandle ClaimedSlot;
-
-	/** Optional next entity in queue to notify when this entity leaves. */
-	UPROPERTY(EditAnywhere, Category = Parameter)
-	FMassEntityHandle NextEntity;
 
 	/** Wait time in seconds. <= 0 means wait until slot becomes invalid/released. */
 	UPROPERTY(EditAnywhere, Category = Parameter)
@@ -67,13 +62,8 @@ protected:
 	TStateTreeExternalDataHandle<USmartObjectSubsystem> SmartObjectSubsystemHandle;
 	TStateTreeExternalDataHandle<UMassSignalSubsystem> MassSignalSubsystemHandle;
 	TStateTreeExternalDataHandle<FMassSmartObjectUserFragment> SmartObjectUserHandle;
-	TStateTreeExternalDataHandle<FMassQueuedAdvanceSlotFragment, EStateTreeExternalDataRequirement::Optional> QueuedAdvanceSlotHandle;
 
 	/** Signal emitted to self when this wait task decides the entity should leave current queue slot. */
 	UPROPERTY(EditAnywhere, Category = Parameter)
 	FName LeaveSignal = FName(TEXT("QueueLeave"));
-
-	/** Optional signal emitted to NextEntity so it can advance. */
-	UPROPERTY(EditAnywhere, Category = Parameter)
-	FName AdvanceSignal = NAME_None;
 };

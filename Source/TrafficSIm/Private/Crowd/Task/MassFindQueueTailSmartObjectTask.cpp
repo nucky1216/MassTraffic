@@ -37,24 +37,6 @@ EStateTreeRunStatus FMassFindQueueTailSmartObjectTask::EnterState(FStateTreeExec
 	InstanceData.NextUpdate = 0.0;
 	InstanceData.LastLane = FZoneGraphLaneHandle();
 
-	USmartObjectSubsystem& SmartObjectSubsystem = Context.GetExternalData(SmartObjectSubsystemHandle);
-	if (FMassQueuedAdvanceSlotFragment* QueuedAdvanceSlot = Context.GetExternalDataPtr(QueuedAdvanceSlotHandle))
-	{
-		if (QueuedAdvanceSlot->bHasPendingSlot && QueuedAdvanceSlot->PendingSlot.SmartObjectHandle.IsValid() && SmartObjectSubsystem.CanBeClaimed(QueuedAdvanceSlot->PendingSlot.SlotHandle))
-		{
-			InstanceData.FoundCandidateSlots.NumSlots = 1;
-			InstanceData.FoundCandidateSlots.Slots[0] = FSmartObjectCandidateSlot(QueuedAdvanceSlot->PendingSlot, 0.0f);
-			InstanceData.bHasCandidateSlots = true;
-
-			const FMassStateTreeExecutionContext& MassContext = static_cast<FMassStateTreeExecutionContext&>(Context);
-			UE_LOG(LogTemp, Log, TEXT("SN:%d Found pending slot from QueuedAdvanceSlotFragment with SlotIndex:%d"), MassContext.GetEntity().SerialNumber, QueuedAdvanceSlot->PendingSlot.SlotHandle.GetSlotIndex());
-			return  EStateTreeRunStatus::Running;
-		}
-
-		QueuedAdvanceSlot->bHasPendingSlot = false;
-		QueuedAdvanceSlot->PendingSlot = FSmartObjectRequestResult();
-	}
-
 	const FMassStateTreeExecutionContext& MassContext = static_cast<FMassStateTreeExecutionContext&>(Context);
 	UE_LOG(LogTemp, Log, TEXT("SN:%d Enter Task:FindQueueTailSmartObject"), MassContext.GetEntity().SerialNumber);
 	return EStateTreeRunStatus::Running;
@@ -83,26 +65,7 @@ void FMassFindQueueTailSmartObjectTask::StateCompleted(FStateTreeExecutionContex
 	USmartObjectSubsystem& SmartObjectSubsystem = Context.GetExternalData(SmartObjectSubsystemHandle);
 	const FMassStateTreeExecutionContext& MassContext = static_cast<FMassStateTreeExecutionContext&>(Context);
 
-	bool bHasPendingAdvanceSlot = false;
-	if (FMassQueuedAdvanceSlotFragment* QueuedAdvanceSlot = Context.GetExternalDataPtr(QueuedAdvanceSlotHandle))
-	{
-		if (QueuedAdvanceSlot->bHasPendingSlot
-			&& QueuedAdvanceSlot->PendingSlot.SmartObjectHandle.IsValid()
-			&& SmartObjectSubsystem.CanBeClaimed(QueuedAdvanceSlot->PendingSlot.SlotHandle))
-		{
-			InstanceData.FoundCandidateSlots.NumSlots = 1;
-			InstanceData.FoundCandidateSlots.Slots[0] = FSmartObjectCandidateSlot(QueuedAdvanceSlot->PendingSlot, 0.0f);
-			InstanceData.bHasCandidateSlots = true;
-			bHasPendingAdvanceSlot = true;
-			UE_LOG(LogTemp, Log, TEXT("SN:%d Found pending slot from QueuedAdvanceSlotFragment with SlotIndex:%d, Claimable:%d"),
-				MassContext.GetEntity().SerialNumber, QueuedAdvanceSlot->PendingSlot.SlotHandle.GetSlotIndex(), SmartObjectSubsystem.CanBeClaimed(QueuedAdvanceSlot->PendingSlot.SlotHandle));
-		}
-
-		QueuedAdvanceSlot->bHasPendingSlot = false;
-		QueuedAdvanceSlot->PendingSlot = FSmartObjectRequestResult();
-	}
-
-	if (SOUser.InteractionHandle.IsValid() && !bHasPendingAdvanceSlot)
+	if (SOUser.InteractionHandle.IsValid())
 	{
 		InstanceData.FoundCandidateSlots.Reset();
 		InstanceData.bHasCandidateSlots = false;
@@ -125,35 +88,51 @@ EStateTreeRunStatus FMassFindQueueTailSmartObjectTask::Tick(FStateTreeExecutionC
 	FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
 	//UE_LOG(LogTemp, Log, TEXT("SN:%d Tick Task:FindQueueTailSmartObject"), MassContext.GetEntity().SerialNumber);
 
-	if (!InstanceData.SearchRequestID.IsSet() && !InstanceData.bHasCandidateSlots)
-	{
-		if (FMassQueuedAdvanceSlotFragment* QueuedAdvanceSlot = Context.GetExternalDataPtr(QueuedAdvanceSlotHandle))
-		{
-			if (QueuedAdvanceSlot->bHasPendingSlot && QueuedAdvanceSlot->PendingSlot.SmartObjectHandle.IsValid() && SmartObjectSubsystem.CanBeClaimed(QueuedAdvanceSlot->PendingSlot.SlotHandle))
-			{
-				InstanceData.FoundCandidateSlots.NumSlots = 1;
-				InstanceData.FoundCandidateSlots.Slots[0] = FSmartObjectCandidateSlot(QueuedAdvanceSlot->PendingSlot, 0.0f);
-				InstanceData.bHasCandidateSlots = true;
-				UE_LOG(LogTemp, Log, TEXT("SN:%d Found pending slot from QueuedAdvanceSlotFragment with SlotIndex:%d"), MassContext.GetEntity().SerialNumber, QueuedAdvanceSlot->PendingSlot.SlotHandle.GetSlotIndex());
-
-				QueuedAdvanceSlot->bHasPendingSlot = false;
-				QueuedAdvanceSlot->PendingSlot = FSmartObjectRequestResult();
-
-				return EStateTreeRunStatus::Running;
-			}
-
-			QueuedAdvanceSlot->bHasPendingSlot = false;
-			QueuedAdvanceSlot->PendingSlot = FSmartObjectRequestResult();
-		}
-	}
 
 	if (!InstanceData.SearchRequestID.IsSet())
 	{
+		// 1. 如果实体现在已经合法占据了一个排队槽位，我们只需向前寻找或者等待
 		if (SOUser.InteractionHandle.IsValid())
 		{
-			InstanceData.FoundCandidateSlots.Reset();
-			InstanceData.bHasCandidateSlots = false;
+			const int32 PreviousSlotIndex = SOUser.InteractionHandle.SlotHandle.GetSlotIndex() - 1;
+			if (PreviousSlotIndex >= 0)
+			{
+				TArray<FSmartObjectSlotHandle> AllSlots;
+				SmartObjectSubsystem.GetAllSlots(SOUser.InteractionHandle.SmartObjectHandle, AllSlots);
+
+				if (AllSlots.IsValidIndex(PreviousSlotIndex) && SmartObjectSubsystem.CanBeClaimed(AllSlots[PreviousSlotIndex]))
+				{
+					// 找到前一个空闲的Slot，可以排队前进了
+					InstanceData.FoundCandidateSlots.NumSlots = 1;
+					InstanceData.FoundCandidateSlots.Slots[0] = FSmartObjectCandidateSlot(FSmartObjectRequestResult(SOUser.InteractionHandle.SmartObjectHandle, AllSlots[PreviousSlotIndex]), 0.0f);
+					InstanceData.bHasCandidateSlots = true;
+				}
+			}
+			else
+			{
+				// 我们已经在首位
+				InstanceData.FoundCandidateSlots.Reset();
+				InstanceData.bHasCandidateSlots = false;
+			}
+
+			// 只在队列内部行动时，不需要去发起完全异步的Smart Object扫描
 			return EStateTreeRunStatus::Running;
+		}
+
+		// 2. 检查是否有组件外部指示要求强制占据某个特定的后续槽位
+		if (const FMassQueuedAdvanceSlotFragment* QueuedAdvanceSlot = Context.GetExternalDataPtr(QueuedAdvanceSlotHandle))
+		{
+			if (QueuedAdvanceSlot->bHasPendingSlot && QueuedAdvanceSlot->PendingSlot.SmartObjectHandle.IsValid())
+			{
+				if (SmartObjectSubsystem.CanBeClaimed(QueuedAdvanceSlot->PendingSlot.SlotHandle))
+				{
+					InstanceData.FoundCandidateSlots.NumSlots = 1;
+					InstanceData.FoundCandidateSlots.Slots[0] = FSmartObjectCandidateSlot(QueuedAdvanceSlot->PendingSlot, 0.0f);
+					InstanceData.bHasCandidateSlots = true;
+				}
+				// 既然有指定的候选对象或者是等待目标，不再发起全部异步查找
+				return EStateTreeRunStatus::Running;
+			}
 		}
 
 		if (InstanceData.bHasCandidateSlots)
@@ -161,6 +140,7 @@ EStateTreeRunStatus FMassFindQueueTailSmartObjectTask::Tick(FStateTreeExecutionC
 			return EStateTreeRunStatus::Running;
 		}
 
+		// 3. 所有情况都不满足时，发起异步排队队尾节点的检索
 		const FMassZoneGraphLaneLocationFragment* LaneLocation = Context.GetExternalDataPtr(LocationHandle);
 		const bool bLaneHasChanged = (LaneLocation && InstanceData.LastLane != LaneLocation->LaneHandle);
 		const bool bTimeForNextUpdate = World->GetTimeSeconds() > InstanceData.NextUpdate;
@@ -178,13 +158,6 @@ EStateTreeRunStatus FMassFindQueueTailSmartObjectTask::Tick(FStateTreeExecutionC
 				const FTransformFragment& TransformFragment = Context.GetExternalData(EntityTransformHandle);
 				InstanceData.SearchRequestID = Handler.FindCandidatesAsync(RequestingEntity, SOUser.UserTags, ActivityRequirements, TransformFragment.GetTransform().GetLocation());
 			}
-
-			//UE_LOG(LogTemp, Warning, TEXT("[QueueFind][SubmitRequest] EntitySN:%d RequestSet:%d LaneValid:%d NextUpdate:%.3f Now:%.3f"),
-			//	RequestingEntity.SerialNumber,
-			//	InstanceData.SearchRequestID.IsSet() ? 1 : 0,
-			//	(LaneLocation && LaneLocation->LaneHandle.IsValid()) ? 1 : 0,
-			//	InstanceData.NextUpdate,
-			//	World->GetTimeSeconds());
 		}
 	}
 	else

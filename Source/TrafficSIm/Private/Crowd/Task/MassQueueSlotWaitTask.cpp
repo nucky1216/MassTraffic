@@ -2,6 +2,7 @@
 
 #include "Crowd/CrowdSimSubsystem.h"
 #include "MassSignalSubsystem.h"
+#include "MassAIBehaviorTypes.h"
 #include "MassSmartObjectFragments.h"
 #include "MassSmartObjectHandler.h"
 #include "MassStateTreeExecutionContext.h"
@@ -13,7 +14,6 @@ bool FMassQueueSlotWaitTask::Link(FStateTreeLinker& Linker)
 	Linker.LinkExternalData(SmartObjectSubsystemHandle);
 	Linker.LinkExternalData(MassSignalSubsystemHandle);
 	Linker.LinkExternalData(SmartObjectUserHandle);
-	Linker.LinkExternalData(QueuedAdvanceSlotHandle);
 	return true;
 }
 
@@ -23,21 +23,25 @@ EStateTreeRunStatus FMassQueueSlotWaitTask::EnterState(FStateTreeExecutionContex
 	InstanceData.ElapsedTime = 0.f;
 	InstanceData.FinishReason = EQueueSlotWaitFinishReason::NotSet;
 
-	if (FMassQueuedAdvanceSlotFragment* QueuedAdvanceSlot = Context.GetExternalDataPtr(QueuedAdvanceSlotHandle))
-	{
-		QueuedAdvanceSlot->bHasPendingSlot = false;
-		QueuedAdvanceSlot->PendingSlot = FSmartObjectRequestResult();
-	}
-
 	const FMassStateTreeExecutionContext& MassContext = static_cast<FMassStateTreeExecutionContext&>(Context);
-	if (UCrowdSimSubsystem* CrowdSimSubsystem = Context.GetWorld()->GetSubsystem<UCrowdSimSubsystem>())
+	FMassSmartObjectUserFragment& SOUser = Context.GetExternalData(SmartObjectUserHandle);
+	USmartObjectSubsystem& SmartObjectSubsystem = Context.GetExternalData(SmartObjectSubsystemHandle);
+	UMassSignalSubsystem& SignalSubsystem = Context.GetExternalData(MassSignalSubsystemHandle);
+	const FMassSmartObjectHandler MassSmartObjectHandler(MassContext.GetEntityManager(), MassContext.GetEntitySubsystemExecutionContext(), SmartObjectSubsystem, SignalSubsystem);
+
+	// Ensure we are using the slot and valid InteractionHandle to support proper queue advancing.
+	if (InstanceData.ClaimedSlot.IsValid() && !SOUser.InteractionHandle.IsValid())
 	{
-		CrowdSimSubsystem->RegisterClaimedSlot(InstanceData.ClaimedSlot, MassContext.GetEntity());
+		if (!MassSmartObjectHandler.StartUsingSmartObject(MassContext.GetEntity(), SOUser, InstanceData.ClaimedSlot))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("QueueSlotWait: Entity %d failed to start using slot %d."), MassContext.GetEntity().SerialNumber, InstanceData.ClaimedSlot.SlotHandle.GetSlotIndex());
+			// If already failed, we might want to drop the Claim handle.
+			return EStateTreeRunStatus::Failed;
+		}
 	}
 
 	if (InstanceData.WaitDuration > 0.f)
 	{
-		UMassSignalSubsystem& SignalSubsystem = Context.GetExternalData(MassSignalSubsystemHandle);
 		SignalSubsystem.DelaySignalEntity(UE::Mass::Signals::StandTaskFinished, MassContext.GetEntity(), InstanceData.WaitDuration);
 	}
 
@@ -47,19 +51,40 @@ EStateTreeRunStatus FMassQueueSlotWaitTask::EnterState(FStateTreeExecutionContex
 void FMassQueueSlotWaitTask::ExitState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const
 {
 	const FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
+	FMassSmartObjectUserFragment& SOUser = Context.GetExternalData(SmartObjectUserHandle);
+
 	if (InstanceData.ClaimedSlot.IsValid())
 	{
-		FMassSmartObjectUserFragment& SOUser = Context.GetExternalData(SmartObjectUserHandle);
 		const FMassStateTreeExecutionContext& MassContext = static_cast<FMassStateTreeExecutionContext&>(Context);
 		USmartObjectSubsystem& SmartObjectSubsystem = Context.GetExternalData(SmartObjectSubsystemHandle);
 		UMassSignalSubsystem& SignalSubsystem = Context.GetExternalData(MassSignalSubsystemHandle);
 		const FMassSmartObjectHandler Handler(MassContext.GetEntityManager(), MassContext.GetEntitySubsystemExecutionContext(), SmartObjectSubsystem, SignalSubsystem);
-		Handler.ReleaseSmartObject(MassContext.GetEntity(), SOUser, InstanceData.ClaimedSlot);
-	}
 
-	if (UCrowdSimSubsystem* CrowdSimSubsystem = Context.GetWorld()->GetSubsystem<UCrowdSimSubsystem>())
-	{
-		CrowdSimSubsystem->UnregisterClaimedSlot(InstanceData.ClaimedSlot);
+		if (SmartObjectSubsystem.IsClaimedSmartObjectValid(InstanceData.ClaimedSlot))
+		{
+			// Add a check before releasing to see if it's the exact interaction handle.
+			if (SOUser.InteractionHandle == InstanceData.ClaimedSlot)
+			{
+				if (SOUser.InteractionStatus == EMassSmartObjectInteractionStatus::InProgress)
+				{
+					const EMassSmartObjectInteractionStatus NewStatus = Transition.TargetState.IsValid()
+						? EMassSmartObjectInteractionStatus::TaskCompleted
+						: EMassSmartObjectInteractionStatus::Aborted;
+
+					Handler.StopUsingSmartObject(MassContext.GetEntity(), SOUser, NewStatus);
+				}
+				else if (SOUser.InteractionStatus != EMassSmartObjectInteractionStatus::Unset)
+				{
+					SOUser.InteractionHandle.Invalidate();
+					SOUser.InteractionStatus = EMassSmartObjectInteractionStatus::Unset;
+				}
+			}
+
+			if(SmartObjectSubsystem.GetSlotState(InstanceData.ClaimedSlot.SlotHandle) != ESmartObjectSlotState::Free)
+			{
+				Handler.ReleaseSmartObject(MassContext.GetEntity(), SOUser, InstanceData.ClaimedSlot);
+			}
+		}
 	}
 }
 
@@ -70,100 +95,63 @@ EStateTreeRunStatus FMassQueueSlotWaitTask::Tick(FStateTreeExecutionContext& Con
 	USmartObjectSubsystem& SmartObjectSubsystem = Context.GetExternalData(SmartObjectSubsystemHandle);
 	UMassSignalSubsystem& SignalSubsystem = Context.GetExternalData(MassSignalSubsystemHandle);
 
-	InstanceData.ElapsedTime += DeltaTime;
-	const bool bTimedOut = InstanceData.WaitDuration > 0.f && InstanceData.ElapsedTime >= InstanceData.WaitDuration;
+	EStateTreeRunStatus Status = EStateTreeRunStatus::Failed;
 
-	bool bAdvanceRequested = false;
-	if (UCrowdSimSubsystem* CrowdSimSubsystem = Context.GetWorld()->GetSubsystem<UCrowdSimSubsystem>())
+	// Keep checking the interaction status similar to UseSmartObjectTask
+	FMassSmartObjectUserFragment& SOUser = Context.GetExternalData(SmartObjectUserHandle);
+	switch (SOUser.InteractionStatus)
 	{
-		bAdvanceRequested = CrowdSimSubsystem->ConsumeQueueAdvance(MassContext.GetEntity());
+	case EMassSmartObjectInteractionStatus::InProgress:
+		Status = EStateTreeRunStatus::Running;
+		break;
+	case EMassSmartObjectInteractionStatus::BehaviorCompleted:
+		Status = EStateTreeRunStatus::Succeeded;
+		break;
+	case EMassSmartObjectInteractionStatus::TaskCompleted:
+		Status = EStateTreeRunStatus::Failed;
+		break;
+	case EMassSmartObjectInteractionStatus::Aborted:
+		Status = EStateTreeRunStatus::Failed;
+		break;
+	case EMassSmartObjectInteractionStatus::Unset:
+		Status = EStateTreeRunStatus::Failed;
+		break;
+	default:
+		Status = EStateTreeRunStatus::Failed;
 	}
 
-	const bool bClaimStillValid = InstanceData.ClaimedSlot.IsValid() && SmartObjectSubsystem.IsClaimedSmartObjectValid(InstanceData.ClaimedSlot);
-	if (!bTimedOut && !bAdvanceRequested && bClaimStillValid)
+	if (Status == EStateTreeRunStatus::Running)
 	{
-		return EStateTreeRunStatus::Running;
-	}
+		InstanceData.ElapsedTime += DeltaTime;
+		const bool bTimedOut = InstanceData.WaitDuration > 0.f && InstanceData.ElapsedTime >= InstanceData.WaitDuration;
 
-	if (bAdvanceRequested)
-	{
-		InstanceData.FinishReason = EQueueSlotWaitFinishReason::AdvanceRequested;
-	}
-	else if (bTimedOut)
-	{
-		InstanceData.FinishReason = EQueueSlotWaitFinishReason::TimedOut;
-	}
-	else
-	{
-		InstanceData.FinishReason = EQueueSlotWaitFinishReason::ClaimInvalid;
-	}
+		const bool bClaimStillValid = InstanceData.ClaimedSlot.IsValid() && SmartObjectSubsystem.IsClaimedSmartObjectValid(InstanceData.ClaimedSlot);
 
-	if (FMassQueuedAdvanceSlotFragment* QueuedAdvanceSlot = Context.GetExternalDataPtr(QueuedAdvanceSlotHandle))
-	{
-		QueuedAdvanceSlot->bHasPendingSlot = false;
-		QueuedAdvanceSlot->PendingSlot = FSmartObjectRequestResult();
-
-		if (InstanceData.FinishReason == EQueueSlotWaitFinishReason::AdvanceRequested && InstanceData.ClaimedSlot.IsValid())
+		if (!bTimedOut && bClaimStillValid)
 		{
-			TArray<FSmartObjectSlotHandle> AllSlots;
-			SmartObjectSubsystem.GetAllSlots(InstanceData.ClaimedSlot.SmartObjectHandle, AllSlots);
-			const int32 CurrentSlotIndex = InstanceData.ClaimedSlot.SlotHandle.GetSlotIndex();
-
-			for (int32 SlotIndex = CurrentSlotIndex - 1; SlotIndex >= 0; --SlotIndex)
-			{
-				if (!AllSlots.IsValidIndex(SlotIndex))
-				{
-					continue;
-				}
-
-				const FSmartObjectSlotHandle CandidateSlotHandle = AllSlots[SlotIndex];
-				if (!SmartObjectSubsystem.CanBeClaimed(CandidateSlotHandle))
-				{
-					continue;
-				}
-
-				QueuedAdvanceSlot->PendingSlot = FSmartObjectRequestResult(InstanceData.ClaimedSlot.SmartObjectHandle, CandidateSlotHandle);
-				QueuedAdvanceSlot->bHasPendingSlot = true;
-				break;
-			}
-		}
-	}
-
-	FMassEntityHandle NextEntity;
-	if (const UCrowdSimSubsystem* CrowdSimSubsystem = Context.GetWorld()->GetSubsystem<UCrowdSimSubsystem>())
-	{
-		NextEntity = CrowdSimSubsystem->FindEntityOnNextSlot(InstanceData.ClaimedSlot);
-	}
-
-	if (UCrowdSimSubsystem* CrowdSimSubsystem = Context.GetWorld()->GetSubsystem<UCrowdSimSubsystem>())
-	{
-		CrowdSimSubsystem->UnregisterClaimedSlot(InstanceData.ClaimedSlot);
-	}
-	UE_LOG(LogTemp, Log, TEXT("Entity %d leaving queue slot %d. Reason=%d TimedOut: %d, AdvanceRequested: %d, ClaimValid: %d. NextEntity in queue is %d"),
-		MassContext.GetEntity().SerialNumber, InstanceData.ClaimedSlot.SlotHandle.GetSlotIndex(), static_cast<int32>(InstanceData.FinishReason), bTimedOut, bAdvanceRequested, bClaimStillValid, NextEntity.SerialNumber);
-
-	if (LeaveSignal != NAME_None)
-	{
-		SignalSubsystem.SignalEntity(LeaveSignal, MassContext.GetEntity());
-	}
-	SignalSubsystem.SignalEntity(UE::Mass::Signals::NewStateTreeTaskRequired, MassContext.GetEntity());
-
-	const bool bShouldNotifyNextToAdvance =
-		(InstanceData.FinishReason == EQueueSlotWaitFinishReason::TimedOut)
-		|| (InstanceData.FinishReason == EQueueSlotWaitFinishReason::AdvanceRequested);
-	if (NextEntity.IsSet() && bShouldNotifyNextToAdvance)
-	{
-		if (UCrowdSimSubsystem* CrowdSimSubsystem = Context.GetWorld()->GetSubsystem<UCrowdSimSubsystem>())
-		{
-			CrowdSimSubsystem->RequestQueueAdvance(NextEntity);
+			return EStateTreeRunStatus::Running;
 		}
 
-		if (AdvanceSignal != NAME_None)
+		if (bTimedOut)
 		{
-			SignalSubsystem.SignalEntity(AdvanceSignal, NextEntity);
+			InstanceData.FinishReason = EQueueSlotWaitFinishReason::TimedOut;
 		}
-		SignalSubsystem.SignalEntity(UE::Mass::Signals::NewStateTreeTaskRequired, NextEntity);
+		else
+		{
+			InstanceData.FinishReason = EQueueSlotWaitFinishReason::ClaimInvalid;
+		}
+
+		UE_LOG(LogTemp, Log, TEXT("QueueSlotWait: Entity %d leaving queue slot %d. Reason=%d TimedOut: %d, ClaimValid: %d."),
+			MassContext.GetEntity().SerialNumber, InstanceData.ClaimedSlot.SlotHandle.GetSlotIndex(), static_cast<int32>(InstanceData.FinishReason), bTimedOut, bClaimStillValid);
+
+		if (LeaveSignal != NAME_None)
+		{
+			SignalSubsystem.SignalEntity(LeaveSignal, MassContext.GetEntity());
+		}
+		SignalSubsystem.SignalEntity(UE::Mass::Signals::NewStateTreeTaskRequired, MassContext.GetEntity());
+
+		Status = EStateTreeRunStatus::Succeeded;
 	}
 
-	return EStateTreeRunStatus::Succeeded;
+	return Status;
 }
